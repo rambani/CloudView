@@ -6,6 +6,7 @@ import {
   getActivityId,
 } from './lib/redis';
 import { checkThresholds } from './lib/notifications';
+import { apnsService } from './lib/apns';
 
 export const config = {
   runtime: 'edge',
@@ -95,13 +96,26 @@ export default async function handler(req: Request) {
         // Mark notification as sent (expires in 24 hours)
         await redis.set(notificationKey, '1', { ex: 86400 });
 
-        // Log notification (in production, you'd send push notifications here)
-        console.log('Notification trigger:', {
+        // Send actual push notification to all devices in this region
+        console.log('📬 Notification trigger:', {
           region: report.region,
           category,
           message,
           count: category === 'total' ? activity.totalScans : activity.categories[category],
         });
+
+        // Send push notification via APNs
+        const sentCount = await apnsService.sendToRegion(report.region, {
+          title: message.title,
+          body: message.body,
+          data: {
+            category,
+            region: report.region,
+            count: (category === 'total' ? activity.totalScans : activity.categories[category]).toString(),
+          },
+        });
+
+        console.log(`✅ Sent notification to ${sentCount} devices in ${report.region}`);
 
         // Return notification info for client (optional)
         return Response.json({
@@ -110,6 +124,7 @@ export default async function handler(req: Request) {
             triggered: true,
             category,
             message,
+            sentTo: sentCount,
           },
         });
       }

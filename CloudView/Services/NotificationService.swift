@@ -1,11 +1,14 @@
 import Foundation
 import UserNotifications
+import UIKit
 
 class NotificationService: ObservableObject {
     @Published var notificationsEnabled = false
     @Published var notificationPermissionStatus: UNAuthorizationStatus = .notDetermined
+    @Published var deviceToken: String?
 
     private let notificationCenter = UNUserNotificationCenter.current()
+    private let backendURL = "https://cloud-view-backend.vercel.app/api/register-device"
 
     init() {
         checkNotificationAuthorization()
@@ -28,12 +31,37 @@ class NotificationService: ObservableObject {
                 self?.notificationsEnabled = granted
                 if granted {
                     print("Notification permission granted")
+                    // Register for remote notifications with APNs
+                    self?.registerForRemoteNotifications()
                 } else {
                     print("Notification permission denied: \(error?.localizedDescription ?? "Unknown error")")
                 }
                 self?.checkNotificationAuthorization()
             }
         }
+    }
+
+    // MARK: - Remote Notification Registration
+
+    func registerForRemoteNotifications() {
+        DispatchQueue.main.async {
+            UIApplication.shared.registerForRemoteNotifications()
+        }
+    }
+
+    func didRegisterForRemoteNotifications(deviceToken: Data) {
+        // Convert device token to string
+        let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
+        self.deviceToken = tokenString
+
+        print("📱 Device token: \(tokenString)")
+
+        // Send token to backend (with user's region if available)
+        registerDeviceWithBackend(token: tokenString)
+    }
+
+    func didFailToRegisterForRemoteNotifications(error: Error) {
+        print("❌ Failed to register for remote notifications: \(error.localizedDescription)")
     }
 
     // MARK: - Local Notification (for testing)
@@ -55,17 +83,53 @@ class NotificationService: ObservableObject {
         }
     }
 
-    // MARK: - Push Notification Handling (Phase 2)
+    // MARK: - Backend Registration
 
-    // This will be implemented when backend is ready
-    // For now, just the structure
+    private func registerDeviceWithBackend(token: String, region: String? = nil) {
+        guard let url = URL(string: backendURL) else {
+            print("❌ Invalid backend URL")
+            return
+        }
 
-    func registerForPushNotifications() {
-        // Will register with APNs when backend is ready
-        // Requires:
-        // 1. Backend server to handle device tokens
-        // 2. APNs certificate from Apple Developer
-        // 3. Server sends push notifications based on regional activity
+        let payload: [String: Any] = [
+            "deviceToken": token,
+            "region": region ?? "Unknown",
+            "notificationsEnabled": true
+        ]
+
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: payload) else {
+            print("❌ Failed to encode device registration")
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = jsonData
+
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                print("❌ Error registering device: \(error.localizedDescription)")
+                return
+            }
+
+            if let httpResponse = response as? HTTPURLResponse {
+                if httpResponse.statusCode == 200 {
+                    print("✅ Device registered with backend successfully")
+                } else {
+                    print("❌ Device registration failed with status: \(httpResponse.statusCode)")
+                }
+            }
+        }
+
+        task.resume()
+    }
+
+    func updateRegion(_ region: String) {
+        // Update region when location becomes available
+        if let token = deviceToken {
+            registerDeviceWithBackend(token: token, region: region)
+        }
     }
 }
 

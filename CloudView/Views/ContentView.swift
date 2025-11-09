@@ -4,7 +4,7 @@ import RealityKit
 struct ContentView: View {
     @StateObject private var arViewModel = ARViewModel()
     @StateObject private var weatherService = WeatherService()
-    @StateObject private var notificationService = NotificationService()
+    @EnvironmentObject var notificationService: NotificationService
     @State private var showInstructions = true
     @State private var hasShownInstructions = false
 
