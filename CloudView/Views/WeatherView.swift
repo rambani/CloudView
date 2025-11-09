@@ -103,12 +103,12 @@ struct QuirkyWeatherStatement: View {
             return "Point your phone at the clouds to create magical drawings! ✨"
         }
 
-        let trend = analyzeWeatherTrend()
+        let (trend, _) = analyzeWeatherTrend()
         return generateQuirkyStatement(for: drawing, trend: trend)
     }
 
-    private func analyzeWeatherTrend() -> WeatherTrend {
-        guard !forecast.isEmpty else { return .stable }
+    private func analyzeWeatherTrend() -> (trend: WeatherTrend, details: WeatherDetails) {
+        guard !forecast.isEmpty else { return (.stable, WeatherDetails()) }
 
         let currentTemp = weather.main.temp
         let futureTemps = forecast.prefix(6).map { $0.main.temp }
@@ -119,17 +119,25 @@ struct QuirkyWeatherStatement: View {
         }
 
         if willRain {
-            return .rainComing
+            // Find when rain starts
+            if let rainItem = forecast.first(where: { item in
+                item.weather.first?.main.lowercased().contains("rain") ?? false
+            }) {
+                let hoursUntilRain = rainItem.date.timeIntervalSince(Date()) / 3600
+                return (.rainComing, WeatherDetails(hoursAway: Int(hoursUntilRain)))
+            }
         }
 
         // Check temperature trend
         let avgFutureTemp = futureTemps.reduce(0, +) / Double(futureTemps.count)
         let tempDiff = avgFutureTemp - currentTemp
+        let maxTemp = futureTemps.max() ?? currentTemp
 
         if tempDiff > 5 {
-            return .gettingWarmer
+            return (.gettingWarmer, WeatherDetails(targetTemp: Int(maxTemp), tempChange: Int(tempDiff)))
         } else if tempDiff < -5 {
-            return .gettingColder
+            let minTemp = futureTemps.min() ?? currentTemp
+            return (.gettingColder, WeatherDetails(targetTemp: Int(minTemp), tempChange: Int(abs(tempDiff))))
         }
 
         // Check for storms
@@ -139,71 +147,116 @@ struct QuirkyWeatherStatement: View {
         }
 
         if isStormy {
-            return .stormyComing
+            if let stormItem = forecast.first(where: { item in
+                let condition = item.weather.first?.main.lowercased() ?? ""
+                return condition.contains("storm") || condition.contains("thunder")
+            }) {
+                let hoursUntilStorm = stormItem.date.timeIntervalSince(Date()) / 3600
+                return (.stormyComing, WeatherDetails(hoursAway: Int(hoursUntilStorm)))
+            }
         }
 
         // Check wind
         if weather.wind.speed > 10 {
-            return .windy
+            return (.windy, WeatherDetails(windSpeed: Int(weather.wind.speed)))
         }
 
-        return .stable
+        return (.stable, WeatherDetails(currentTemp: Int(currentTemp)))
     }
 
     private func generateQuirkyStatement(for drawing: String, trend: WeatherTrend) -> String {
         let drawingLower = drawing.lowercased()
+        let details = analyzeWeatherTrend().details
 
         // Generate contextual statements based on drawing and weather
         switch trend {
         case .rainComing:
-            if drawingLower.contains("penguin") || drawingLower.contains("duck") {
-                return "This \(drawing) won't mind the rain, but you might want an umbrella! ☔"
+            let hours = details.hoursAway ?? 2
+            let timeStr = hours <= 1 ? "within the hour" : "in the next \(hours) hours"
+
+            if drawingLower.contains("surf") || drawingLower.contains("swim") {
+                return "Better grab your board - waves incoming with rain \(timeStr)! 🌊"
             } else if drawingLower.contains("cat") || drawingLower.contains("lion") || drawingLower.contains("tiger") {
-                return "This \(drawing) won't be happy about the incoming rain! 🌧️"
-            } else if drawingLower.contains("surf") || drawingLower.contains("swim") {
-                return "Perfect timing! This \(drawing) is ready for extra water! 🌊"
+                return "Time to find some shelter - rain drops expected \(timeStr)! 🌧️"
+            } else if drawingLower.contains("paint") || drawingLower.contains("draw") || drawingLower.contains("art") {
+                return "Better pack up the easel - precipitation \(timeStr)! 🎨"
+            } else if drawingLower.contains("garden") || drawingLower.contains("flower") || drawingLower.contains("plant") {
+                return "The garden will love this - rain showers \(timeStr)! 🌱"
             } else {
-                return "Better grab an umbrella - this \(drawing) sees rain clouds ahead! ☔"
+                return "Umbrellas recommended - rain moving in \(timeStr)! ☔"
             }
 
         case .gettingWarmer:
-            if drawingLower.contains("snow") || drawingLower.contains("polar") || drawingLower.contains("penguin") {
-                return "Things are heating up - this \(drawing) might need some ice! ☀️"
+            let targetTemp = details.targetTemp ?? 75
+            let change = details.tempChange ?? 8
+
+            if drawingLower.contains("snow") || drawingLower.contains("ski") || drawingLower.contains("polar") {
+                return "Time to get off the slopes - temperatures climbing to \(targetTemp)° soon! ⛷️"
+            } else if drawingLower.contains("ice") || drawingLower.contains("frost") {
+                return "Things are melting fast - warming up \(change) degrees to \(targetTemp)°! 🧊"
             } else if drawingLower.contains("surf") || drawingLower.contains("beach") || drawingLower.contains("swim") {
-                return "Perfect weather ahead for this \(drawing)! 🌞"
+                return "Perfect beach weather incoming - heating up to \(targetTemp)°! 🏖️"
+            } else if drawingLower.contains("ice cream") || drawingLower.contains("popsicle") {
+                return "Now we're talking - temperatures rising to \(targetTemp)°! 🍦"
             } else {
-                return "Warming up nicely! This \(drawing) approves! ☀️"
+                return "Warming trend ahead - expect \(targetTemp)° by this afternoon! ☀️"
             }
 
         case .gettingColder:
-            if drawingLower.contains("snow") || drawingLower.contains("ski") || drawingLower.contains("polar") {
-                return "This \(drawing) is thrilled - it's getting chilly! ❄️"
+            let targetTemp = details.targetTemp ?? 45
+            let change = details.tempChange ?? 8
+
+            if drawingLower.contains("snow") || drawingLower.contains("ski") {
+                return "Perfect slope conditions - dropping \(change) degrees to \(targetTemp)°! ❄️"
+            } else if drawingLower.contains("hot") || drawingLower.contains("fire") || drawingLower.contains("summer") {
+                return "Time to cool off - temperatures falling to \(targetTemp)° today! 🧊"
             } else if drawingLower.contains("tropical") || drawingLower.contains("beach") {
-                return "Uh oh, cooling down! This \(drawing) might need a sweater! 🧥"
+                return "Grab a jacket - cooling down \(change) degrees to \(targetTemp)°! 🧥"
+            } else if drawingLower.contains("coffee") || drawingLower.contains("tea") || drawingLower.contains("cocoa") {
+                return "Perfect sipping weather - dropping to a crisp \(targetTemp)°! ☕"
             } else {
-                return "Bundle up! This \(drawing) feels the cold coming! ❄️"
+                return "Bundle up - temperatures falling \(change) degrees to \(targetTemp)°! 🧣"
             }
 
         case .stormyComing:
-            if drawingLower.contains("dragon") || drawingLower.contains("wizard") {
-                return "This \(drawing) is summoning a storm! ⚡"
-            } else if drawingLower.contains("sail") || drawingLower.contains("boat") {
-                return "Rough seas ahead! This \(drawing) should head to shore! ⛈️"
+            let hours = details.hoursAway ?? 3
+            let timeStr = hours <= 1 ? "within the hour" : "in \(hours) hours"
+
+            if drawingLower.contains("wizard") || drawingLower.contains("magic") {
+                return "Powerful magic brewing - thunderstorms expected \(timeStr)! ⚡"
+            } else if drawingLower.contains("sail") || drawingLower.contains("boat") || drawingLower.contains("ship") {
+                return "Head to port - rough seas with storms \(timeStr)! ⛵"
+            } else if drawingLower.contains("dragon") || drawingLower.contains("lightning") {
+                return "Electricity in the air - lightning strikes \(timeStr)! 🐉"
+            } else if drawingLower.contains("kite") || drawingLower.contains("fly") {
+                return "Ground all aircraft - thunderstorms rolling in \(timeStr)! ⛈️"
             } else {
-                return "Storm's brewing! This \(drawing) sees lightning ahead! ⚡"
+                return "Seek shelter - severe weather approaching \(timeStr)! ⚡"
             }
 
         case .windy:
-            if drawingLower.contains("kite") || drawingLower.contains("fly") || drawingLower.contains("bird") {
-                return "Perfect flying weather for this \(drawing)! 🪁"
-            } else if drawingLower.contains("sail") {
-                return "Great winds for this \(drawing)! ⛵"
+            let windSpeed = details.windSpeed ?? 15
+
+            if drawingLower.contains("kite") || drawingLower.contains("fly") {
+                return "Excellent launch conditions - winds at \(windSpeed)mph! 🪁"
+            } else if drawingLower.contains("sail") || drawingLower.contains("boat") {
+                return "Full sails ahead - strong winds at \(windSpeed)mph! ⛵"
+            } else if drawingLower.contains("sing") || drawingLower.contains("music") || drawingLower.contains("guitar") {
+                return "Perfect singing weather - breezy winds at \(windSpeed)mph! 🎸"
+            } else if drawingLower.contains("dance") || drawingLower.contains("ballet") {
+                return "Graceful conditions - winds swirling at \(windSpeed)mph! 💃"
             } else {
-                return "Hold on tight - this \(drawing) feels the wind! 💨"
+                return "Hold onto your hat - winds gusting to \(windSpeed)mph! 💨"
             }
 
         case .stable:
-            return "Beautiful weather for this \(drawing)! ✨"
+            let temp = details.currentTemp ?? Int(weather.main.temp)
+
+            if drawingLower.contains("perfect") || drawingLower.contains("paradise") {
+                return "Living up to the name - beautiful \(temp)° conditions! ✨"
+            } else {
+                return "Gorgeous conditions holding steady at \(temp)°! ☀️"
+            }
         }
     }
 
@@ -229,6 +282,14 @@ struct QuirkyWeatherStatement: View {
         }
         .frame(maxWidth: .infinity)
     }
+}
+
+struct WeatherDetails {
+    var hoursAway: Int?
+    var targetTemp: Int?
+    var tempChange: Int?
+    var windSpeed: Int?
+    var currentTemp: Int?
 }
 
 enum WeatherTrend {
