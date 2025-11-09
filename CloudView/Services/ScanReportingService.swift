@@ -7,9 +7,9 @@ import CoreLocation
 class ScanReportingService {
     static let shared = ScanReportingService()
 
-    // Backend API endpoint (to be configured when backend is deployed)
-    private let backendURL = "https://your-backend-api.com/api/scans/report"
-    private var isEnabled = false // Disabled until backend is ready
+    // Backend API endpoint (configured with Vercel deployment)
+    private var backendURL = "https://cloud-view-backend.vercel.app/api/report-scan"
+    private var isEnabled = true // Backend is now live!
 
     private init() {}
 
