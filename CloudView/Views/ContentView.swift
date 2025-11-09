@@ -91,6 +91,44 @@ struct ContentView: View {
                 }
                 .padding(.top, 120)
             }
+
+            // Current drawing indicator
+            if let drawingName = arViewModel.currentDrawingName {
+                VStack {
+                    Spacer()
+                        .frame(height: 120)
+
+                    HStack(spacing: 12) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 16))
+                            .foregroundColor(.yellow)
+
+                        Text(drawingName)
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .foregroundColor(.white)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+                    .background(
+                        BlurView(style: .systemUltraThinMaterialDark)
+                            .clipShape(Capsule())
+                    )
+                    .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
+                    .transition(.opacity.combined(with: .scale))
+
+                    Spacer()
+                }
+                .onAppear {
+                    // Auto-dismiss after 4 seconds
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            arViewModel.currentDrawingName = nil
+                        }
+                    }
+                }
+            }
         }
         .onAppear {
             // Fetch weather when app appears

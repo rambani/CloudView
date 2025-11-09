@@ -6,6 +6,7 @@ import Combine
 class ARViewModel: ObservableObject {
     @Published var isProcessing = false
     @Published var detectedClouds: [CloudRegion] = []
+    @Published var currentDrawingName: String?
 
     var arView: ARView?
     private let cloudDetector = CloudDetector()
@@ -104,6 +105,9 @@ class ARViewModel: ObservableObject {
         guard let concept = drawingLibrary.selectDrawing(for: cloudShape) else {
             return
         }
+
+        // Update UI with drawing name
+        currentDrawingName = concept.name
 
         // Create AR anchor at cloud position
         let raycastQuery = arView.makeRaycast(

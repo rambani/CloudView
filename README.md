@@ -26,30 +26,117 @@ An innovative AR iOS app that brings clouds to life! Point your phone at the sky
 - Perfect for sparking creativity and imagination
 - Educational weather information
 
-## Drawing Library
+## Modular Drawing System
 
-The app includes these delightful concepts:
+The app uses an **advanced modular component system** that creates virtually unlimited unique combinations:
 
-**Round Shapes:**
-- Turtle on Skateboard
-- Happy Sun with rays
-- Sleeping Cat
-- Bubble Tea Cup
+### 🎭 Subjects (100+ options)
 
-**Elongated Shapes:**
-- Dragon Eating Burger
-- Dachshund in Sweater
-- Surfing Penguin
+**Animals:**
+- **Domestic**: Cat, Dog, Hamster, Rabbit, Parrot, Goldfish, Turtle
+- **Farm**: Cow, Pig, Sheep, Chicken, Horse, Duck, Goat, Llama
+- **Wild**: Lion, Tiger, Elephant, Giraffe, Zebra, Monkey, Panda, Koala, Kangaroo, Sloth
+- **Ocean**: Dolphin, Whale, Octopus, Starfish, Crab, Seahorse, Jellyfish, Penguin, Seal, Otter
+- **Arctic**: Polar Bear, Arctic Fox, Walrus, Reindeer, Snow Owl
+- **Desert**: Camel, Meerkat, Snake, Scorpion, Lizard
+- **Forest**: Bear, Deer, Fox, Owl, Squirrel, Raccoon, Hedgehog, Beaver
+- **Insects**: Butterfly, Ladybug, Bee, Caterpillar, Snail, Dragonfly
 
-**Wide Shapes:**
-- Flying Saucer with alien
-- Whale with Umbrella
-- Cloud Castle
+**Mythical Creatures:**
+- Unicorn, Dragon, Phoenix, Pegasus, Griffin, Fairy, Mermaid, Yeti
 
-**Tall Shapes:**
-- Giraffe in Scarf
-- Rocket Ship with astronaut
-- Ice Cream Cone with cherry
+**Dinosaurs:**
+- T-Rex, Triceratops, Brontosaurus, Stegosaurus, Pterodactyl, Velociraptor
+
+**People & Professions:**
+- Astronaut, Chef, Artist, Scientist, Firefighter, Teacher, Doctor, Musician, Athlete, Explorer
+
+**World Landmarks:**
+- Pyramid, Eiffel Tower, Big Ben, Statue of Liberty, Taj Mahal, Great Wall, Colosseum, Christ the Redeemer
+
+**Vehicles:**
+- Car, Airplane, Boat, Submarine, Hot Air Balloon, Rocket, Train, Bicycle, Scooter, Helicopter
+
+**Food Characters:**
+- Apple, Banana, Pizza, Donut, Cupcake, Ice Cream, Cookie, Watermelon, Strawberry, Taco
+
+**Nature & Fantasy:**
+- Sun, Moon, Star, Cloud, Rainbow, Tree, Flower, Mountain, Volcano
+- Castle, Treasure, Magic Wand, Crown, Crystal Ball, Flying Carpet
+
+**Tech:**
+- Robot, Computer, Satellite, Drone
+
+### 🎯 Actions (70+ activities)
+
+**Sports:**
+- Skateboarding, Surfing, Skiing, Snowboarding, Rollerblading
+- Playing Basketball/Soccer/Tennis/Baseball/Golf
+- Swimming, Diving, Sailing, Kayaking, Paddleboarding
+- Cycling, Running, Jumping, Dancing, Gymnastics
+
+**Arts & Creativity:**
+- Painting, Drawing, Playing Guitar/Piano/Drums, Singing
+- Sculpting, Photography, Writing, Reading
+
+**Everyday Activities:**
+- Cooking, Baking, Gardening, Fishing, Camping
+- Flying Kite, Blowing Bubbles, Playing Chess, Juggling
+
+**Adventure & Exploration:**
+- Exploring, Climbing, Hiking, Treasure Hunting
+- Space Exploring, Deep Sea Diving, Flying, Soaring
+- Paragliding, Bungee Jumping, Ziplining
+
+**Magical:**
+- Casting Spells, Riding Broomstick, Granting Wishes, Breathing Fire
+
+**Relaxing:**
+- Sleeping, Meditating, Sunbathing, Stargazing, Cloud Watching
+- Drinking Tea, Eating Snacks, Napping
+
+**Playful:**
+- Playing with Toys, Hopscotch, Hide and Seek
+- Splashing in Puddles, Making Snow Angels, Catching Fireflies
+
+**Work & Career:**
+- Saving the Day, Performing Surgery, Conducting Experiments
+- Teaching Class, Fighting Fire, Launching Rocket
+
+### 🎩 Accessories (90+ items)
+
+**Headwear**: Wizard Hat, Baseball Cap, Crown, Cowboy Hat, Party Hat, Chef Hat, Pirate Hat, Beret, Beanie
+
+**Eyewear**: Sunglasses, Glasses, Goggles, Monocle, 3D Glasses, Heart Glasses
+
+**Items**: Umbrella, Balloon, Kite, Telescope, Magnifying Glass, Camera, Paintbrush, Book, Map, Compass
+
+**Sports Gear**: Skateboard, Surfboard, Skis, Snowboard, Bicycle, Basketball, Soccer Ball, Tennis Racket
+
+**Musical**: Guitar, Drums, Piano, Trumpet, Violin, Ukulele
+
+**Magical**: Crystal Ball, Spell Book, Potion Bottle, Magic Staff, Fairy Dust
+
+**Fun**: Bubbles, Confetti, Flowers, Butterfly, Sparkles, Hearts, Stars, Rainbow
+
+### 😊 Expressions (10 moods)
+Happy, Excited, Silly, Peaceful, Determined, Curious, Sleepy, Joyful, Surprised, Cool
+
+### 🎲 Total Combinations
+
+With smart combination rules that ensure kid-safe, sensible pairings:
+- **100+ subjects** × **70+ actions** × **90+ accessories** × **10 expressions**
+- **= Millions of possible combinations!**
+- **Repetition Prevention**: Tracks last 50 drawings to avoid repeats
+
+### Example Combinations
+
+- "Happy Penguin Surfing with Sunglasses and Balloon"
+- "Silly Dragon Eating Snacks with Wizard Hat"
+- "Excited Astronaut Exploring Space with Telescope and Flag"
+- "Peaceful Unicorn Cloud Watching with Sparkles"
+- "Cool T-Rex Playing Basketball with Baseball Cap"
+- "Joyful Giraffe in Scarf Dancing with Hearts"
 
 ## Requirements
 
@@ -141,27 +228,42 @@ Each drawing is composed of:
 
 ## Customization
 
-### Adding New Drawings
+### Adding New Subjects, Actions, or Accessories
 
-1. Open `CloudView/Models/DrawingLibrary.swift`
-2. Create a new static function following this pattern:
+The modular system makes it incredibly easy to expand:
 
+1. **Add a New Subject:**
 ```swift
-static func createYourDrawing() -> DrawingConcept {
-    DrawingConcept(
-        name: "Your Drawing Name",
-        paths: [
-            DrawingPath(points: [
-                CGPoint(x: 0.5, y: 0.5),
-                // Add more points...
-            ], closed: false, order: 1)
-        ],
-        preferredShape: .round // or .elongated, .wide, .tall
-    )
+// In DrawingLibrary.swift, add to DrawingSubject enum:
+enum DrawingSubject: String, CaseIterable {
+    // ... existing subjects
+    case yourNewAnimal // Add your new subject here
 }
 ```
 
-3. Add it to the `drawings` array in the initializer
+2. **Add a New Action:**
+```swift
+// Add to DrawingAction enum:
+enum DrawingAction: String, CaseIterable {
+    // ... existing actions
+    case yourNewActivity // Add your new action here
+}
+```
+
+3. **Add a New Accessory:**
+```swift
+// Add to DrawingAccessory enum:
+enum DrawingAccessory: String, CaseIterable {
+    // ... existing accessories
+    case yourNewAccessory // Add your new accessory here
+}
+```
+
+The system will automatically:
+- Generate unique combinations
+- Apply smart compatibility rules
+- Create procedural drawings
+- Avoid repetition
 
 ### Adjusting Detection Sensitivity
 
