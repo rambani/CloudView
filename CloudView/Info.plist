@@ -6,6 +6,8 @@
 	<string>CloudView needs camera access to detect clouds and create AR drawings in the sky</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>CloudView needs your location to provide accurate weather information</string>
+	<key>NSMotionUsageDescription</key>
+	<string>CloudView uses motion sensors to detect when your camera is pointed at the sky</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

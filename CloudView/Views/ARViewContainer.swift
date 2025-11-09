@@ -50,5 +50,20 @@ struct ARViewContainer: UIViewRepresentable {
             // Pass frame to view model for cloud detection
             viewModel.processFrame(frame)
         }
+
+        func session(_ session: ARSession, didFailWithError error: Error) {
+            // Handle AR session errors
+            viewModel.handleARSessionError(error)
+        }
+
+        func sessionWasInterrupted(_ session: ARSession) {
+            // Handle session interruption (e.g., phone call, app switch)
+            viewModel.handleARSessionInterruption()
+        }
+
+        func sessionInterruptionEnded(_ session: ARSession) {
+            // Resume session after interruption ends
+            viewModel.handleARSessionInterruptionEnded()
+        }
     }
 }

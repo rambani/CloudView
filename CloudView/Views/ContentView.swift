@@ -126,6 +126,27 @@ struct ContentView: View {
                         MagicalProcessingIndicator()
                     }
 
+                case .permissionsNeeded:
+                    ContextualHintView(
+                        icon: "lock.shield.fill",
+                        message: "Permissions needed",
+                        color: .red
+                    )
+
+                case .arNotSupported:
+                    ContextualHintView(
+                        icon: "xmark.circle.fill",
+                        message: "AR not supported",
+                        color: .red
+                    )
+
+                case .arSessionError:
+                    ContextualHintView(
+                        icon: "exclamationmark.triangle.fill",
+                        message: "AR session error",
+                        color: .orange
+                    )
+
                 case .pointAtSky:
                     ContextualHintView(
                         icon: "arrow.up.circle.fill",

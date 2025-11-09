@@ -107,6 +107,15 @@ struct QuirkyWeatherStatement: View {
     private var quirkyStatement: String {
         // Check app state first for contextual messages
         switch appState {
+        case .permissionsNeeded:
+            return "Camera and location access needed to detect clouds 📸"
+
+        case .arNotSupported:
+            return "This device doesn't support AR - try a newer iPhone or iPad 📱"
+
+        case .arSessionError:
+            return "AR session paused - try restarting the app or checking permissions ⚠️"
+
         case .pointAtSky:
             return "Point your camera at the sky to find clouds ☁️"
 
@@ -355,6 +364,12 @@ struct AppStateMessage: View {
 
     private var message: String {
         switch appState {
+        case .permissionsNeeded:
+            return "Camera and location access needed to detect clouds 📸"
+        case .arNotSupported:
+            return "This device doesn't support AR - try a newer iPhone or iPad 📱"
+        case .arSessionError:
+            return "AR session paused - try restarting the app ⚠️"
         case .pointAtSky:
             return "Point your camera at the sky to find clouds ☁️"
         case .nightTime:

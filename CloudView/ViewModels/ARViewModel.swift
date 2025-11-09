@@ -13,6 +13,9 @@ enum AppState {
     case nightTime // Too dark / nighttime
     case movingTooFast // Camera moving too much
     case noWeatherData // Can't determine weather context
+    case permissionsNeeded // Camera/Location permissions required
+    case arNotSupported // Device doesn't support ARKit
+    case arSessionError // AR session failed or interrupted
 }
 
 class ARViewModel: ObservableObject {
@@ -46,12 +49,39 @@ class ARViewModel: ObservableObject {
     private var stableFrameCount = 0
     private let requiredStableFrames = 15 // ~0.5 seconds at 30fps
 
+    // Performance limits
+    private let maxDrawings = 20 // Max concurrent drawings to prevent memory issues
+    private var drawingCreationCount = 0 // Track total drawings created
+
+    // Permission tracking
+    @Published var hasRequiredPermissions = false
+
     init() {
         startMotionTracking()
+        checkARSupport()
     }
 
     deinit {
         motionManager.stopDeviceMotionUpdates()
+    }
+
+    // MARK: - Permissions & AR Support
+
+    private func checkARSupport() {
+        // Check if device supports ARKit
+        if !ARWorldTrackingConfiguration.isSupported {
+            DispatchQueue.main.async {
+                self.appState = .arNotSupported
+            }
+        }
+    }
+
+    func checkPermissions() {
+        // In production, you'd check actual permission status
+        // For now, assume they'll be requested by system
+        // ARKit automatically requests camera permission
+        // Location will be requested by WeatherService
+        hasRequiredPermissions = true
     }
 
     // MARK: - Motion Tracking
@@ -193,6 +223,17 @@ class ARViewModel: ObservableObject {
     private func createDrawingForCloud(_ cloudShape: CloudShape, frame: ARFrame) async {
         guard let arView = arView else { return }
 
+        // Performance limit: Check max drawings
+        if activeDrawings.count >= maxDrawings {
+            // Remove oldest drawing to make room
+            if let oldestDrawing = activeDrawings.values.min(by: { _ , _ in true }) {
+                oldestDrawing.anchor.removeFromParent()
+                if let key = activeDrawings.first(where: { $0.value.anchor == oldestDrawing.anchor })?.key {
+                    activeDrawings.removeValue(forKey: key)
+                }
+            }
+        }
+
         // Check if we already have a drawing near this location
         let cloudCenter = cloudShape.center
         let hasNearbyDrawing = activeDrawings.values.contains { drawing in
@@ -255,6 +296,11 @@ class ARViewModel: ObservableObject {
         )
 
         activeDrawings[cloudRegion.id] = drawingAnchor
+        drawingCreationCount += 1
+
+        // Trigger haptic feedback for drawing creation
+        let impact = UIImpactFeedbackGenerator(style: .medium)
+        impact.impactOccurred()
     }
 
     private func screenPointToWorldDirection(_ screenPoint: CGPoint, camera: ARCamera) -> simd_float3 {
@@ -301,5 +347,32 @@ class ARViewModel: ObservableObject {
             drawing.anchor.removeFromParent()
         }
         activeDrawings.removeAll()
+        drawingCreationCount = 0
+    }
+
+    // MARK: - AR Session Management
+
+    func handleARSessionError(_ error: Error) {
+        print("AR Session Error: \(error.localizedDescription)")
+        DispatchQueue.main.async {
+            self.appState = .arSessionError
+        }
+    }
+
+    func handleARSessionInterruption() {
+        print("AR Session was interrupted")
+        DispatchQueue.main.async {
+            self.appState = .arSessionError
+        }
+    }
+
+    func handleARSessionInterruptionEnded() {
+        print("AR Session interruption ended")
+        DispatchQueue.main.async {
+            // Resume normal scanning if it was previously working
+            if self.appState == .arSessionError {
+                self.appState = .scanning
+            }
+        }
     }
 }
