@@ -1,4 +1,3 @@
-import { NextRequest, NextResponse } from 'next/server';
 import {
   redis,
   RegionalActivity,
@@ -10,14 +9,14 @@ export const config = {
   runtime: 'edge',
 };
 
-export default async function handler(req: NextRequest) {
+export default async function handler(req: Request) {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new NextResponse(null, { status: 204 });
+    return new Response(null, { status: 204 });
   }
 
   if (req.method !== 'GET') {
-    return NextResponse.json(
+    return Response.json(
       { error: 'Method not allowed' },
       { status: 405 }
     );
@@ -29,7 +28,7 @@ export default async function handler(req: NextRequest) {
     const date = searchParams.get('date') || getTodayDate();
 
     if (!region) {
-      return NextResponse.json(
+      return Response.json(
         { error: 'Missing required parameter: region' },
         { status: 400 }
       );
@@ -40,7 +39,7 @@ export default async function handler(req: NextRequest) {
 
     if (!activity) {
       // No activity found for this region/date
-      return NextResponse.json({
+      return Response.json({
         region,
         date,
         categories: {},
@@ -48,10 +47,10 @@ export default async function handler(req: NextRequest) {
       });
     }
 
-    return NextResponse.json(activity);
+    return Response.json(activity);
   } catch (error) {
     console.error('Error getting regional activity:', error);
-    return NextResponse.json(
+    return Response.json(
       { error: 'Internal server error' },
       { status: 500 }
     );

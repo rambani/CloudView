@@ -1,4 +1,3 @@
-import { NextRequest, NextResponse } from 'next/server';
 import {
   redis,
   AnonymousScanReport,
@@ -21,14 +20,14 @@ const VALID_CATEGORIES = [
   'nature',
 ];
 
-export default async function handler(req: NextRequest) {
+export default async function handler(req: Request) {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new NextResponse(null, { status: 204 });
+    return new Response(null, { status: 204 });
   }
 
   if (req.method !== 'POST') {
-    return NextResponse.json(
+    return Response.json(
       { error: 'Method not allowed' },
       { status: 405 }
     );
@@ -39,7 +38,7 @@ export default async function handler(req: NextRequest) {
 
     // Validate input
     if (!report.region || !report.category || !report.timestamp) {
-      return NextResponse.json(
+      return Response.json(
         { error: 'Missing required fields: region, category, timestamp' },
         { status: 400 }
       );
@@ -47,7 +46,7 @@ export default async function handler(req: NextRequest) {
 
     // Validate category
     if (!VALID_CATEGORIES.includes(report.category)) {
-      return NextResponse.json(
+      return Response.json(
         { error: `Invalid category. Must be one of: ${VALID_CATEGORIES.join(', ')}` },
         { status: 400 }
       );
@@ -105,7 +104,7 @@ export default async function handler(req: NextRequest) {
         });
 
         // Return notification info for client (optional)
-        return NextResponse.json({
+        return Response.json({
           success: true,
           notification: {
             triggered: true,
@@ -116,10 +115,10 @@ export default async function handler(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true });
+    return Response.json({ success: true });
   } catch (error) {
     console.error('Error reporting scan:', error);
-    return NextResponse.json(
+    return Response.json(
       { error: 'Internal server error' },
       { status: 500 }
     );
