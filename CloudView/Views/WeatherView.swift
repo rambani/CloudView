@@ -43,7 +43,10 @@ struct SwipeableWeatherPanel: View {
                 // Content
                 if isExpanded {
                     // Full weather panel
-                    if weatherService.isLoading {
+                    if weatherService.locationPermissionDenied {
+                        LocationDeniedView(weatherService: weatherService)
+                            .transition(.opacity)
+                    } else if weatherService.isLoading {
                         MagicalLoadingView()
                     } else if let weather = weatherService.currentWeather {
                         MagicalWeatherContentView(weather: weather, forecast: weatherService.forecast)
@@ -53,7 +56,10 @@ struct SwipeableWeatherPanel: View {
                     }
                 } else {
                     // Collapsed: Just quirky statement
-                    if let weather = weatherService.currentWeather {
+                    if weatherService.locationPermissionDenied {
+                        LocationDeniedCollapsedView()
+                            .transition(.opacity)
+                    } else if let weather = weatherService.currentWeather {
                         QuirkyWeatherStatement(
                             drawingName: arViewModel.lastDrawingName,
                             weather: weather,
@@ -1075,6 +1081,102 @@ struct TemperatureChart: View {
 
             return CGPoint(x: x, y: y)
         }
+    }
+}
+
+// Location permission denied views
+struct LocationDeniedView: View {
+    @ObservedObject var weatherService: WeatherService
+
+    var body: some View {
+        VStack(spacing: 24) {
+            // Icon and message
+            VStack(spacing: 16) {
+                Image(systemName: "location.slash.fill")
+                    .font(.system(size: 56))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.orange, .red],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+
+                VStack(spacing: 8) {
+                    Text("Location Access Needed")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+
+                    Text("Weather requires your location to show accurate forecasts. The app still works for cloud drawings!")
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.8))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+                }
+            }
+            .padding(.top, 40)
+
+            // Open Settings button
+            Button(action: {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }) {
+                HStack(spacing: 10) {
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 16))
+
+                    Text("Open Settings")
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 14)
+                .background(
+                    LinearGradient(
+                        colors: [.orange, .red],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .clipShape(Capsule())
+                .overlay(
+                    Capsule()
+                        .strokeBorder(.white.opacity(0.3), lineWidth: 1)
+                )
+            }
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.vertical, 20)
+    }
+}
+
+struct LocationDeniedCollapsedView: View {
+    var body: some View {
+        VStack(spacing: 0) {
+            Spacer()
+
+            HStack(spacing: 12) {
+                Image(systemName: "location.slash.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.orange, .red],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+
+                Text("Weather unavailable - enjoy cloud watching! ☁️")
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white.opacity(0.9))
+            }
+            .padding(.horizontal, 32)
+            .padding(.vertical, 16)
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 

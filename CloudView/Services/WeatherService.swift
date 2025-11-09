@@ -46,11 +46,13 @@ struct ForecastData: Codable {
     }
 }
 
-class WeatherService: ObservableObject {
+class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var currentWeather: WeatherData?
     @Published var forecast: [ForecastData.ForecastItem] = []
     @Published var isLoading = false
     @Published var error: String?
+    @Published var locationPermissionDenied = false
+    @Published var locationPermissionStatus: CLAuthorizationStatus = .notDetermined
 
     private let apiKey = "YOUR_API_KEY_HERE" // Users will need to add their own key
     private let baseURL = "https://api.openweathermap.org/data/2.5"
@@ -58,13 +60,66 @@ class WeatherService: ObservableObject {
     private var locationManager: CLLocationManager?
     private var cancellables = Set<AnyCancellable>()
 
-    init() {
+    override init() {
+        super.init()
         setupLocationManager()
     }
 
     private func setupLocationManager() {
         locationManager = CLLocationManager()
-        locationManager?.requestWhenInUseAuthorization()
+        locationManager?.delegate = self
+        locationManager?.desiredAccuracy = kCLLocationAccuracyKilometer // Don't need exact location
+
+        // Check initial authorization status
+        checkLocationAuthorization()
+    }
+
+    private func checkLocationAuthorization() {
+        guard let locationManager = locationManager else { return }
+
+        locationPermissionStatus = locationManager.authorizationStatus
+
+        switch locationManager.authorizationStatus {
+        case .notDetermined:
+            // First time - request permission
+            locationManager.requestWhenInUseAuthorization()
+
+        case .restricted, .denied:
+            // Permission denied - use mock data
+            locationPermissionDenied = true
+            error = "Location access denied. Weather info unavailable."
+            useMockData() // Fallback to mock data
+
+        case .authorizedWhenInUse, .authorizedAlways:
+            // Permission granted - fetch location
+            locationPermissionDenied = false
+            requestLocationAndFetchWeather()
+
+        @unknown default:
+            break
+        }
+    }
+
+    // MARK: - CLLocationManagerDelegate
+
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        checkLocationAuthorization()
+    }
+
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let location = locations.first else { return }
+        fetchWeather(for: location)
+
+        // Stop updating location to save battery
+        manager.stopUpdatingLocation()
+    }
+
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        self.error = "Location error: \(error.localizedDescription)"
+        isLoading = false
+
+        // Fallback to mock data
+        useMockData()
     }
 
     func fetchWeather(for location: CLLocation) {
@@ -128,13 +183,28 @@ class WeatherService: ObservableObject {
     }
 
     func requestLocationAndFetchWeather() {
-        guard let location = locationManager?.location else {
-            // Try to get location
-            locationManager?.requestLocation()
-            return
-        }
+        guard let locationManager = locationManager else { return }
 
-        fetchWeather(for: location)
+        // Check if we have permission
+        if locationManager.authorizationStatus == .authorizedWhenInUse ||
+           locationManager.authorizationStatus == .authorizedAlways {
+
+            // Start location updates
+            locationManager.startUpdatingLocation()
+        } else if locationManager.authorizationStatus == .notDetermined {
+            // Request permission first
+            locationManager.requestWhenInUseAuthorization()
+        } else {
+            // Permission denied - use mock data
+            locationPermissionDenied = true
+            error = "Location access denied. Weather info unavailable."
+            useMockData()
+        }
+    }
+
+    func retryLocationPermission() {
+        // This will prompt the user to go to Settings if permission was denied
+        checkLocationAuthorization()
     }
 
     // Helper to get weather emoji
