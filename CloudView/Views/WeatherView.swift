@@ -57,9 +57,14 @@ struct SwipeableWeatherPanel: View {
                         QuirkyWeatherStatement(
                             drawingName: arViewModel.lastDrawingName,
                             weather: weather,
-                            forecast: weatherService.forecast
+                            forecast: weatherService.forecast,
+                            appState: arViewModel.appState
                         )
                         .transition(.opacity)
+                    } else {
+                        // No weather data but show app state
+                        AppStateMessage(appState: arViewModel.appState)
+                            .transition(.opacity)
                     }
                 }
             }
@@ -92,19 +97,79 @@ struct DragHandle: View {
     }
 }
 
-// Quirky weather statement based on drawing + forecast
+// Quirky weather statement based on drawing + forecast + app state
 struct QuirkyWeatherStatement: View {
     let drawingName: String?
     let weather: WeatherData
     let forecast: [ForecastData.ForecastItem]
+    let appState: AppState
 
     private var quirkyStatement: String {
-        guard let drawing = drawingName else {
+        // Check app state first for contextual messages
+        switch appState {
+        case .pointAtSky:
+            return "Point your camera at the sky to find clouds ☁️"
+
+        case .nightTime:
+            return "Cloud drawings work best during daylight hours 🌙"
+
+        case .movingTooFast:
+            return "Hold steady - let me scan the clouds for you! 📸"
+
+        case .noCloudsClearSky:
+            return generateClearSkyMessage()
+
+        case .noCloudsOvercast:
+            return "Waiting for some interesting cloud formations to appear..."
+
+        case .noWeatherData:
             return "Point your phone at the clouds to create magical drawings! ✨"
+
+        case .scanning:
+            // Check if we have a drawing
+            if let drawing = drawingName {
+                let (trend, _) = analyzeWeatherTrend()
+                return generateQuirkyStatement(for: drawing, trend: trend)
+            } else {
+                // No drawing yet, but scanning - check weather conditions
+                return generateNoCloudWeatherMessage()
+            }
+        }
+    }
+
+    private func generateClearSkyMessage() -> String {
+        let temp = Int(weather.main.temp)
+        let condition = weather.weather.first?.main.lowercased() ?? "clear"
+
+        if condition.contains("clear") || condition.contains("sun") {
+            if temp > 75 {
+                return "Beautiful clear skies at \(temp)° - enjoy the sunshine! ☀️"
+            } else if temp > 60 {
+                return "Gorgeous blue skies at \(temp)° - perfect day outside! 🌤️"
+            } else {
+                return "Crisp clear day at \(temp)° - not a cloud in sight! ☀️"
+            }
+        } else {
+            return "Clear conditions at \(temp)° - waiting for clouds to appear! 🌤️"
+        }
+    }
+
+    private func generateNoCloudWeatherMessage() -> String {
+        guard let condition = weather.weather.first?.main.lowercased() else {
+            return "Scanning the skies - hold steady! ☁️"
         }
 
-        let (trend, _) = analyzeWeatherTrend()
-        return generateQuirkyStatement(for: drawing, trend: trend)
+        let temp = Int(weather.main.temp)
+
+        if condition.contains("clear") || condition.contains("sun") {
+            return "Beautiful clear skies at \(temp)° - clouds make the best canvases! ☀️"
+        } else if condition.contains("rain") {
+            return "Rain at \(temp)° - clouds are hiding today, check back soon! 🌧️"
+        } else if condition.contains("cloud") {
+            return "Cloudy skies at \(temp)° - searching for distinct formations..."
+        } else {
+            return "Scanning at \(temp)° - point at the sky to find clouds! ☁️"
+        }
     }
 
     private func analyzeWeatherTrend() -> (trend: WeatherTrend, details: WeatherDetails) {
@@ -266,6 +331,48 @@ struct QuirkyWeatherStatement: View {
 
             // Quirky statement at bottom
             Text(quirkyStatement)
+                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [.white.opacity(0.95), .white.opacity(0.8)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .multilineTextAlignment(.center)
+                .lineLimit(3)
+                .padding(.horizontal, 32)
+                .padding(.vertical, 16)
+                .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+// Simple app state message when no weather data available
+struct AppStateMessage: View {
+    let appState: AppState
+
+    private var message: String {
+        switch appState {
+        case .pointAtSky:
+            return "Point your camera at the sky to find clouds ☁️"
+        case .nightTime:
+            return "Cloud drawings work best during daylight hours 🌙"
+        case .movingTooFast:
+            return "Hold steady - let me scan the clouds for you! 📸"
+        case .noCloudsClearSky, .noCloudsOvercast:
+            return "Head outside and point at the sky to begin! ✨"
+        case .noWeatherData, .scanning:
+            return "Point your phone at the clouds to create magical drawings! ✨"
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Spacer()
+
+            Text(message)
                 .font(.system(size: 15, weight: .semibold, design: .rounded))
                 .foregroundStyle(
                     LinearGradient(

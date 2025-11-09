@@ -114,13 +114,44 @@ struct ContentView: View {
                     .padding(.bottom, 40)
             }
 
-            // Processing indicator - Enhanced magical version
-            if arViewModel.isProcessing {
-                VStack {
-                    MagicalProcessingIndicator()
-                    Spacer()
+            // Contextual status indicators
+            VStack {
+                Spacer()
+                    .frame(height: 120)
+
+                // Show different indicators based on app state
+                switch arViewModel.appState {
+                case .scanning:
+                    if arViewModel.isProcessing {
+                        MagicalProcessingIndicator()
+                    }
+
+                case .pointAtSky:
+                    ContextualHintView(
+                        icon: "arrow.up.circle.fill",
+                        message: "Point camera upward",
+                        color: .cyan
+                    )
+
+                case .nightTime:
+                    ContextualHintView(
+                        icon: "moon.stars.fill",
+                        message: "Best in daylight",
+                        color: .indigo
+                    )
+
+                case .movingTooFast:
+                    ContextualHintView(
+                        icon: "hand.raised.fill",
+                        message: "Hold steady",
+                        color: .orange
+                    )
+
+                default:
+                    EmptyView()
                 }
-                .padding(.top, 120)
+
+                Spacer()
             }
 
             // Current drawing indicator - Glassmorphic version
@@ -240,10 +271,17 @@ struct InstructionsView: View {
 
             VStack(alignment: .leading, spacing: 20) {
                 InstructionRow(
+                    icon: "sun.max.fill",
+                    iconColor: .orange,
+                    title: "Best in Daylight",
+                    description: "Cloud drawings work best during daytime hours"
+                )
+
+                InstructionRow(
                     icon: "camera.fill",
                     iconColor: .blue,
                     title: "Point at the Sky",
-                    description: "Aim your camera at clouds in the sky"
+                    description: "Aim your camera upward at clouds in the sky"
                 )
 
                 InstructionRow(
@@ -257,12 +295,12 @@ struct InstructionsView: View {
                     icon: "paintbrush.fill",
                     iconColor: .purple,
                     title: "Watch the Magic",
-                    description: "AI will create a fun drawing from the cloud shape"
+                    description: "AI creates whimsical drawings from cloud shapes"
                 )
 
                 InstructionRow(
                     icon: "sparkles",
-                    iconColor: .orange,
+                    iconColor: .cyan,
                     title: "Explore",
                     description: "Pan around to discover more clouds and drawings"
                 )
@@ -438,6 +476,57 @@ struct MagicalProcessingIndicator: View {
         .shadow(color: .cyan.opacity(0.2), radius: 12, x: 0, y: 6)
         .onAppear {
             isAnimating = true
+        }
+    }
+}
+
+struct ContextualHintView: View {
+    let icon: String
+    let message: String
+    let color: Color
+    @State private var isPulsing = false
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [color, color.opacity(0.8)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .scaleEffect(isPulsing ? 1.1 : 1.0)
+
+            Text(message)
+                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .foregroundColor(.white)
+        }
+        .padding(.horizontal, 22)
+        .padding(.vertical, 14)
+        .background(
+            Capsule()
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    Capsule()
+                        .strokeBorder(
+                            LinearGradient(
+                                colors: [color.opacity(0.4), color.opacity(0.2)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1.5
+                        )
+                )
+        )
+        .shadow(color: color.opacity(0.2), radius: 12, x: 0, y: 6)
+        .onAppear {
+            withAnimation(
+                Animation.easeInOut(duration: 1.5).repeatForever(autoreverses: true)
+            ) {
+                isPulsing = true
+            }
         }
     }
 }

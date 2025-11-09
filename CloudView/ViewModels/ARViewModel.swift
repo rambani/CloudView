@@ -2,12 +2,25 @@ import SwiftUI
 import RealityKit
 import ARKit
 import Combine
+import CoreMotion
+
+// App state for contextual feedback
+enum AppState {
+    case scanning // Normal scanning mode
+    case noCloudsClearSky // No clouds but weather is clear/sunny
+    case noCloudsOvercast // No clouds but weather is cloudy/rainy
+    case pointAtSky // Camera not pointing upward
+    case nightTime // Too dark / nighttime
+    case movingTooFast // Camera moving too much
+    case noWeatherData // Can't determine weather context
+}
 
 class ARViewModel: ObservableObject {
     @Published var isProcessing = false
     @Published var detectedClouds: [CloudRegion] = []
     @Published var currentDrawingName: String?
     @Published var lastDrawingName: String? // Persists for quirky weather statements
+    @Published var appState: AppState = .scanning
 
     var arView: ARView?
     private let cloudDetector = CloudDetector()
@@ -15,15 +28,65 @@ class ARViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var activeDrawings: [UUID: DrawingAnchor] = [:]
 
+    // Motion tracking for camera orientation
+    private let motionManager = CMMotionManager()
+    private var currentCameraAngle: Double = 0 // Angle from horizontal
+
     // Frame processing throttle
     private var lastProcessTime: Date = .distantPast
     private let processingInterval: TimeInterval = 1.0 // Process every 1 second
+
+    // No cloud detection tracking
+    private var consecutiveNoCloudFrames = 0
+    private let noCloudThreshold = 5 // 5 seconds without clouds
 
     // Camera stability tracking
     private var cameraStabilityTimer: Timer?
     private var currentCloudRegion: CloudRegion?
     private var stableFrameCount = 0
     private let requiredStableFrames = 15 // ~0.5 seconds at 30fps
+
+    init() {
+        startMotionTracking()
+    }
+
+    deinit {
+        motionManager.stopDeviceMotionUpdates()
+    }
+
+    // MARK: - Motion Tracking
+
+    private func startMotionTracking() {
+        guard motionManager.isDeviceMotionAvailable else { return }
+
+        motionManager.deviceMotionUpdateInterval = 0.2 // Update 5 times per second
+        motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, error in
+            guard let motion = motion, error == nil else { return }
+
+            // Calculate angle from horizontal
+            // gravity.z is the component pointing away from device screen
+            // When phone is flat (horizontal), z ≈ -1
+            // When phone is vertical pointing up, z ≈ 0
+            let pitch = motion.attitude.pitch // Rotation around x-axis
+            let angle = pitch * 180 / .pi // Convert to degrees
+
+            self?.currentCameraAngle = angle
+        }
+    }
+
+    private func isCameraPointingAtSky() -> Bool {
+        // Phone should be tilted upward (positive pitch)
+        // Typically > 30 degrees from horizontal indicates pointing at sky
+        return currentCameraAngle > 30
+    }
+
+    // MARK: - Time of Day Check
+
+    private func isDaytime() -> Bool {
+        let hour = Calendar.current.component(.hour, from: Date())
+        // Consider 6 AM to 8 PM as daytime
+        return hour >= 6 && hour < 20
+    }
 
     struct CloudRegion: Identifiable {
         let id = UUID()
@@ -60,22 +123,59 @@ class ARViewModel: ObservableObject {
 
         defer { isProcessing = false }
 
+        // Check time of day first
+        if !isDaytime() {
+            appState = .nightTime
+            consecutiveNoCloudFrames = 0
+            stableFrameCount = 0
+            return
+        }
+
+        // Check camera orientation
+        if !isCameraPointingAtSky() {
+            appState = .pointAtSky
+            consecutiveNoCloudFrames = 0
+            stableFrameCount = 0
+            return
+        }
+
         // Use Vision to detect bright regions (potential clouds)
         let cloudShapes = await cloudDetector.detectClouds(in: frame.capturedImage)
 
         // Check camera stability
         let isStable = isCameraStable(frame)
 
-        if isStable, let primaryCloud = cloudShapes.first {
-            stableFrameCount += 1
-
-            // If camera has been stable long enough, create drawing
-            if stableFrameCount >= requiredStableFrames {
-                await createDrawingForCloud(primaryCloud, frame: frame)
-                stableFrameCount = 0
-            }
-        } else {
+        if !isStable {
+            appState = .movingTooFast
             stableFrameCount = 0
+            return
+        }
+
+        // Check if we found clouds
+        if cloudShapes.isEmpty {
+            consecutiveNoCloudFrames += 1
+
+            // After 5 seconds of no clouds, update state
+            if consecutiveNoCloudFrames >= noCloudThreshold {
+                // State will be determined by weather panel (clear sky vs overcast)
+                // For now, set to scanning and let weather panel provide context
+                appState = .scanning
+            }
+            stableFrameCount = 0
+        } else {
+            // Found clouds - reset counter and process normally
+            consecutiveNoCloudFrames = 0
+            appState = .scanning
+
+            if let primaryCloud = cloudShapes.first {
+                stableFrameCount += 1
+
+                // If camera has been stable long enough, create drawing
+                if stableFrameCount >= requiredStableFrames {
+                    await createDrawingForCloud(primaryCloud, frame: frame)
+                    stableFrameCount = 0
+                }
+            }
         }
     }
 
