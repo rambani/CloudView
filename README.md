@@ -4,11 +4,14 @@ An innovative AR iOS app that brings clouds to life! Point your phone at the sky
 
 ## Features
 
-### 🎨 AI-Powered Cloud Drawings
-- **Smart Cloud Detection**: Uses Vision framework to detect cloud shapes in real-time
-- **Creative Illustrations**: 12+ unique, cute, and funny hand-drawn concepts
+### 🎨 AI-Powered Cloud Drawings (Truly Whimsical!)
+- **Real Cloud Contour Tracing**: Uses Vision framework to extract the ACTUAL outline of clouds
+- **Shape-Adaptive Drawing**: Drawings literally use the cloud's real shape as the base - not generic templates!
+- **Intelligent Feature Placement**: Adds ears, tails, wings, etc. that extend FROM the cloud's actual edges
+- **Smart Expression Mapping**: Eyes and mouth positioned perfectly on each unique cloud shape
+- **Millions of Combinations**: 100+ subjects × 70+ actions × 90+ accessories × 10 expressions
 - **Animated Drawing**: Lines slowly trace out over 2-3 seconds for a magical effect
-- **Shape Matching**: AI intelligently matches cloud shapes to appropriate drawings
+- **Never Repeats**: Tracks last 50 combinations to ensure fresh content every time
 
 ### 🌍 Persistent AR Experience
 - **Constellation Effect**: Drawings stay anchored in the sky as you move around
@@ -203,8 +206,8 @@ weatherService.requestLocationAndFetchWeather()
 ### Core Components
 
 - **ARViewModel**: Manages AR session, cloud detection, and drawing placement
-- **CloudDetector**: Uses Vision framework for cloud region detection
-- **DrawingLibrary**: Collection of hand-drawn vector paths
+- **CloudDetector**: Extracts ACTUAL cloud contours using Vision framework
+- **DrawingLibrary**: Modular system with 100+ subjects, 70+ actions, 90+ accessories
 - **AnimatedDrawing**: Handles line-by-line drawing animation
 - **WeatherService**: Fetches current weather and forecasts
 - **ARViewContainer**: SwiftUI wrapper for RealityKit ARView
@@ -213,18 +216,28 @@ weatherService.requestLocationAndFetchWeather()
 
 - **ARKit**: World tracking and AR anchor management
 - **RealityKit**: 3D rendering and entity management
-- **Vision**: Cloud detection using contour and brightness analysis
+- **Vision**: Advanced contour detection to extract cloud outlines
 - **CoreLocation**: Location services for weather
 - **SwiftUI**: Modern declarative UI
 - **Combine**: Reactive programming for weather data
 
-### Drawing System
+### Cloud-Aware Drawing System (The Magic!)
 
-Each drawing is composed of:
-- **Paths**: Series of CGPoints defining the shape
-- **Animation Order**: Sequential drawing of each path
-- **3D Mesh Generation**: Converts 2D paths to 3D line meshes
-- **Progressive Animation**: Lines appear gradually over time
+This is what makes CloudView truly special:
+
+1. **Contour Extraction**: Vision framework detects the actual cloud outline (up to 100 points)
+2. **Normalization**: Cloud contours normalized to 0-1 space within bounding box
+3. **Adaptive Base**: The cloud's REAL outline becomes the drawing's body/outline
+4. **Intelligent Features**:
+   - **Animals**: Ears placed at cloud's top, tail extends from rightmost point
+   - **Ocean Creatures**: Fins extend from cloud's sides
+   - **Mythical**: Wings extend from sides, horn from top
+   - **Dinosaurs**: Spikes along cloud's top edge
+   - **Vehicles**: Wheels at cloud's bottom
+5. **Smart Expression**: Eyes and mouth positioned in cloud's center-top region
+6. **Context-Aware Accessories**: Hats on top, glasses across face, balloons from edges
+
+**Result**: Every cloud's unique shape creates a truly unique drawing. A round puffy cloud becomes a round penguin. An elongated wispy cloud becomes a long dragon. The drawings feel MAGICAL because they actually trace the cloud!
 
 ## Customization
 

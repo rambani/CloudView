@@ -437,19 +437,311 @@ struct ModularDrawingConcept {
         return "\(expression.displayName) \(subject.displayName)"
     }
 
-    // Generate paths for this concept (procedurally generated based on components)
-    func generatePaths() -> [DrawingConcept.DrawingPath] {
-        // This will generate simple geometric representations
-        // In a production app, you'd have more sophisticated path generation
+    // Generate paths for this concept - NOW USING ACTUAL CLOUD SHAPE!
+    func generatePaths(adaptedTo cloudShape: CloudShape) -> [DrawingConcept.DrawingPath] {
         var paths: [DrawingConcept.DrawingPath] = []
 
-        // Base subject body
-        paths.append(contentsOf: generateSubjectPaths())
+        // Use the cloud's actual contour as the base outline!
+        if !cloudShape.normalizedContour.isEmpty {
+            // Create main body from cloud contour
+            paths.append(DrawingConcept.DrawingPath(
+                points: cloudShape.normalizedContour,
+                closed: true,
+                order: 1
+            ))
 
-        // Add expression (eyes, mouth)
+            // Add features that work WITH the cloud shape
+            paths.append(contentsOf: generateCloudAdaptedFeatures(cloudShape: cloudShape))
+
+            // Add expression (eyes, mouth) positioned intelligently on cloud
+            paths.append(contentsOf: generateCloudAdaptedExpression(cloudShape: cloudShape))
+
+            // Add accessories positioned around the cloud
+            for (index, accessory) in accessories.prefix(2).enumerated() {
+                paths.append(contentsOf: generateCloudAdaptedAccessory(accessory, cloudShape: cloudShape, position: index))
+            }
+        } else {
+            // Fallback to generic procedural generation
+            paths.append(contentsOf: generateSubjectPaths())
+            paths.append(contentsOf: generateExpressionPaths())
+
+            for (index, accessory) in accessories.prefix(2).enumerated() {
+                paths.append(contentsOf: generateAccessoryPaths(accessory, position: index))
+            }
+        }
+
+        return paths
+    }
+
+    // Generate paths that adapt to the cloud's actual shape
+    private func generateCloudAdaptedFeatures(cloudShape: CloudShape) -> [DrawingConcept.DrawingPath] {
+        var paths: [DrawingConcept.DrawingPath] = []
+
+        // Add internal details based on subject type
+        switch subject.category {
+        case .domesticAnimal, .wildAnimal, .farmAnimal, .forestAnimal, .arcticAnimal, .desertAnimal, .jungleAnimal:
+            // Add animal ears/tail that extend from cloud outline
+            paths.append(contentsOf: generateAnimalFeaturesOnCloud(cloudShape))
+
+        case .oceanAnimal:
+            // Add fins/tail from cloud
+            paths.append(contentsOf: generateOceanFeaturesOnCloud(cloudShape))
+
+        case .mythical:
+            // Add wings/horns from cloud
+            paths.append(contentsOf: generateMythicalFeaturesOnCloud(cloudShape))
+
+        case .dinosaur:
+            // Add spikes/tail from cloud
+            paths.append(contentsOf: generateDinosaurFeaturesOnCloud(cloudShape))
+
+        case .vehicle:
+            // Add wheels/wings from cloud
+            paths.append(contentsOf: generateVehicleFeaturesOnCloud(cloudShape))
+
+        default:
+            break
+        }
+
+        return paths
+    }
+
+    private func generateAnimalFeaturesOnCloud(_ cloudShape: CloudShape) -> [DrawingConcept.DrawingPath] {
+        var paths: [DrawingConcept.DrawingPath] = []
+
+        // Find the topmost point of the cloud for ears
+        if let topPoint = cloudShape.normalizedContour.max(by: { $0.y < $1.y }) {
+            // Ear 1 (left)
+            paths.append(DrawingConcept.DrawingPath(points: [
+                CGPoint(x: topPoint.x - 0.15, y: topPoint.y),
+                CGPoint(x: topPoint.x - 0.12, y: topPoint.y - 0.15),
+                CGPoint(x: topPoint.x - 0.08, y: topPoint.y)
+            ], closed: false, order: 2))
+
+            // Ear 2 (right)
+            paths.append(DrawingConcept.DrawingPath(points: [
+                CGPoint(x: topPoint.x + 0.08, y: topPoint.y),
+                CGPoint(x: topPoint.x + 0.12, y: topPoint.y - 0.15),
+                CGPoint(x: topPoint.x + 0.15, y: topPoint.y)
+            ], closed: false, order: 3))
+        }
+
+        // Find the rightmost point for a tail
+        if let rightPoint = cloudShape.normalizedContour.max(by: { $0.x < $1.x }) {
+            paths.append(DrawingConcept.DrawingPath(points: [
+                rightPoint,
+                CGPoint(x: rightPoint.x + 0.15, y: rightPoint.y + 0.05),
+                CGPoint(x: rightPoint.x + 0.2, y: rightPoint.y - 0.05)
+            ], closed: false, order: 4))
+        }
+
+        return paths
+    }
+
+    private func generateOceanFeaturesOnCloud(_ cloudShape: CloudShape) -> [DrawingConcept.DrawingPath] {
+        var paths: [DrawingConcept.DrawingPath] = []
+
+        // Add fins extending from cloud sides
+        if let leftPoint = cloudShape.normalizedContour.min(by: { $0.x < $1.x }) {
+            paths.append(DrawingConcept.DrawingPath(points: [
+                leftPoint,
+                CGPoint(x: leftPoint.x - 0.1, y: leftPoint.y + 0.05),
+                CGPoint(x: leftPoint.x - 0.08, y: leftPoint.y + 0.12)
+            ], closed: false, order: 2))
+        }
+
+        if let rightPoint = cloudShape.normalizedContour.max(by: { $0.x < $1.x }) {
+            paths.append(DrawingConcept.DrawingPath(points: [
+                rightPoint,
+                CGPoint(x: rightPoint.x + 0.1, y: rightPoint.y - 0.05),
+                CGPoint(x: rightPoint.x + 0.08, y: rightPoint.y - 0.12)
+            ], closed: false, order: 3))
+        }
+
+        return paths
+    }
+
+    private func generateMythicalFeaturesOnCloud(_ cloudShape: CloudShape) -> [DrawingConcept.DrawingPath] {
+        var paths: [DrawingConcept.DrawingPath] = []
+
+        // Add wings or horn from cloud
+        if let topPoint = cloudShape.normalizedContour.max(by: { $0.y < $1.y }) {
+            // Magical horn/unicorn horn
+            paths.append(DrawingConcept.DrawingPath(points: [
+                topPoint,
+                CGPoint(x: topPoint.x, y: topPoint.y - 0.2)
+            ], closed: false, order: 2))
+        }
+
+        // Add wings from sides
+        if let leftPoint = cloudShape.normalizedContour.min(by: { $0.x < $1.x }) {
+            paths.append(DrawingConcept.DrawingPath(points: [
+                leftPoint,
+                CGPoint(x: leftPoint.x - 0.15, y: leftPoint.y - 0.1),
+                CGPoint(x: leftPoint.x - 0.2, y: leftPoint.y),
+                CGPoint(x: leftPoint.x - 0.15, y: leftPoint.y + 0.1)
+            ], closed: false, order: 3))
+        }
+
+        if let rightPoint = cloudShape.normalizedContour.max(by: { $0.x < $1.x }) {
+            paths.append(DrawingConcept.DrawingPath(points: [
+                rightPoint,
+                CGPoint(x: rightPoint.x + 0.15, y: rightPoint.y - 0.1),
+                CGPoint(x: rightPoint.x + 0.2, y: rightPoint.y),
+                CGPoint(x: rightPoint.x + 0.15, y: rightPoint.y + 0.1)
+            ], closed: false, order: 4))
+        }
+
+        return paths
+    }
+
+    private func generateDinosaurFeaturesOnCloud(_ cloudShape: CloudShape) -> [DrawingConcept.DrawingPath] {
+        var paths: [DrawingConcept.DrawingPath] = []
+
+        // Add spikes along the top of the cloud
+        let topPoints = cloudShape.normalizedContour.filter { $0.y < 0.3 }.sorted { $0.x < $1.x }
+
+        for (index, point) in topPoints.enumerated() where index % 3 == 0 {
+            paths.append(DrawingConcept.DrawingPath(points: [
+                point,
+                CGPoint(x: point.x, y: point.y - 0.1)
+            ], closed: false, order: 2 + index))
+        }
+
+        return paths
+    }
+
+    private func generateVehicleFeaturesOnCloud(_ cloudShape: CloudShape) -> [DrawingConcept.DrawingPath] {
+        var paths: [DrawingConcept.DrawingPath] = []
+
+        // Add wheels/windows along bottom
+        if let bottomY = cloudShape.normalizedContour.max(by: { $0.y < $1.y })?.y {
+            // Wheels
+            paths.append(DrawingConcept.DrawingPath(points: [
+                CGPoint(x: 0.3, y: bottomY),
+                CGPoint(x: 0.32, y: bottomY + 0.05),
+                CGPoint(x: 0.3, y: bottomY + 0.08),
+                CGPoint(x: 0.28, y: bottomY + 0.05)
+            ], closed: true, order: 2))
+
+            paths.append(DrawingConcept.DrawingPath(points: [
+                CGPoint(x: 0.7, y: bottomY),
+                CGPoint(x: 0.72, y: bottomY + 0.05),
+                CGPoint(x: 0.7, y: bottomY + 0.08),
+                CGPoint(x: 0.68, y: bottomY + 0.05)
+            ], closed: true, order: 3))
+        }
+
+        return paths
+    }
+
+    private func generateCloudAdaptedExpression(cloudShape: CloudShape) -> [DrawingConcept.DrawingPath] {
+        var paths: [DrawingConcept.DrawingPath] = []
+
+        // Find the center-top region of the cloud for the face
+        let centerX: CGFloat = 0.5
+        let faceY: CGFloat = 0.3 // Upper portion of cloud
+
+        // Eyes
+        paths.append(DrawingConcept.DrawingPath(points: [
+            CGPoint(x: centerX - 0.12, y: faceY),
+            CGPoint(x: centerX - 0.10, y: faceY)
+        ], closed: false, order: 10))
+
+        paths.append(DrawingConcept.DrawingPath(points: [
+            CGPoint(x: centerX + 0.10, y: faceY),
+            CGPoint(x: centerX + 0.12, y: faceY)
+        ], closed: false, order: 11))
+
+        // Mouth based on expression
+        let mouthY: CGFloat = faceY + 0.15
+
+        switch expression {
+        case .happy, .joyful, .excited:
+            paths.append(DrawingConcept.DrawingPath(points: [
+                CGPoint(x: centerX - 0.10, y: mouthY),
+                CGPoint(x: centerX, y: mouthY + 0.08),
+                CGPoint(x: centerX + 0.10, y: mouthY)
+            ], closed: false, order: 12))
+        case .silly:
+            paths.append(DrawingConcept.DrawingPath(points: [
+                CGPoint(x: centerX - 0.10, y: mouthY),
+                CGPoint(x: centerX - 0.05, y: mouthY + 0.05),
+                CGPoint(x: centerX, y: mouthY),
+                CGPoint(x: centerX + 0.05, y: mouthY + 0.05),
+                CGPoint(x: centerX + 0.10, y: mouthY)
+            ], closed: false, order: 12))
+        default:
+            paths.append(DrawingConcept.DrawingPath(points: [
+                CGPoint(x: centerX - 0.08, y: mouthY),
+                CGPoint(x: centerX + 0.08, y: mouthY)
+            ], closed: false, order: 12))
+        }
+
+        return paths
+    }
+
+    private func generateCloudAdaptedAccessory(_ accessory: DrawingAccessory, cloudShape: CloudShape, position: Int) -> [DrawingConcept.DrawingPath] {
+        let offset = CGFloat(position) * 0.15
+
+        // Find appropriate position on cloud for this accessory
+        guard let topPoint = cloudShape.normalizedContour.max(by: { $0.y < $1.y }) else {
+            return []
+        }
+
+        switch accessory {
+        case .wizardHat, .baseballCap, .crown, .partyHat, .chefHat:
+            // Hat on top of cloud
+            return [DrawingConcept.DrawingPath(points: [
+                CGPoint(x: topPoint.x - 0.1, y: topPoint.y - 0.05),
+                CGPoint(x: topPoint.x, y: topPoint.y - 0.2),
+                CGPoint(x: topPoint.x + 0.1, y: topPoint.y - 0.05)
+            ], closed: false, order: 20 + position)]
+
+        case .sunglasses, .glasses:
+            // Glasses around eyes
+            return [DrawingConcept.DrawingPath(points: [
+                CGPoint(x: 0.38, y: 0.30),
+                CGPoint(x: 0.45, y: 0.30),
+                CGPoint(x: 0.55, y: 0.30),
+                CGPoint(x: 0.62, y: 0.30)
+            ], closed: false, order: 20 + position)]
+
+        case .balloon:
+            // Balloon floating above cloud
+            guard let leftPoint = cloudShape.normalizedContour.min(by: { $0.x < $1.x }) else {
+                return []
+            }
+            return [
+                DrawingConcept.DrawingPath(points: [
+                    leftPoint,
+                    CGPoint(x: leftPoint.x - 0.1, y: leftPoint.y - 0.2)
+                ], closed: false, order: 20 + position),
+                DrawingConcept.DrawingPath(points: [
+                    CGPoint(x: leftPoint.x - 0.12, y: leftPoint.y - 0.25),
+                    CGPoint(x: leftPoint.x - 0.1, y: leftPoint.y - 0.3),
+                    CGPoint(x: leftPoint.x - 0.08, y: leftPoint.y - 0.25)
+                ], closed: true, order: 21 + position)
+            ]
+
+        default:
+            // Generic small accessory near cloud
+            return [DrawingConcept.DrawingPath(points: [
+                CGPoint(x: 0.7 + offset, y: 0.5),
+                CGPoint(x: 0.72 + offset, y: 0.5),
+                CGPoint(x: 0.72 + offset, y: 0.52),
+                CGPoint(x: 0.7 + offset, y: 0.52)
+            ], closed: true, order: 20 + position)]
+        }
+    }
+
+    // Legacy method for fallback (when no cloud contour available)
+    func generatePaths() -> [DrawingConcept.DrawingPath] {
+        var paths: [DrawingConcept.DrawingPath] = []
+
+        paths.append(contentsOf: generateSubjectPaths())
         paths.append(contentsOf: generateExpressionPaths())
 
-        // Add accessories
         for (index, accessory) in accessories.prefix(2).enumerated() {
             paths.append(contentsOf: generateAccessoryPaths(accessory, position: index))
         }
@@ -849,10 +1141,10 @@ class DrawingLibrary {
         // Generate a modular concept
         let modularConcept = generator.generateRandomConcept(for: cloudShape)
 
-        // Convert to DrawingConcept
+        // Convert to DrawingConcept - NOW PASSING CLOUD SHAPE TO ADAPT THE DRAWING!
         return DrawingConcept(
             name: modularConcept.description,
-            paths: modularConcept.generatePaths(),
+            paths: modularConcept.generatePaths(adaptedTo: cloudShape), // 🎨 MAGIC HAPPENS HERE!
             preferredShape: nil // Now adaptive to all shapes
         )
     }

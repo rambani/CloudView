@@ -10,6 +10,8 @@ struct CloudShape {
     let size: CGSize
     let aspectRatio: Float
     let area: Float
+    let contourPoints: [CGPoint] // ACTUAL cloud outline points!
+    let normalizedContour: [CGPoint] // Normalized to 0-1 space for drawing
 
     var shapeCategory: ShapeCategory {
         if aspectRatio > 2.0 {
@@ -37,120 +39,70 @@ class CloudDetector {
     private let detectionInterval: TimeInterval = 0.5
 
     func detectClouds(in pixelBuffer: CVPixelBuffer) async -> [CloudShape] {
-        // Convert pixel buffer to CIImage
         let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
 
-        // Detect bright regions (clouds are typically bright)
-        guard let brightRegions = detectBrightRegions(in: ciImage) else {
+        // Detect bright regions and extract contours
+        guard let cloudContours = await detectCloudContours(in: ciImage) else {
             return []
         }
 
-        // Convert to cloud shapes
-        return brightRegions.compactMap { observation in
-            convertToCloudShape(observation, imageSize: ciImage.extent.size)
+        // Convert contours to cloud shapes
+        return cloudContours.compactMap { contour in
+            convertToCloudShape(contour, imageSize: ciImage.extent.size)
         }
     }
 
-    private func detectBrightRegions(in image: CIImage) -> [VNRectangleObservation]? {
-        // Use Vision to detect bright regions
-        let request = VNDetectRectanglesRequest()
-        request.minimumSize = 0.1 // At least 10% of image
-        request.maximumObservations = 5
+    private func detectCloudContours(in image: CIImage) async -> [VNContoursObservation]? {
+        // First, enhance clouds with brightness/contrast filter
+        guard let enhancedImage = enhanceCloudRegions(image) else {
+            return nil
+        }
 
-        let handler = VNImageRequestHandler(ciImage: image, options: [:])
+        // Detect contours in the enhanced image
+        let request = VNDetectContoursRequest()
+        request.contrastAdjustment = 2.0 // Increase contrast for better cloud detection
+        request.detectsDarkOnLight = false // We want bright clouds on dark sky
+        request.maximumImageDimension = 512
+
+        let handler = VNImageRequestHandler(ciImage: enhancedImage, options: [:])
 
         do {
             try handler.perform([request])
-            return request.results as? [VNRectangleObservation]
+            guard let results = request.results as? [VNContoursObservation] else {
+                return nil
+            }
+
+            // Filter for significant contours (clouds, not noise)
+            let significantContours = results.filter { contour in
+                let area = contour.boundingBox.width * contour.boundingBox.height
+                return area > 0.02 // At least 2% of image
+            }
+
+            return Array(significantContours.prefix(5))
         } catch {
-            print("Cloud detection error: \(error)")
+            print("Contour detection error: \(error)")
             return nil
         }
     }
 
-    private func convertToCloudShape(_ observation: VNRectangleObservation, imageSize: CGSize) -> CloudShape? {
+    private func enhanceCloudRegions(_ image: CIImage) -> CIImage? {
+        // Apply filters to make clouds stand out
+        guard let brightnessFilter = CIFilter(name: "CIColorControls") else {
+            return nil
+        }
+
+        brightnessFilter.setValue(image, forKey: kCIInputImageKey)
+        brightnessFilter.setValue(0.3, forKey: kCIInputBrightnessKey)
+        brightnessFilter.setValue(1.8, forKey: kCIInputContrastKey)
+        brightnessFilter.setValue(0.8, forKey: kCIInputSaturationKey)
+
+        return brightnessFilter.outputImage
+    }
+
+    private func convertToCloudShape(_ observation: VNContoursObservation, imageSize: CGSize) -> CloudShape? {
         let boundingBox = observation.boundingBox
 
         // Convert normalized coordinates to image coordinates
-        let rect = CGRect(
-            x: boundingBox.origin.x * imageSize.width,
-            y: boundingBox.origin.y * imageSize.height,
-            width: boundingBox.width * imageSize.width,
-            height: boundingBox.height * imageSize.height
-        )
-
-        let center = CGPoint(
-            x: rect.midX,
-            y: rect.midY
-        )
-
-        let size = CGSize(
-            width: rect.width,
-            height: rect.height
-        )
-
-        let aspectRatio = Float(size.width / size.height)
-        let area = Float(size.width * size.height)
-
-        return CloudShape(
-            center: simd_float3(0, 0, 0), // Will be calculated later in world space
-            boundingBox: rect,
-            screenPosition: center,
-            size: size,
-            aspectRatio: aspectRatio,
-            area: area
-        )
-    }
-
-    // Alternative: Use brightness-based detection for better cloud recognition
-    func detectCloudRegionsWithBrightness(in pixelBuffer: CVPixelBuffer) async -> [CloudShape] {
-        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
-
-        // Apply brightness threshold filter
-        guard let brightnessFilter = CIFilter(name: "CIColorControls") else {
-            return []
-        }
-
-        brightnessFilter.setValue(ciImage, forKey: kCIInputImageKey)
-        brightnessFilter.setValue(0.5, forKey: kCIInputBrightnessKey)
-        brightnessFilter.setValue(2.0, forKey: kCIInputContrastKey)
-
-        guard let outputImage = brightnessFilter.outputImage else {
-            return []
-        }
-
-        // Detect contours in the filtered image
-        return await detectContoursAsCloudShapes(in: outputImage)
-    }
-
-    private func detectContoursAsCloudShapes(in image: CIImage) async -> [CloudShape] {
-        // Use contour detection
-        let request = VNDetectContoursRequest()
-        request.maximumImageDimension = 512 // Reduce resolution for performance
-
-        let handler = VNImageRequestHandler(ciImage: image, options: [:])
-
-        do {
-            try handler.perform([request])
-
-            guard let results = request.results as? [VNContoursObservation] else {
-                return []
-            }
-
-            // Convert top contours to cloud shapes
-            let topContours = results.prefix(5)
-            return topContours.compactMap { contour in
-                convertContourToCloudShape(contour, imageSize: image.extent.size)
-            }
-        } catch {
-            print("Contour detection error: \(error)")
-            return []
-        }
-    }
-
-    private func convertContourToCloudShape(_ contour: VNContoursObservation, imageSize: CGSize) -> CloudShape? {
-        let boundingBox = contour.boundingBox
-
         let rect = CGRect(
             x: boundingBox.origin.x * imageSize.width,
             y: boundingBox.origin.y * imageSize.height,
@@ -176,13 +128,80 @@ class CloudDetector {
         let aspectRatio = Float(size.width / size.height)
         let area = Float(size.width * size.height)
 
+        // Extract actual contour points from the cloud
+        let contourPoints = extractContourPoints(from: observation, imageSize: imageSize)
+
+        // Normalize contour points to 0-1 space relative to bounding box
+        let normalizedContour = normalizeContourPoints(contourPoints, relativeTo: rect)
+
         return CloudShape(
             center: simd_float3(0, 0, 0),
             boundingBox: rect,
             screenPosition: center,
             size: size,
             aspectRatio: aspectRatio,
-            area: area
+            area: area,
+            contourPoints: contourPoints,
+            normalizedContour: normalizedContour
         )
+    }
+
+    private func extractContourPoints(from observation: VNContoursObservation, imageSize: CGSize) -> [CGPoint] {
+        var points: [CGPoint] = []
+
+        // Get the top-level contour
+        let topLevelContours = observation.topLevelContours
+
+        for contour in topLevelContours {
+            // Sample points along the contour path
+            let pointCount = min(contour.pointCount, 100) // Limit to 100 points for performance
+            let step = max(1, contour.pointCount / pointCount)
+
+            for i in stride(from: 0, to: contour.pointCount, by: step) {
+                if let point = try? contour.point(at: i) {
+                    // Convert normalized point to image coordinates
+                    let imagePoint = CGPoint(
+                        x: CGFloat(point.x) * imageSize.width,
+                        y: CGFloat(point.y) * imageSize.height
+                    )
+                    points.append(imagePoint)
+                }
+            }
+        }
+
+        return points
+    }
+
+    private func normalizeContourPoints(_ points: [CGPoint], relativeTo rect: CGRect) -> [CGPoint] {
+        // Normalize points to 0-1 space within the bounding box
+        return points.map { point in
+            CGPoint(
+                x: (point.x - rect.minX) / rect.width,
+                y: (point.y - rect.minY) / rect.height
+            )
+        }
+    }
+
+    // Alternative: Simple brightness-based detection (fallback)
+    func detectCloudRegionsWithBrightness(in pixelBuffer: CVPixelBuffer) async -> [CloudShape] {
+        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+
+        // Apply brightness threshold filter
+        guard let brightnessFilter = CIFilter(name: "CIColorControls") else {
+            return []
+        }
+
+        brightnessFilter.setValue(ciImage, forKey: kCIInputImageKey)
+        brightnessFilter.setValue(0.5, forKey: kCIInputBrightnessKey)
+        brightnessFilter.setValue(2.0, forKey: kCIInputContrastKey)
+
+        guard let outputImage = brightnessFilter.outputImage else {
+            return []
+        }
+
+        // Detect contours in the filtered image
+        return await detectCloudContours(in: outputImage)?.compactMap { contour in
+            convertToCloudShape(contour, imageSize: ciImage.extent.size)
+        } ?? []
     }
 }
