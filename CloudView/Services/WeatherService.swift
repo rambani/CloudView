@@ -53,6 +53,7 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var error: String?
     @Published var locationPermissionDenied = false
     @Published var locationPermissionStatus: CLAuthorizationStatus = .notDetermined
+    @Published var currentLocation: CLLocation? // Exposed for privacy-preserving scan reporting
 
     private let apiKey = "YOUR_API_KEY_HERE" // Users will need to add their own key
     private let baseURL = "https://api.openweathermap.org/data/2.5"
@@ -108,6 +109,10 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.first else { return }
+
+        // Store current location for scan reporting
+        currentLocation = location
+
         fetchWeather(for: location)
 
         // Stop updating location to save battery

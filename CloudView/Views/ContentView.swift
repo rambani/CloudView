@@ -4,6 +4,7 @@ import RealityKit
 struct ContentView: View {
     @StateObject private var arViewModel = ARViewModel()
     @StateObject private var weatherService = WeatherService()
+    @StateObject private var notificationService = NotificationService()
     @State private var showInstructions = true
     @State private var hasShownInstructions = false
 
@@ -232,6 +233,12 @@ struct ContentView: View {
             }
         }
         .onAppear {
+            // Wire up services for privacy-preserving notifications
+            arViewModel.weatherService = weatherService
+
+            // Request notification permission for community features
+            notificationService.requestNotificationPermission()
+
             // Fetch weather when app appears
             // Use mock data for testing (users can add their own API key)
             weatherService.useMockData()

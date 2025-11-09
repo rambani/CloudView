@@ -29,7 +29,10 @@ class ARViewModel: ObservableObject {
     private let cloudDetector = CloudDetector()
     private let drawingLibrary = DrawingLibrary()
     private var cancellables = Set<AnyCancellable>()
-    private var activeDrawings: [UUID: DrawingAnchor] = [:]
+    private var activeDrawings: [UUID: DrawingAnchor] = []
+
+    // Services for privacy-preserving notifications
+    weak var weatherService: WeatherService? // To get current location for scan reporting
 
     // Motion tracking for camera orientation
     private let motionManager = CMMotionManager()
@@ -251,6 +254,12 @@ class ARViewModel: ObservableObject {
         // Update UI with drawing name
         currentDrawingName = concept.name
         lastDrawingName = concept.name // Persist for quirky weather statements
+
+        // Report scan anonymously for community notifications (privacy-preserving)
+        ScanReportingService.shared.reportScan(
+            drawingName: concept.name,
+            location: weatherService?.currentLocation
+        )
 
         // Create AR anchor at cloud position
         let raycastQuery = arView.makeRaycast(
