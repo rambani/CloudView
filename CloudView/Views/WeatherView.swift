@@ -1,5 +1,246 @@
 import SwiftUI
 
+// Swipeable Weather Panel with drag gestures
+struct SwipeableWeatherPanel: View {
+    @ObservedObject var weatherService: WeatherService
+    @ObservedObject var arViewModel: ARViewModel
+
+    @State private var isExpanded = false // Start collapsed to show quirky statement
+    @State private var dragOffset: CGFloat = 0
+    private let expandedHeight: CGFloat = 450
+    private let collapsedHeight: CGFloat = 100
+
+    var body: some View {
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                // Drag handle
+                DragHandle()
+                    .gesture(
+                        DragGesture()
+                            .onChanged { value in
+                                // Only allow dragging within bounds
+                                let translation = value.translation.height
+                                dragOffset = translation
+                            }
+                            .onEnded { value in
+                                let translation = value.translation.height
+                                let velocity = value.predictedEndTranslation.height - translation
+
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    // Determine if we should expand or collapse
+                                    if abs(velocity) > 50 {
+                                        // Fast swipe - use velocity
+                                        isExpanded = velocity < 0
+                                    } else {
+                                        // Slow drag - use threshold
+                                        isExpanded = translation < 100
+                                    }
+                                    dragOffset = 0
+                                }
+                            }
+                    )
+
+                // Content
+                if isExpanded {
+                    // Full weather panel
+                    if weatherService.isLoading {
+                        MagicalLoadingView()
+                    } else if let weather = weatherService.currentWeather {
+                        MagicalWeatherContentView(weather: weather, forecast: weatherService.forecast)
+                            .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    } else {
+                        MagicalPlaceholderView()
+                    }
+                } else {
+                    // Collapsed: Just quirky statement
+                    if let weather = weatherService.currentWeather {
+                        QuirkyWeatherStatement(
+                            drawingName: arViewModel.lastDrawingName,
+                            weather: weather,
+                            forecast: weatherService.forecast
+                        )
+                        .transition(.opacity)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: isExpanded ? expandedHeight : collapsedHeight)
+            .offset(y: dragOffset)
+        }
+        .frame(height: isExpanded ? expandedHeight : collapsedHeight)
+    }
+}
+
+// Drag handle component
+struct DragHandle: View {
+    var body: some View {
+        VStack(spacing: 8) {
+            // Visual drag bar with glassy style
+            RoundedRectangle(cornerRadius: 3)
+                .fill(
+                    LinearGradient(
+                        colors: [.white.opacity(0.6), .white.opacity(0.4)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(width: 45, height: 5)
+                .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
+                .padding(.top, 12)
+                .padding(.bottom, 4)
+        }
+    }
+}
+
+// Quirky weather statement based on drawing + forecast
+struct QuirkyWeatherStatement: View {
+    let drawingName: String?
+    let weather: WeatherData
+    let forecast: [ForecastData.ForecastItem]
+
+    private var quirkyStatement: String {
+        guard let drawing = drawingName else {
+            return "Point your phone at the clouds to create magical drawings! ✨"
+        }
+
+        let trend = analyzeWeatherTrend()
+        return generateQuirkyStatement(for: drawing, trend: trend)
+    }
+
+    private func analyzeWeatherTrend() -> WeatherTrend {
+        guard !forecast.isEmpty else { return .stable }
+
+        let currentTemp = weather.main.temp
+        let futureTemps = forecast.prefix(6).map { $0.main.temp }
+
+        // Check for rain
+        let willRain = forecast.prefix(6).contains { item in
+            item.weather.first?.main.lowercased().contains("rain") ?? false
+        }
+
+        if willRain {
+            return .rainComing
+        }
+
+        // Check temperature trend
+        let avgFutureTemp = futureTemps.reduce(0, +) / Double(futureTemps.count)
+        let tempDiff = avgFutureTemp - currentTemp
+
+        if tempDiff > 5 {
+            return .gettingWarmer
+        } else if tempDiff < -5 {
+            return .gettingColder
+        }
+
+        // Check for storms
+        let isStormy = forecast.prefix(6).contains { item in
+            let condition = item.weather.first?.main.lowercased() ?? ""
+            return condition.contains("storm") || condition.contains("thunder")
+        }
+
+        if isStormy {
+            return .stormyComing
+        }
+
+        // Check wind
+        if weather.wind.speed > 10 {
+            return .windy
+        }
+
+        return .stable
+    }
+
+    private func generateQuirkyStatement(for drawing: String, trend: WeatherTrend) -> String {
+        let drawingLower = drawing.lowercased()
+
+        // Generate contextual statements based on drawing and weather
+        switch trend {
+        case .rainComing:
+            if drawingLower.contains("penguin") || drawingLower.contains("duck") {
+                return "This \(drawing) won't mind the rain, but you might want an umbrella! ☔"
+            } else if drawingLower.contains("cat") || drawingLower.contains("lion") || drawingLower.contains("tiger") {
+                return "This \(drawing) won't be happy about the incoming rain! 🌧️"
+            } else if drawingLower.contains("surf") || drawingLower.contains("swim") {
+                return "Perfect timing! This \(drawing) is ready for extra water! 🌊"
+            } else {
+                return "Better grab an umbrella - this \(drawing) sees rain clouds ahead! ☔"
+            }
+
+        case .gettingWarmer:
+            if drawingLower.contains("snow") || drawingLower.contains("polar") || drawingLower.contains("penguin") {
+                return "Things are heating up - this \(drawing) might need some ice! ☀️"
+            } else if drawingLower.contains("surf") || drawingLower.contains("beach") || drawingLower.contains("swim") {
+                return "Perfect weather ahead for this \(drawing)! 🌞"
+            } else {
+                return "Warming up nicely! This \(drawing) approves! ☀️"
+            }
+
+        case .gettingColder:
+            if drawingLower.contains("snow") || drawingLower.contains("ski") || drawingLower.contains("polar") {
+                return "This \(drawing) is thrilled - it's getting chilly! ❄️"
+            } else if drawingLower.contains("tropical") || drawingLower.contains("beach") {
+                return "Uh oh, cooling down! This \(drawing) might need a sweater! 🧥"
+            } else {
+                return "Bundle up! This \(drawing) feels the cold coming! ❄️"
+            }
+
+        case .stormyComing:
+            if drawingLower.contains("dragon") || drawingLower.contains("wizard") {
+                return "This \(drawing) is summoning a storm! ⚡"
+            } else if drawingLower.contains("sail") || drawingLower.contains("boat") {
+                return "Rough seas ahead! This \(drawing) should head to shore! ⛈️"
+            } else {
+                return "Storm's brewing! This \(drawing) sees lightning ahead! ⚡"
+            }
+
+        case .windy:
+            if drawingLower.contains("kite") || drawingLower.contains("fly") || drawingLower.contains("bird") {
+                return "Perfect flying weather for this \(drawing)! 🪁"
+            } else if drawingLower.contains("sail") {
+                return "Great winds for this \(drawing)! ⛵"
+            } else {
+                return "Hold on tight - this \(drawing) feels the wind! 💨"
+            }
+
+        case .stable:
+            return "Beautiful weather for this \(drawing)! ✨"
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Spacer()
+
+            // Quirky statement at bottom
+            Text(quirkyStatement)
+                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [.white.opacity(0.95), .white.opacity(0.8)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .multilineTextAlignment(.center)
+                .lineLimit(3)
+                .padding(.horizontal, 32)
+                .padding(.vertical, 16)
+                .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+enum WeatherTrend {
+    case rainComing
+    case gettingWarmer
+    case gettingColder
+    case stormyComing
+    case windy
+    case stable
+}
+
+// Legacy view for backward compatibility
 struct WeatherView: View {
     @ObservedObject var weatherService: WeatherService
 

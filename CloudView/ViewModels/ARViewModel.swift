@@ -7,6 +7,7 @@ class ARViewModel: ObservableObject {
     @Published var isProcessing = false
     @Published var detectedClouds: [CloudRegion] = []
     @Published var currentDrawingName: String?
+    @Published var lastDrawingName: String? // Persists for quirky weather statements
 
     var arView: ARView?
     private let cloudDetector = CloudDetector()
@@ -108,6 +109,7 @@ class ARViewModel: ObservableObject {
 
         // Update UI with drawing name
         currentDrawingName = concept.name
+        lastDrawingName = concept.name // Persist for quirky weather statements
 
         // Create AR anchor at cloud position
         let raycastQuery = arView.makeRaycast(

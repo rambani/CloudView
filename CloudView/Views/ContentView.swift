@@ -109,8 +109,8 @@ struct ContentView: View {
 
                 Spacer()
 
-                // Bottom: Weather info
-                WeatherView(weatherService: weatherService)
+                // Bottom: Swipeable Weather Panel
+                SwipeableWeatherPanel(weatherService: weatherService, arViewModel: arViewModel)
                     .padding(.bottom, 40)
             }
 
