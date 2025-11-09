@@ -3,13 +3,17 @@
 <plist version="1.0">
 <dict>
 	<key>NSCameraUsageDescription</key>
-	<string>CloudView needs camera access to detect clouds and create AR drawings in the sky</string>
+	<string>Cloudoodle needs camera access to detect clouds and create AR drawings in the sky</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>CloudView needs your location to provide accurate weather information</string>
+	<string>Cloudoodle needs your location to provide accurate weather information</string>
 	<key>NSMotionUsageDescription</key>
-	<string>CloudView uses motion sensors to detect when your camera is pointed at the sky</string>
+	<string>Cloudoodle uses motion sensors to detect when your camera is pointed at the sky</string>
 	<key>NSUserNotificationsUsageDescription</key>
-	<string>CloudView sends you fun notifications when others spot interesting cloud formations in your area</string>
+	<string>Cloudoodle sends you fun notifications when others spot interesting cloud formations in your area</string>
+	<key>CFBundleDisplayName</key>
+	<string>Cloudoodle</string>
+	<key>CFBundleName</key>
+	<string>Cloudoodle</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

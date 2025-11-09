@@ -2,7 +2,7 @@
 
 ## ✅ What's Configured
 
-Your CloudView backend is now deployed and connected:
+Your Cloudoodle backend is now deployed and connected:
 
 - **Backend URL**: https://cloud-view-backend.vercel.app
 - **iOS App**: Updated and enabled
@@ -24,7 +24,7 @@ curl "https://cloud-view-backend.vercel.app/api/health"
 {
   "status": "healthy",
   "timestamp": "2025-11-09T...",
-  "service": "CloudView Backend",
+  "service": "Cloudoodle Backend",
   "redis": "connected"
 }
 ```
@@ -137,7 +137,7 @@ Error sending scan report: [error message]
 npm install -g vercel
 
 # View real-time logs
-cd /home/user/CloudView/backend
+cd /home/user/Cloudoodle/backend
 vercel logs --follow
 ```
 

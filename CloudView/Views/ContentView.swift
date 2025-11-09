@@ -31,7 +31,7 @@ struct ContentView: View {
                             )
 
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("CloudView")
+                            Text("Cloudoodle")
                                 .font(.system(size: 26, weight: .bold, design: .rounded))
                                 .foregroundColor(.white)
 

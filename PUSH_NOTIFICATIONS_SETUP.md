@@ -1,6 +1,6 @@
 # 🔔 Push Notifications Setup Guide
 
-Complete guide to enable real push notifications in CloudView.
+Complete guide to enable real push notifications in Cloudoodle.
 
 ## 📋 Prerequisites
 
@@ -20,7 +20,7 @@ Complete guide to enable real push notifications in CloudView.
 3. Click **Identifiers** → **+** button
 4. Select **App IDs** → Continue
 5. Fill in:
-   - **Description**: CloudView
+   - **Description**: Cloudoodle
    - **Bundle ID**: `com.yourcompany.cloudview` (must match your Xcode project)
    - **Capabilities**: Check ✅ **Push Notifications**
 6. Click **Continue** → **Register**
@@ -30,7 +30,7 @@ Complete guide to enable real push notifications in CloudView.
 1. In Apple Developer Portal, go to **Keys**
 2. Click **+** button
 3. Fill in:
-   - **Key Name**: CloudView APNs Key
+   - **Key Name**: Cloudoodle APNs Key
    - **Enable**: Check ✅ **Apple Push Notifications service (APNs)**
 4. Click **Continue** → **Register**
 5. **Download the .p8 file** ⚠️ You can only download this ONCE!
@@ -48,8 +48,8 @@ Complete guide to enable real push notifications in CloudView.
 
 ### Step 1: Enable Push Notifications Capability
 
-1. Open your CloudView project in Xcode
-2. Select your **CloudView** target
+1. Open your Cloudoodle project in Xcode
+2. Select your **Cloudoodle** target
 3. Go to **Signing & Capabilities** tab
 4. Click **+ Capability**
 5. Add **Push Notifications**
@@ -87,7 +87,7 @@ Copy the **entire contents** (including the BEGIN/END lines).
 ### Step 2: Add Environment Variables to Vercel
 
 ```bash
-cd /home/user/CloudView/backend
+cd /home/user/Cloudoodle/backend
 
 # Add APNs Key ID
 vercel env add APNS_KEY_ID production
@@ -120,7 +120,7 @@ Change to your actual Bundle ID.
 ### Step 4: Redeploy Backend
 
 ```bash
-cd /home/user/CloudView/backend
+cd /home/user/Cloudoodle/backend
 vercel --prod
 ```
 
@@ -267,7 +267,7 @@ You should see:
 ### "Notification not appearing on device"
 
 **Check:**
-1. Notifications enabled in iOS Settings → CloudView → Notifications
+1. Notifications enabled in iOS Settings → Cloudoodle → Notifications
 2. Device is not in Do Not Disturb mode
 3. App is not currently in foreground (notifications silent when app is open)
 4. Check Vercel logs for errors

@@ -88,7 +88,7 @@ export class APNsService {
         method: 'POST',
         headers: {
           'authorization': `bearer ${jwt}`,
-          'apns-topic': 'com.yourapp.cloudview', // Replace with your bundle ID
+          'apns-topic': 'com.yourcompany.cloudoodle', // Replace with your actual bundle ID
           'apns-push-type': 'alert',
           'apns-priority': '10',
         },

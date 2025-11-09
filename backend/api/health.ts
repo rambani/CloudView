@@ -19,7 +19,7 @@ export default async function handler(req: Request) {
     return Response.json({
       status: 'healthy',
       timestamp: new Date().toISOString(),
-      service: 'CloudView Backend',
+      service: 'Cloudoodle Backend',
       redis: 'connected',
     });
   } catch (error) {
@@ -27,7 +27,7 @@ export default async function handler(req: Request) {
       {
         status: 'unhealthy',
         timestamp: new Date().toISOString(),
-        service: 'CloudView Backend',
+        service: 'Cloudoodle Backend',
         redis: 'disconnected',
         error: error instanceof Error ? error.message : 'Unknown error',
       },
