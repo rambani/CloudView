@@ -16,56 +16,47 @@ struct ContentView: View {
 
             // Overlay UI
             VStack {
-                // Top: App title and info - Glassmorphic
+                // Top: App title and info - Enhanced glassmorphic
                 HStack {
-                    HStack(spacing: 10) {
-                        // Magical sparkle icon
+                    HStack(spacing: .spacing_sm + 2) {
+                        // Magical sparkle icon with floating animation
                         Image(systemName: "cloud.sun.fill")
                             .font(.system(size: 24))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.cyan, .blue],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                            .foregroundStyle(LinearGradient.cloudoodleSky)
+                            .floating(duration: 2.5, distance: 3)
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Cloudoodle")
-                                .font(.system(size: 26, weight: .bold, design: .rounded))
+                                .font(.cloudoodleTitle)
                                 .foregroundColor(.white)
 
                             Text("AI Cloud Drawings")
-                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .font(.cloudoodleMini)
                                 .foregroundColor(.white.opacity(0.8))
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
+                    .padding(.horizontal, .spacing_md)
+                    .padding(.vertical, .spacing_md - 4)
                     .background(
-                        RoundedRectangle(cornerRadius: 20)
+                        RoundedRectangle(cornerRadius: .radius_lg)
                             .fill(.ultraThinMaterial)
                             .overlay(
-                                RoundedRectangle(cornerRadius: 20)
+                                RoundedRectangle(cornerRadius: .radius_lg)
                                     .strokeBorder(
-                                        LinearGradient(
-                                            colors: [.white.opacity(0.3), .white.opacity(0.1)],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
+                                        LinearGradient.glassShine,
                                         lineWidth: 1
                                     )
                             )
                     )
-                    .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 6)
-                    .padding(.leading, 16)
+                    .shadow(color: Color.glassShadow, radius: 12, x: 0, y: 6)
+                    .padding(.leading, .spacing_md)
                     .padding(.top, 50)
 
                     Spacer()
 
-                    // Info button - Glassmorphic
+                    // Info button - Enhanced with bouncy animation
                     Button(action: {
-                        withAnimation(.spring()) {
+                        withAnimation(.bouncy) {
                             showInstructions.toggle()
                         }
                     }) {
@@ -76,11 +67,7 @@ struct ContentView: View {
                                 .overlay(
                                     Circle()
                                         .strokeBorder(
-                                            LinearGradient(
-                                                colors: [.white.opacity(0.3), .white.opacity(0.1)],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            ),
+                                            LinearGradient.glassShine,
                                             lineWidth: 1
                                         )
                                 )
@@ -90,8 +77,9 @@ struct ContentView: View {
                                 .foregroundColor(.white)
                         }
                     }
-                    .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 6)
-                    .padding(.trailing, 16)
+                    .buttonStyle(BouncyButtonStyle())
+                    .shadow(color: Color.glassShadow, radius: 12, x: 0, y: 6)
+                    .padding(.trailing, .spacing_md)
                     .padding(.top, 50)
                 }
 
@@ -115,7 +103,7 @@ struct ContentView: View {
                     .padding(.bottom, 40)
             }
 
-            // Contextual status indicators
+            // Contextual status indicators - Enhanced with magical hints
             VStack {
                 Spacer()
                     .frame(height: 120)
@@ -124,46 +112,46 @@ struct ContentView: View {
                 switch arViewModel.appState {
                 case .scanning:
                     if arViewModel.isProcessing {
-                        MagicalProcessingIndicator()
+                        EnhancedMagicalLoadingView()
                     }
 
                 case .permissionsNeeded:
-                    ContextualHintView(
+                    MagicalHintView(
                         icon: "lock.shield.fill",
                         message: "Permissions needed",
                         color: .red
                     )
 
                 case .arNotSupported:
-                    ContextualHintView(
+                    MagicalHintView(
                         icon: "xmark.circle.fill",
                         message: "AR not supported",
                         color: .red
                     )
 
                 case .arSessionError:
-                    ContextualHintView(
+                    MagicalHintView(
                         icon: "exclamationmark.triangle.fill",
                         message: "AR session error",
                         color: .orange
                     )
 
                 case .pointAtSky:
-                    ContextualHintView(
+                    MagicalHintView(
                         icon: "arrow.up.circle.fill",
                         message: "Point camera upward",
-                        color: .cyan
+                        color: Color.cloudBlue
                     )
 
                 case .nightTime:
-                    ContextualHintView(
+                    MagicalHintView(
                         icon: "moon.stars.fill",
                         message: "Best in daylight",
-                        color: .indigo
+                        color: Color.lavenderDream
                     )
 
                 case .movingTooFast:
-                    ContextualHintView(
+                    MagicalHintView(
                         icon: "hand.raised.fill",
                         message: "Hold steady",
                         color: .orange
@@ -176,32 +164,27 @@ struct ContentView: View {
                 Spacer()
             }
 
-            // Current drawing indicator - Glassmorphic version
+            // Current drawing indicator - Enhanced with magical glow
             if let drawingName = arViewModel.currentDrawingName {
                 VStack {
                     Spacer()
                         .frame(height: 120)
 
-                    HStack(spacing: 12) {
-                        // Animated sparkles
+                    HStack(spacing: .spacing_md) {
+                        // Animated sparkles with floating effect
                         Image(systemName: "sparkles")
                             .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.yellow, .orange],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                            .foregroundStyle(LinearGradient.magicalGlow)
+                            .floating(duration: 1.5, distance: 4)
 
                         Text(drawingName)
-                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                            .font(.cloudoodleBody)
                             .foregroundColor(.white)
                             .lineLimit(2)
                             .multilineTextAlignment(.center)
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 14)
+                    .padding(.horizontal, .spacing_lg)
+                    .padding(.vertical, .spacing_sm + 6)
                     .background(
                         Capsule()
                             .fill(.ultraThinMaterial)
@@ -209,7 +192,7 @@ struct ContentView: View {
                                 Capsule()
                                     .strokeBorder(
                                         LinearGradient(
-                                            colors: [.yellow.opacity(0.4), .orange.opacity(0.2)],
+                                            colors: [Color.sunGlow.opacity(0.5), Color.cloudPink.opacity(0.3)],
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
                                         ),
@@ -217,7 +200,7 @@ struct ContentView: View {
                                     )
                             )
                     )
-                    .shadow(color: .yellow.opacity(0.2), radius: 12, x: 0, y: 6)
+                    .shadow(color: Color.sunGlow.opacity(0.3), radius: 12, x: 0, y: 6)
                     .transition(.opacity.combined(with: .scale))
 
                     Spacer()
@@ -335,47 +318,45 @@ struct InstructionsView: View {
             }
             .padding(.horizontal, 24)
 
-            // Dismiss button - Enhanced glassmorphic
+            // Dismiss button - Enhanced with magical gradient and bouncy animation
             Button(action: onDismiss) {
-                HStack(spacing: 8) {
+                HStack(spacing: .spacing_sm) {
                     Text("Got it!")
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .font(.cloudoodleBody)
+                        .fontWeight(.bold)
                         .foregroundColor(.white)
 
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 18))
+                        .font(.cloudoodleBody)
                         .foregroundColor(.white)
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
+                .padding(.vertical, .spacing_md)
                 .background(
                     ZStack {
                         LinearGradient(
-                            gradient: Gradient(colors: [Color.cyan, Color.blue, Color.purple]),
+                            gradient: Gradient(colors: [Color.cloudBlue, Color.lavenderDream]),
                             startPoint: .leading,
                             endPoint: .trailing
                         )
 
-                        RoundedRectangle(cornerRadius: 16)
+                        RoundedRectangle(cornerRadius: .radius_md)
                             .fill(.ultraThinMaterial.opacity(0.3))
                     }
                 )
-                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .clipShape(RoundedRectangle(cornerRadius: .radius_md))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16)
+                    RoundedRectangle(cornerRadius: .radius_md)
                         .strokeBorder(
-                            LinearGradient(
-                                colors: [.white.opacity(0.4), .white.opacity(0.2)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
+                            LinearGradient.glassShine,
                             lineWidth: 1.5
                         )
                 )
-                .shadow(color: .blue.opacity(0.3), radius: 12, x: 0, y: 6)
+                .shadow(color: Color.cloudBlue.opacity(0.3), radius: 12, x: 0, y: 6)
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 8)
+            .buttonStyle(BouncyButtonStyle())
+            .padding(.horizontal, .spacing_lg)
+            .padding(.top, .spacing_sm)
         }
         .padding(.vertical, 32)
         .background(
@@ -447,115 +428,6 @@ struct InstructionRow: View {
             }
         }
         .padding(.vertical, 4)
-    }
-}
-
-struct MagicalProcessingIndicator: View {
-    @State private var isAnimating = false
-
-    var body: some View {
-        HStack(spacing: 14) {
-            // Animated ripple circles
-            ZStack {
-                ForEach(0..<3) { index in
-                    Circle()
-                        .stroke(
-                            LinearGradient(
-                                colors: [.cyan, .blue],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 2.5
-                        )
-                        .frame(width: 28, height: 28)
-                        .scaleEffect(isAnimating ? 1.8 : 0.5)
-                        .opacity(isAnimating ? 0 : 1)
-                        .animation(
-                            Animation.easeOut(duration: 1.5)
-                                .repeatForever(autoreverses: false)
-                                .delay(Double(index) * 0.3),
-                            value: isAnimating
-                        )
-                }
-            }
-            .frame(width: 32, height: 32)
-
-            Text("Detecting clouds...")
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundColor(.white)
-        }
-        .padding(.horizontal, 22)
-        .padding(.vertical, 14)
-        .background(
-            Capsule()
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    Capsule()
-                        .strokeBorder(
-                            LinearGradient(
-                                colors: [.cyan.opacity(0.4), .blue.opacity(0.2)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1.5
-                        )
-                )
-        )
-        .shadow(color: .cyan.opacity(0.2), radius: 12, x: 0, y: 6)
-        .onAppear {
-            isAnimating = true
-        }
-    }
-}
-
-struct ContextualHintView: View {
-    let icon: String
-    let message: String
-    let color: Color
-    @State private var isPulsing = false
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [color, color.opacity(0.8)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .scaleEffect(isPulsing ? 1.1 : 1.0)
-
-            Text(message)
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundColor(.white)
-        }
-        .padding(.horizontal, 22)
-        .padding(.vertical, 14)
-        .background(
-            Capsule()
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    Capsule()
-                        .strokeBorder(
-                            LinearGradient(
-                                colors: [color.opacity(0.4), color.opacity(0.2)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1.5
-                        )
-                )
-        )
-        .shadow(color: color.opacity(0.2), radius: 12, x: 0, y: 6)
-        .onAppear {
-            withAnimation(
-                Animation.easeInOut(duration: 1.5).repeatForever(autoreverses: true)
-            ) {
-                isPulsing = true
-            }
-        }
     }
 }
 

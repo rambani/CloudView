@@ -47,7 +47,7 @@ struct SwipeableWeatherPanel: View {
                         LocationDeniedView(weatherService: weatherService)
                             .transition(.opacity)
                     } else if weatherService.isLoading {
-                        MagicalLoadingView()
+                        EnhancedMagicalLoadingView()
                     } else if let weather = weatherService.currentWeather {
                         MagicalWeatherContentView(weather: weather, forecast: weatherService.forecast)
                             .transition(.opacity.combined(with: .move(edge: .bottom)))
@@ -436,7 +436,7 @@ struct WeatherView: View {
     var body: some View {
         VStack(spacing: 0) {
             if weatherService.isLoading {
-                MagicalLoadingView()
+                EnhancedMagicalLoadingView()
             } else if let weather = weatherService.currentWeather {
                 MagicalWeatherContentView(weather: weather, forecast: weatherService.forecast)
             } else {
@@ -749,76 +749,16 @@ struct ForecastCard: View {
     }
 }
 
-struct MagicalLoadingView: View {
-    @State private var isAnimating = false
-
-    var body: some View {
-        VStack(spacing: 16) {
-            // Magical loading animation
-            ZStack {
-                ForEach(0..<3) { index in
-                    Circle()
-                        .stroke(
-                            LinearGradient(
-                                colors: [.cyan, .blue, .purple],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 2
-                        )
-                        .frame(width: 40, height: 40)
-                        .scaleEffect(isAnimating ? 1.5 : 0.5)
-                        .opacity(isAnimating ? 0 : 1)
-                        .animation(
-                            Animation.easeInOut(duration: 1.5)
-                                .repeatForever(autoreverses: false)
-                                .delay(Double(index) * 0.3),
-                            value: isAnimating
-                        )
-                }
-            }
-            .frame(height: 60)
-
-            Text("Reading the sky...")
-                .font(.system(size: 15, weight: .medium, design: .rounded))
-                .foregroundColor(.white.opacity(0.85))
-        }
-        .frame(height: 140)
-        .frame(maxWidth: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: 32)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 32)
-                        .strokeBorder(
-                            LinearGradient(
-                                colors: [.white.opacity(0.3), .white.opacity(0.1)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                )
-        )
-        .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 10)
-        .padding(.horizontal, 16)
-        .padding(.bottom, 32)
-        .onAppear {
-            isAnimating = true
-        }
-    }
-}
-
 struct MagicalPlaceholderView: View {
     @State private var isAnimating = false
 
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: .spacing_md) {
             ZStack {
                 Circle()
                     .fill(
                         LinearGradient(
-                            colors: [.cyan.opacity(0.3), .blue.opacity(0.2)],
+                            colors: [Color.cloudBlue.opacity(0.3), Color.skyMist.opacity(0.2)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -827,51 +767,39 @@ struct MagicalPlaceholderView: View {
 
                 Image(systemName: "cloud.sun.fill")
                     .font(.system(size: 28))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.white, .cyan.opacity(0.8)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
+                    .foregroundStyle(LinearGradient.cloudoodleSky)
                     .scaleEffect(isAnimating ? 1.1 : 1.0)
-                    .animation(
-                        Animation.easeInOut(duration: 2.0).repeatForever(autoreverses: true),
-                        value: isAnimating
-                    )
+                    .animation(.gentle, value: isAnimating)
+                    .floating(duration: 2.5, distance: 4)
             }
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: .spacing_xs) {
                 Text("Point at the sky")
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .font(.cloudoodleBody)
                     .foregroundColor(.white)
 
                 Text("Discover clouds and weather")
-                    .font(.system(size: 13, weight: .regular, design: .rounded))
+                    .font(.cloudoodleCaption)
                     .foregroundColor(.white.opacity(0.7))
             }
 
             Spacer()
         }
-        .padding(20)
+        .padding(.spacing_lg)
         .background(
-            RoundedRectangle(cornerRadius: 28)
+            RoundedRectangle(cornerRadius: .radius_xl + 4)
                 .fill(.ultraThinMaterial)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 28)
+                    RoundedRectangle(cornerRadius: .radius_xl + 4)
                         .strokeBorder(
-                            LinearGradient(
-                                colors: [.white.opacity(0.3), .white.opacity(0.1)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
+                            LinearGradient.glassShine,
                             lineWidth: 1
                         )
                 )
         )
-        .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 10)
-        .padding(.horizontal, 16)
-        .padding(.bottom, 32)
+        .shadow(color: Color.glassShadow, radius: 20, x: 0, y: 10)
+        .padding(.horizontal, .spacing_md)
+        .padding(.bottom, .spacing_xl)
         .onAppear {
             isAnimating = true
         }
@@ -880,20 +808,12 @@ struct MagicalPlaceholderView: View {
 
 struct FloatingWeatherEmoji: View {
     let emoji: String
-    @State private var isFloating = false
 
     var body: some View {
         Text(emoji)
             .font(.system(size: 64))
             .shadow(color: .white.opacity(0.3), radius: 8, x: 0, y: 0)
-            .offset(y: isFloating ? -8 : 0)
-            .animation(
-                Animation.easeInOut(duration: 2.5).repeatForever(autoreverses: true),
-                value: isFloating
-            )
-            .onAppear {
-                isFloating = true
-            }
+            .floating(duration: 2.5, distance: 8)
     }
 }
 
@@ -912,7 +832,7 @@ struct MagicalSparkles: View {
                         .font(.system(size: 16))
                         .foregroundStyle(
                             LinearGradient(
-                                colors: [.yellow, .orange],
+                                colors: [Color.sunGlow, Color.cloudPink],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -925,7 +845,7 @@ struct MagicalSparkles: View {
                     Circle()
                         .fill(
                             RadialGradient(
-                                colors: [.yellow.opacity(0.3), .clear],
+                                colors: [Color.sunGlow.opacity(0.3), .clear],
                                 center: .center,
                                 startRadius: 0,
                                 endRadius: 20
@@ -934,12 +854,10 @@ struct MagicalSparkles: View {
                         .frame(width: 40, height: 40)
                         .scaleEffect(sparkleScale)
                 }
-                .padding(16)
+                .padding(.spacing_md)
                 .onAppear {
                     // Breathing animation
-                    withAnimation(
-                        Animation.easeInOut(duration: 2.0).repeatForever(autoreverses: true)
-                    ) {
+                    withAnimation(.gentle) {
                         sparkleOpacity = 1.0
                         sparkleScale = 1.2
                     }
