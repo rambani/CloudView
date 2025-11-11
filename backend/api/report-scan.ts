@@ -35,7 +35,8 @@ export default async function handler(req: Request) {
   }
 
   try {
-    const report: AnonymousScanReport = await req.json();
+    const body = await req.json();
+    const report: AnonymousScanReport = body as AnonymousScanReport;
 
     // Validate input
     if (!report.region || !report.category || !report.timestamp) {

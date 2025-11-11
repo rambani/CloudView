@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct CloudViewApp: App {
+struct CloudoodleApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var notificationService = NotificationService()
 

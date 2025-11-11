@@ -24,7 +24,8 @@ export default async function handler(req: Request) {
   }
 
   try {
-    const registration: DeviceRegistration = await req.json();
+    const body = await req.json();
+    const registration: DeviceRegistration = body as DeviceRegistration;
 
     // Validate input
     if (!registration.deviceToken) {
