@@ -1,0 +1,22 @@
+// CloudView — API Keys Configuration
+// ─────────────────────────────────────────────────────────────────────────────
+// 1. Copy this file to Config.xcconfig (same directory)
+// 2. Fill in your values below
+// 3. Config.xcconfig is gitignored — never commit real keys
+//
+// After filling in, run: xcodegen generate
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Google AI Studio — free at https://aistudio.google.com/app/apikey
+// Free tier: 1,500 requests/day, 1M tokens/day
+GEMINI_API_KEY =
+
+// Supabase project URL — found in Settings → API in your Supabase dashboard
+SUPABASE_URL = https://xxxxxxxxxxxxxxxxxxxx.supabase.co
+
+// Supabase anon key (safe for client-side use — RLS protects your data)
+SUPABASE_ANON_KEY = eyJ...
+
+// Sentry DSN — create a project at https://sentry.io (free tier available)
+// Leave blank to disable crash reporting
+SENTRY_DSN =
