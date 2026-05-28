@@ -34,9 +34,10 @@ cd ios && xcodegen generate
 
 In your Supabase Dashboard → SQL Editor, run the migrations **in order**:
 
-1. `ios/supabase/migrations/001_schema.sql` — tables, RLS policies, all functions
+1. `ios/supabase/migrations/001_initial.sql` — tables, RLS policies, all functions
 2. `ios/supabase/migrations/002_push_notifications.sql` — push notification support
 3. `ios/supabase/migrations/003_delete_account.sql` — account deletion function
+4. `ios/supabase/migrations/004_toggle_like_locking.sql` — concurrency fix for likes
 
 ---
 
@@ -203,7 +204,7 @@ Not strictly required (only mandatory if you offer other OAuth providers), but s
 ## Summary Checklist
 
 - [ ] `Config.xcconfig` filled in with real keys
-- [ ] Supabase migrations 001, 002, 003 run
+- [ ] Supabase migrations 001, 002, 003, 004 run
 - [ ] Storage bucket `sighting-images` created with policies
 - [ ] Edge Functions `notify-nearby-users` and `delete-account` deployed
 - [ ] APNs secrets set in Supabase

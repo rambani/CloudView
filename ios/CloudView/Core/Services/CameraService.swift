@@ -96,20 +96,20 @@ extension CameraService: AVCapturePhotoCaptureDelegate {
         didFinishProcessingPhoto photo: AVCapturePhoto,
         error: Error?
     ) {
+        // Build the result nonisolated — UIImage construction is safe off MainActor.
+        // Only the continuation (a @MainActor property) must be touched on MainActor.
+        let result: Result<UIImage, Error>
         if let error {
-            continuation?.resume(throwing: error)
-            continuation = nil
-            return
+            result = .failure(error)
+        } else if let data = photo.fileDataRepresentation(), let image = UIImage(data: data) {
+            result = .success(image)
+        } else {
+            result = .failure(CameraError.captureFailed)
         }
-        guard
-            let data = photo.fileDataRepresentation(),
-            let image = UIImage(data: data)
-        else {
-            continuation?.resume(throwing: CameraError.captureFailed)
-            continuation = nil
-            return
+
+        Task { @MainActor [weak self] in
+            self?.continuation?.resume(with: result)
+            self?.continuation = nil
         }
-        continuation?.resume(returning: image)
-        continuation = nil
     }
 }

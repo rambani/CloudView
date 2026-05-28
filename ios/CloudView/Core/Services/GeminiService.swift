@@ -115,8 +115,11 @@ actor GeminiService {
     private func extractJSON(from text: String) -> String {
         let s = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if s.hasPrefix("```") {
-            return s.components(separatedBy: "\n").dropFirst().dropLast()
-                .joined(separator: "\n")
+            var lines = Array(s.components(separatedBy: "\n").dropFirst())
+            if lines.last?.hasPrefix("```") == true {
+                lines.removeLast()
+            }
+            return lines.joined(separator: "\n")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
         }
         if let start = s.firstIndex(of: "{"), let end = s.lastIndex(of: "}") {

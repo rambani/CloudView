@@ -36,11 +36,13 @@ targets:
           DEBUG_INFORMATION_FORMAT: dwarf
           SWIFT_OPTIMIZATION_LEVEL: "-Onone"
           XCCONFIG_FILE: Config.xcconfig
+          CODE_SIGN_ENTITLEMENTS: CloudView/CloudView.entitlements
         Release:
           DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
           SWIFT_OPTIMIZATION_LEVEL: "-O"
           VALIDATE_PRODUCT: YES
           XCCONFIG_FILE: Config.xcconfig
+          CODE_SIGN_ENTITLEMENTS: CloudView/CloudView.Release.entitlements
     dependencies:
       - package: Supabase
       - package: Sentry

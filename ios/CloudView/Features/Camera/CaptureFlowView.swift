@@ -463,6 +463,7 @@ private struct DrawerBody: View {
 
     @State private var isSaving = false
     @State private var isSaved = false
+    @State private var saveError: String?
     @State private var nearbySightings: [CloudSighting] = []
     @State private var isScrollAtTop = true
 
@@ -484,6 +485,14 @@ private struct DrawerBody: View {
             isScrollAtTop = atTop
         }
         .task { await loadNearby() }
+        .alert("Couldn't share sighting", isPresented: Binding(
+            get: { saveError != nil },
+            set: { if !$0 { saveError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(saveError ?? "")
+        }
     }
 
     // MARK: - Peek (always visible)
@@ -914,13 +923,18 @@ private struct DrawerBody: View {
 
     private func save() async {
         isSaving = true
+        defer { isSaving = false }
+        guard let data = sighting.localImageData else {
+            saveError = "Photo data unavailable — try capturing again."
+            return
+        }
         do {
-            guard let data = sighting.localImageData else { return }
             _ = try await supabase.uploadSighting(sighting, imageData: data)
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             isSaved = true
-        } catch {}
-        isSaving = false
+        } catch {
+            saveError = error.localizedDescription
+        }
     }
 
     private func loadNearby() async {

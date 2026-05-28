@@ -80,9 +80,8 @@ final class SupabaseService: ObservableObject {
     func deleteAccount() async throws {
         guard let client else { throw SupabaseError.notConfigured }
         guard currentUser != nil else { throw SupabaseError.notAuthenticated }
-        // Delete all content (sightings cascade to likes/reports)
-        try await client.rpc("delete_user_account").execute()
-        // Delete the auth user via Edge Function (requires service role, done server-side)
+        // Edge Function deletes data via delete_user_account() RPC then removes the auth user.
+        // We do not call the RPC directly — the Edge Function owns the whole sequence.
         try await client.functions.invoke("delete-account", options: .init())
         currentUser = nil
         isAuthenticated = false
