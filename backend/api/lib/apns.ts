@@ -27,8 +27,16 @@ interface APNsPayload {
   data?: Record<string, string>;
 }
 
+// APNs topic (bundle ID) — set APNS_TOPIC env var, fall back to the published one.
+const APNS_TOPIC = process.env.APNS_TOPIC || 'com.cloudoodle.app';
+
+// JWT cache: APNs allows the same token for up to 60 minutes; refresh proactively.
+let cachedJwt: { token: string; expiresAt: number; signingKey: CryptoKey } | null = null;
+
 export class APNsService {
   private config: APNsConfig | null = null;
+  private signingKey: CryptoKey | null = null;
+  private signingKeyPromise: Promise<CryptoKey> | null = null;
 
   constructor() {
     // Check if APNs is configured
@@ -88,7 +96,7 @@ export class APNsService {
         method: 'POST',
         headers: {
           'authorization': `bearer ${jwt}`,
-          'apns-topic': 'com.yourcompany.cloudoodle', // Replace with your actual bundle ID
+          'apns-topic': APNS_TOPIC,
           'apns-push-type': 'alert',
           'apns-priority': '10',
         },
@@ -98,11 +106,16 @@ export class APNsService {
       if (response.status === 200) {
         console.log(`✅ Push notification sent to ${deviceToken.substring(0, 8)}...`);
         return true;
-      } else {
-        const errorBody = await response.text();
-        console.error(`❌ APNs error (${response.status}):`, errorBody);
-        return false;
       }
+
+      const errorBody = await response.text();
+      console.error(`❌ APNs error (${response.status}):`, errorBody);
+
+      // 410 Gone or BadDeviceToken means the token is permanently invalid; prune it.
+      if (response.status === 410 || errorBody.includes('BadDeviceToken') || errorBody.includes('Unregistered')) {
+        await this.pruneToken(deviceToken);
+      }
+      return false;
 
     } catch (error) {
       console.error('❌ Error sending push notification:', error);
@@ -122,45 +135,105 @@ export class APNsService {
 
     console.log(`📤 Sending notification to ${deviceTokens.length} devices in ${region}`);
 
-    // Send to all devices
+    // Send in parallel batches so a single edge invocation can handle hundreds of devices
+    // without exhausting its timeout. Cap concurrency to stay polite to APNs.
+    const CONCURRENCY = 20;
     let successCount = 0;
-    for (const token of deviceTokens) {
-      const success = await this.sendNotification(token, payload);
-      if (success) successCount++;
+
+    for (let i = 0; i < deviceTokens.length; i += CONCURRENCY) {
+      const batch = deviceTokens.slice(i, i + CONCURRENCY);
+      const results = await Promise.all(
+        batch.map(token => this.sendNotification(token, payload))
+      );
+      successCount += results.filter(Boolean).length;
     }
 
     return successCount;
   }
 
+  private async pruneToken(token: string): Promise<void> {
+    try {
+      const device = await redis.get<{ region?: string }>(`device:${token}`);
+      await redis.del(`device:${token}`);
+      if (device?.region && device.region !== 'Unknown') {
+        const regionKey = `region-devices:${device.region.toLowerCase().replace(/\s+/g, '-')}`;
+        await redis.srem(regionKey, token);
+      }
+    } catch (err) {
+      console.error('Failed to prune invalid device token:', err);
+    }
+  }
+
+  // MARK: - JWT (ES256) using Web Crypto, supported by Vercel Edge runtime.
+
+  private async getSigningKey(): Promise<CryptoKey> {
+    if (this.signingKey) return this.signingKey;
+    if (this.signingKeyPromise) return this.signingKeyPromise;
+
+    this.signingKeyPromise = (async () => {
+      if (!this.config) throw new Error('APNs not configured');
+      const pkcs8 = pemToPkcs8(this.config.key);
+      const key = await crypto.subtle.importKey(
+        'pkcs8',
+        pkcs8,
+        { name: 'ECDSA', namedCurve: 'P-256' },
+        false,
+        ['sign']
+      );
+      this.signingKey = key;
+      return key;
+    })();
+    return this.signingKeyPromise;
+  }
+
   private async generateJWT(): Promise<string> {
-    if (!this.config) {
-      throw new Error('APNs not configured');
+    if (!this.config) throw new Error('APNs not configured');
+
+    // APNs accepts tokens for up to 60 minutes; refresh 5 minutes early.
+    const now = Math.floor(Date.now() / 1000);
+    if (cachedJwt && cachedJwt.expiresAt > now + 60) {
+      return cachedJwt.token;
     }
 
-    // JWT header
-    const header = {
-      alg: 'ES256',
-      kid: this.config.keyId,
-    };
+    const header = { alg: 'ES256', kid: this.config.keyId, typ: 'JWT' };
+    const claims = { iss: this.config.teamId, iat: now };
+    const signingInput =
+      base64UrlEncode(new TextEncoder().encode(JSON.stringify(header))) +
+      '.' +
+      base64UrlEncode(new TextEncoder().encode(JSON.stringify(claims)));
 
-    // JWT claims
-    const now = Math.floor(Date.now() / 1000);
-    const claims = {
-      iss: this.config.teamId,
-      iat: now,
-    };
+    const signingKey = await this.getSigningKey();
+    const signature = await crypto.subtle.sign(
+      { name: 'ECDSA', hash: 'SHA-256' },
+      signingKey,
+      new TextEncoder().encode(signingInput)
+    );
 
-    // In production, you would use a proper JWT library to sign with ES256
-    // For now, this is a placeholder that will work with the mock logging
-    const encodedHeader = btoa(JSON.stringify(header));
-    const encodedClaims = btoa(JSON.stringify(claims));
-
-    // Note: In real implementation, you need to sign this with your APNs private key using ES256
-    // This requires a crypto library that supports ECDSA signing
-    // For Vercel Edge Functions, you would use the Web Crypto API or a compatible library
-
-    return `${encodedHeader}.${encodedClaims}.SIGNATURE_PLACEHOLDER`;
+    const token = `${signingInput}.${base64UrlEncode(new Uint8Array(signature))}`;
+    cachedJwt = { token, expiresAt: now + 50 * 60, signingKey };
+    return token;
   }
+}
+
+// --- PEM / base64url helpers --------------------------------------------------
+
+function base64UrlEncode(bytes: Uint8Array): string {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
+}
+
+function pemToPkcs8(pem: string): ArrayBuffer {
+  // Accept either a raw base64 blob or a full PEM with headers / \n / literal "\n"
+  const normalized = pem
+    .replace(/-----BEGIN [^-]+-----/g, '')
+    .replace(/-----END [^-]+-----/g, '')
+    .replace(/\\n/g, '')
+    .replace(/\s+/g, '');
+  const bin = atob(normalized);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out.buffer;
 }
 
 // Singleton instance

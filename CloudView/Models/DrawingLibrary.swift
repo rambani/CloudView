@@ -26,7 +26,7 @@ enum DrawingSubject: String, CaseIterable {
     case camel, meerkat, snake, scorpion, lizard
 
     // ANIMALS - Jungle
-    case parrot, toucan, gorilla, leopard, jaguar, chameleon, macaw
+    case toucan, gorilla, leopard, jaguar, chameleon, macaw
 
     // ANIMALS - Insects & Small Creatures
     case butterfly, ladybug, bee, caterpillar, snail, dragonfly
@@ -95,7 +95,7 @@ enum DrawingSubject: String, CaseIterable {
             return .arcticAnimal
         case .camel, .meerkat, .snake, .scorpion, .lizard:
             return .desertAnimal
-        case .parrot, .toucan, .gorilla, .leopard, .jaguar, .chameleon, .macaw:
+        case .toucan, .gorilla, .leopard, .jaguar, .chameleon, .macaw:
             return .jungleAnimal
         case .butterfly, .ladybug, .bee, .caterpillar, .snail, .dragonfly:
             return .insect
@@ -143,7 +143,7 @@ enum DrawingAction: String, CaseIterable {
     case studying, teaching, building, inventing
 
     // ADVENTURE & EXPLORATION
-    case exploring, climbing, hiking, treasure hunting
+    case exploring, climbing, hiking, treasureHunting
     case spaceExploring, deepSeaDiving, flying, soaring
     case paragliding, bungeeJumping, ziplining
 
@@ -175,6 +175,7 @@ enum DrawingAction: String, CaseIterable {
         case .flyingKite: return "Flying a Kite"
         case .blowingBubbles: return "Blowing Bubbles"
         case .playingChess: return "Playing Chess"
+        case .treasureHunting: return "Treasure Hunting"
         case .spaceExploring: return "Exploring Space"
         case .deepSeaDiving: return "Deep Sea Diving"
         case .castingSpells: return "Casting Spells"
@@ -212,7 +213,7 @@ enum DrawingAction: String, CaseIterable {
              .flyingKite, .blowingBubbles, .playingChess, .juggling,
              .studying, .teaching, .building, .inventing:
             return .everyday
-        case .exploring, .climbing, .hiking, .treasure hunting,
+        case .exploring, .climbing, .hiking, .treasureHunting,
              .spaceExploring, .deepSeaDiving, .flying, .soaring,
              .paragliding, .bungeeJumping, .ziplining:
             return .adventure
@@ -240,7 +241,7 @@ enum DrawingAccessory: String, CaseIterable {
     case wizardHat, baseballCap, crown, cowboyHat, partyHat, chefHat, pirateHat, topHat, beret, beanie
 
     // EYEWEAR
-    case sunglasses, glasses, goggles, monocle, 3DGlasses, heartGlasses
+    case sunglasses, glasses, goggles, monocle, threeDGlasses, heartGlasses
 
     // NECKWEAR
     case scarf, bowTie, necktie, cape, lei
@@ -261,7 +262,7 @@ enum DrawingAccessory: String, CaseIterable {
     case guitar, drums, piano, trumpet, violin, ukulele
 
     // TOOLS
-    case hammer, wrench, paintbrush, telescope, microscope
+    case hammer, wrench, microscope
 
     // MAGICAL ITEMS
     case crystalBall, spellBook, potionBottle, magicStaff, fairyDust
@@ -283,7 +284,7 @@ enum DrawingAccessory: String, CaseIterable {
         case .pirateHat: return "Pirate Hat"
         case .topHat: return "Top Hat"
         case .heartGlasses: return "Heart-shaped Glasses"
-        case ._3DGlasses: return "3D Glasses"
+        case .threeDGlasses: return "3D Glasses"
         case .bowTie: return "Bow Tie"
         case .magnifyingGlass: return "Magnifying Glass"
         case .treasureChest: return "Treasure Chest"

@@ -8,7 +8,7 @@ class NotificationService: ObservableObject {
     @Published var deviceToken: String?
 
     private let notificationCenter = UNUserNotificationCenter.current()
-    private let backendURL = "https://cloud-view-backend.vercel.app/api/register-device"
+    private var backendURL: URL { BackendConfig.registerDeviceURL }
 
     init() {
         checkNotificationAuthorization()
@@ -86,10 +86,7 @@ class NotificationService: ObservableObject {
     // MARK: - Backend Registration
 
     private func registerDeviceWithBackend(token: String, region: String? = nil) {
-        guard let url = URL(string: backendURL) else {
-            print("❌ Invalid backend URL")
-            return
-        }
+        let url = backendURL
 
         let payload: [String: Any] = [
             "deviceToken": token,

@@ -55,7 +55,18 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var locationPermissionStatus: CLAuthorizationStatus = .notDetermined
     @Published var currentLocation: CLLocation? // Exposed for privacy-preserving scan reporting
 
-    private let apiKey = "YOUR_API_KEY_HERE" // Users will need to add their own key
+    // Inject your OpenWeatherMap API key via Info.plist (key: "OPEN_WEATHER_API_KEY").
+    // Empty / unconfigured ⇒ fall back to mock data instead of hammering the API
+    // with a 401 every minute.
+    private let apiKey: String = {
+        if let key = Bundle.main.object(forInfoDictionaryKey: "OPEN_WEATHER_API_KEY") as? String,
+           !key.isEmpty,
+           key != "YOUR_API_KEY_HERE" {
+            return key
+        }
+        return ""
+    }()
+    private var hasAPIKey: Bool { !apiKey.isEmpty }
     private let baseURL = "https://api.openweathermap.org/data/2.5"
 
     private var locationManager: CLLocationManager?
@@ -128,6 +139,12 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 
     func fetchWeather(for location: CLLocation) {
+        guard hasAPIKey else {
+            // No API key configured — surface mock data so the UI still works.
+            useMockData()
+            return
+        }
+
         isLoading = true
         error = nil
 

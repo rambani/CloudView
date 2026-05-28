@@ -7,8 +7,8 @@ import CoreLocation
 class ScanReportingService {
     static let shared = ScanReportingService()
 
-    // Backend API endpoint (configured with Vercel deployment)
-    private var backendURL = "https://cloud-view-backend.vercel.app/api/report-scan"
+    // Backend API endpoint — points at BackendConfig by default.
+    private var backendURL: URL = BackendConfig.reportScanURL
     private var isEnabled = true // Backend is now live!
 
     private init() {}
@@ -25,55 +25,65 @@ class ScanReportingService {
             return
         }
 
-        // Get region from location (city level, not exact coordinates)
-        let region = extractRegion(from: location)
-
-        // Categorize the drawing
         let category = DrawingCategory.categorize(drawingName: drawingName)
 
-        // Create anonymous report
-        let report = AnonymousScanReport(
-            region: region,
-            category: category.rawValue,
-            timestamp: Date()
-        )
+        Task {
+            let region = await extractRegion(from: location)
 
-        // Send to backend
-        sendReportToBackend(report)
+            let report = AnonymousScanReport(
+                region: region,
+                category: category.rawValue,
+                timestamp: Date()
+            )
+
+            sendReportToBackend(report)
+        }
     }
 
     // MARK: - Privacy-Preserving Location
 
-    private func extractRegion(from location: CLLocation?) -> String {
+    // Cache geocoded region briefly so we don't hammer CLGeocoder (it's rate-limited).
+    private var cachedRegion: (location: CLLocation, region: String, expiresAt: Date)?
+    private let regionCacheTTL: TimeInterval = 600 // 10 minutes
+
+    private func extractRegion(from location: CLLocation?) async -> String {
         guard let location = location else {
             return "Unknown"
         }
 
-        // Convert coordinates to city/region name using reverse geocoding
-        // This ensures we only send city-level data, not exact coordinates
-        let geocoder = CLGeocoder()
-
-        geocoder.reverseGeocodeLocation(location) { [weak self] placemarks, error in
-            if let city = placemarks?.first?.locality {
-                // Have city name, could update report if needed
-                print("Region detected: \(city)")
-            }
+        // Serve from cache if the user hasn't moved much and the entry is fresh.
+        if let cached = cachedRegion,
+           cached.expiresAt > Date(),
+           cached.location.distance(from: location) < 5_000 {
+            return cached.region
         }
 
-        // For now, return a placeholder
-        // In production, this would wait for geocoding result
+        let region = await reverseGeocode(location)
+        cachedRegion = (location, region, Date().addingTimeInterval(regionCacheTTL))
+        return region
+    }
+
+    private func reverseGeocode(_ location: CLLocation) async -> String {
+        let geocoder = CLGeocoder()
+        do {
+            let placemarks = try await geocoder.reverseGeocodeLocation(location)
+            // Prefer city, fall back to admin area (state/region), then country.
+            if let placemark = placemarks.first {
+                return placemark.locality
+                    ?? placemark.administrativeArea
+                    ?? placemark.country
+                    ?? "Unknown"
+            }
+        } catch {
+            print("Reverse geocoding failed: \(error.localizedDescription)")
+        }
         return "Unknown"
     }
 
     // MARK: - Backend Communication
 
     private func sendReportToBackend(_ report: AnonymousScanReport) {
-        guard let url = URL(string: backendURL) else {
-            print("Invalid backend URL")
-            return
-        }
-
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: backendURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
@@ -105,8 +115,12 @@ class ScanReportingService {
 
     // MARK: - Configuration
 
-    /// Enable scan reporting (when backend is deployed)
-    func enable(withBackendURL url: String) {
+    /// Enable scan reporting against a specific backend URL (overrides the default).
+    func enable(withBackendURL urlString: String) {
+        guard let url = URL(string: urlString) else {
+            print("Ignoring invalid backend URL: \(urlString)")
+            return
+        }
         backendURL = url
         isEnabled = true
         print("Scan reporting enabled with backend: \(url)")

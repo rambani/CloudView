@@ -29,7 +29,9 @@ class ARViewModel: ObservableObject {
     private let cloudDetector = CloudDetector()
     private let drawingLibrary = DrawingLibrary()
     private var cancellables = Set<AnyCancellable>()
-    private var activeDrawings: [UUID: DrawingAnchor] = []
+    private var activeDrawings: [UUID: DrawingAnchor] = [:]
+    // Insertion order of drawing IDs so we can evict the actual oldest.
+    private var drawingOrder: [UUID] = []
 
     // Services for privacy-preserving notifications
     weak var weatherService: WeatherService? // To get current location for scan reporting
@@ -40,17 +42,22 @@ class ARViewModel: ObservableObject {
 
     // Frame processing throttle
     private var lastProcessTime: Date = .distantPast
-    private let processingInterval: TimeInterval = 1.0 // Process every 1 second
+    private let processingInterval: TimeInterval = 0.25 // Process 4 frames per second
 
     // No cloud detection tracking
     private var consecutiveNoCloudFrames = 0
-    private let noCloudThreshold = 5 // 5 seconds without clouds
+    // Frames before declaring "no clouds" — 20 frames * 0.25s = ~5 seconds.
+    private let noCloudThreshold = 20
 
-    // Camera stability tracking
+    // Camera stability tracking — measured against actual camera transforms.
     private var cameraStabilityTimer: Timer?
     private var currentCloudRegion: CloudRegion?
     private var stableFrameCount = 0
-    private let requiredStableFrames = 15 // ~0.5 seconds at 30fps
+    // 8 frames * 0.25s = ~2 seconds of "hold still" before we draw.
+    private let requiredStableFrames = 8
+    private var lastCameraTransform: simd_float4x4?
+    private let stabilityTranslationThreshold: Float = 0.03 // meters / frame
+    private let stabilityRotationThreshold: Float = 0.05    // radians / frame
 
     // Performance limits
     private let maxDrawings = 20 // Max concurrent drawings to prevent memory issues
@@ -116,9 +123,22 @@ class ARViewModel: ObservableObject {
     // MARK: - Time of Day Check
 
     private func isDaytime() -> Bool {
+        // Prefer the astronomical sunrise/sunset for the user's location and date.
+        if let location = weatherService?.currentLocation {
+            let now = Date()
+            let solar = SolarCalculator.sunriseSunset(
+                for: location.coordinate,
+                date: now
+            )
+            if let sunrise = solar.sunrise, let sunset = solar.sunset {
+                return now >= sunrise && now <= sunset
+            }
+        }
+
+        // Fallback when no location is available yet: widened to 5–21 to be
+        // less wrong at high latitudes and during DST changes.
         let hour = Calendar.current.component(.hour, from: Date())
-        // Consider 6 AM to 8 PM as daytime
-        return hour >= 6 && hour < 20
+        return hour >= 5 && hour < 21
     }
 
     struct CloudRegion: Identifiable {
@@ -161,6 +181,7 @@ class ARViewModel: ObservableObject {
             appState = .nightTime
             consecutiveNoCloudFrames = 0
             stableFrameCount = 0
+            lastCameraTransform = nil
             return
         }
 
@@ -169,6 +190,7 @@ class ARViewModel: ObservableObject {
             appState = .pointAtSky
             consecutiveNoCloudFrames = 0
             stableFrameCount = 0
+            lastCameraTransform = nil
             return
         }
 
@@ -213,28 +235,41 @@ class ARViewModel: ObservableObject {
     }
 
     private func isCameraStable(_ frame: ARFrame) -> Bool {
-        // Check if camera movement is minimal
-        let camera = frame.camera
-        let transform = camera.transform
+        let transform = frame.camera.transform
+        defer { lastCameraTransform = transform }
 
-        // Simple stability check based on camera transform
-        // In a real app, you'd track transform delta between frames
-        return true // Simplified for now
+        guard let previous = lastCameraTransform else {
+            // First frame — no baseline, assume stable.
+            return true
+        }
+
+        // Translation delta (camera position columns.3 holds tx/ty/tz).
+        let dx = transform.columns.3.x - previous.columns.3.x
+        let dy = transform.columns.3.y - previous.columns.3.y
+        let dz = transform.columns.3.z - previous.columns.3.z
+        let translation = sqrtf(dx * dx + dy * dy + dz * dz)
+
+        // Rotation delta via forward vector (camera looks down -Z).
+        let prevForward = -simd_float3(previous.columns.2.x, previous.columns.2.y, previous.columns.2.z)
+        let currForward = -simd_float3(transform.columns.2.x, transform.columns.2.y, transform.columns.2.z)
+        let dot = simd_dot(simd_normalize(prevForward), simd_normalize(currForward))
+        let cosAngle = max(Float(-1), min(Float(1), dot))
+        let rotation = acosf(cosAngle)
+
+        return translation < stabilityTranslationThreshold
+            && rotation < stabilityRotationThreshold
     }
 
     @MainActor
     private func createDrawingForCloud(_ cloudShape: CloudShape, frame: ARFrame) async {
         guard let arView = arView else { return }
 
-        // Performance limit: Check max drawings
-        if activeDrawings.count >= maxDrawings {
-            // Remove oldest drawing to make room
-            if let oldestDrawing = activeDrawings.values.min(by: { _ , _ in true }) {
-                oldestDrawing.anchor.removeFromParent()
-                if let key = activeDrawings.first(where: { $0.value.anchor == oldestDrawing.anchor })?.key {
-                    activeDrawings.removeValue(forKey: key)
-                }
+        // Performance limit: evict the actual oldest drawing if we're at the cap.
+        while activeDrawings.count >= maxDrawings, let oldestID = drawingOrder.first {
+            if let oldest = activeDrawings.removeValue(forKey: oldestID) {
+                oldest.anchor.removeFromParent()
             }
+            drawingOrder.removeFirst()
         }
 
         // Check if we already have a drawing near this location
@@ -305,6 +340,7 @@ class ARViewModel: ObservableObject {
         )
 
         activeDrawings[cloudRegion.id] = drawingAnchor
+        drawingOrder.append(cloudRegion.id)
         drawingCreationCount += 1
 
         // Trigger haptic feedback for drawing creation
@@ -356,6 +392,7 @@ class ARViewModel: ObservableObject {
             drawing.anchor.removeFromParent()
         }
         activeDrawings.removeAll()
+        drawingOrder.removeAll()
         drawingCreationCount = 0
     }
 

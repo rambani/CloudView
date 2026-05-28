@@ -37,3 +37,16 @@ export function getActivityId(region: string, date: string): string {
   const regionKey = getRegionKey(region);
   return `activity:${regionKey}:${date}`;
 }
+
+// Seconds remaining until end of UTC day, with a 1-hour floor so
+// late-day writes still have a reasonable lifetime.
+export function endOfDayTtlSeconds(): number {
+  const now = new Date();
+  const endOfDay = Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate() + 1
+  );
+  const seconds = Math.floor((endOfDay - now.getTime()) / 1000);
+  return Math.max(seconds, 3600);
+}
