@@ -282,14 +282,9 @@ class ARViewModel: ObservableObject {
             location: weatherService?.currentLocation
         )
 
-        // Create AR anchor at cloud position
-        let raycastQuery = arView.makeRaycast(
-            from: cloudShape.screenPosition,
-            allowing: .estimatedPlane,
-            alignment: .any
-        )
-
-        // Create anchor in the sky direction
+        // Create anchor in the sky direction. We don't raycast — clouds aren't
+        // surfaces, so the AR session has nothing to hit — and instead place
+        // the drawing along the unprojected camera ray at a fixed distance.
         let anchor = AnchorEntity()
         let distance: Float = 50.0 // Place drawing 50 meters away
 

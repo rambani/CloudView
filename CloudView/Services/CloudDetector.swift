@@ -68,14 +68,22 @@ class CloudDetector {
 
         do {
             try handler.perform([request])
-            guard let results = request.results as? [VNContoursObservation] else {
+            // `request.results` is already typed as `[VNContoursObservation]?`;
+            // the old `as? [VNContoursObservation]` downcast warned that it
+            // was a no-op.
+            guard let results = request.results else {
                 return nil
             }
 
-            // Filter for significant contours (clouds, not noise)
-            let significantContours = results.filter { contour in
-                let area = contour.boundingBox.width * contour.boundingBox.height
-                return area > 0.02 // At least 2% of image
+            // VNContoursObservation has no `.boundingBox` of its own — the
+            // observation is a tree of contours. Compute the union bounding
+            // box from its top-level contours' normalized paths, then drop
+            // anything that doesn't cover at least 2% of the image.
+            let significantContours = results.filter { observation in
+                let box = observation.topLevelContours.reduce(CGRect.null) { acc, c in
+                    acc.union(c.normalizedPath.boundingBox)
+                }
+                return box.width * box.height > 0.02
             }
 
             return Array(significantContours.prefix(5))
@@ -100,7 +108,13 @@ class CloudDetector {
     }
 
     private func convertToCloudShape(_ observation: VNContoursObservation, imageSize: CGSize) -> CloudShape? {
-        let boundingBox = observation.boundingBox
+        // Union of every top-level contour's normalized path → bounding box.
+        // VNContoursObservation itself has no `.boundingBox` so we have to
+        // build it from the contour paths.
+        let boundingBox = observation.topLevelContours.reduce(CGRect.null) { acc, c in
+            acc.union(c.normalizedPath.boundingBox)
+        }
+        guard !boundingBox.isNull else { return nil }
 
         // Vision returns normalized coords with origin at LOWER-left. Flip Y
         // so `rect`, `screenPosition`, and the contour points are all in
@@ -141,21 +155,25 @@ class CloudDetector {
     private func extractContourPoints(from observation: VNContoursObservation, imageSize: CGSize) -> [CGPoint] {
         var points: [CGPoint] = []
 
-        let topLevelContours = observation.topLevelContours
+        for contour in observation.topLevelContours {
+            // `VNContour.point(at:)` was removed; iterate via the buffer
+            // directly. `normalizedPoints` is an UnsafeBufferPointer of
+            // simd_float2 in lower-left normalized image space.
+            let buffer = contour.normalizedPoints
+            let total = buffer.count
+            guard total > 0 else { continue }
 
-        for contour in topLevelContours {
-            let pointCount = min(contour.pointCount, 100)
-            let step = max(1, contour.pointCount / pointCount)
+            let target = min(total, 100)
+            let step = max(1, total / target)
 
-            for i in stride(from: 0, to: contour.pointCount, by: step) {
-                if let point = try? contour.point(at: i) {
-                    // Same Vision lower-left → top-left flip as the bounding box.
-                    let imagePoint = CGPoint(
-                        x: CGFloat(point.x) * imageSize.width,
-                        y: (1.0 - CGFloat(point.y)) * imageSize.height
-                    )
-                    points.append(imagePoint)
-                }
+            for i in stride(from: 0, to: total, by: step) {
+                let p = buffer[i]
+                // Same Vision lower-left → top-left flip as the bounding box.
+                let imagePoint = CGPoint(
+                    x: CGFloat(p.x) * imageSize.width,
+                    y: (1.0 - CGFloat(p.y)) * imageSize.height
+                )
+                points.append(imagePoint)
             }
         }
 
