@@ -138,7 +138,7 @@ jobs:
             let body = `${HEAD}\nrun: ${context.runId} attempt: ${context.runNumber}\n\n`;
 
             if (!fs.existsSync(dir)) {
-              body += '_No logs were collected — the job likely failed before any tee'd step ran._\n';
+              body += "_No logs were collected — the job likely failed before any teed step ran._\n";
             } else {
               for (const f of fs.readdirSync(dir).sort()) {
                 const full = fs.readFileSync(path.join(dir, f), 'utf8');
