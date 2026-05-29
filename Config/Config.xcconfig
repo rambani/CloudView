@@ -1,0 +1,18 @@
+// Project-wide build configuration.
+//
+// `Secrets.xcconfig` is the gitignored sibling that overrides these defaults
+// with the real values per developer / per environment. `#include?` makes the
+// include OPTIONAL — Xcode silently skips it when the file is missing, which
+// lets a fresh clone build without copying anything by hand. CI populates
+// Secrets.xcconfig from a repo secret before the build step runs.
+//
+// Add new shared settings here; add new secrets to Secrets.xcconfig.example
+// (the committed template) so other devs know what to set.
+
+// MARK: Defaults (overridden by Secrets.xcconfig when present)
+
+OPEN_WEATHER_API_KEY =
+
+// MARK: Optional override
+
+#include? "Secrets.xcconfig"

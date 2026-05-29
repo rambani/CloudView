@@ -57,6 +57,8 @@
 		A1000063000000000000001 /* BackendConfigTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendConfigTests.swift; sourceTree = "<group>"; };
 		A1000064000000000000001 /* CloudViewTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CloudViewTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1000076000000000000001 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		A1000077000000000000001 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		A1000078000000000000001 /* Secrets.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig.example; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXContainerItemProxy section */
@@ -92,8 +94,18 @@
 			children = (
 				A1000025000000000000001 /* CloudView */,
 				A1000067000000000000001 /* CloudViewTests */,
+				A1000079000000000000001 /* Config */,
 				A1000026000000000000001 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		A1000079000000000000001 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				A1000077000000000000001 /* Config.xcconfig */,
+				A1000078000000000000001 /* Secrets.xcconfig.example */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 		A1000025000000000000001 /* CloudView */ = {
@@ -325,6 +337,7 @@
 /* Begin XCBuildConfiguration section */
 		A1000037000000000000001 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A1000077000000000000001 /* Config.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -388,6 +401,7 @@
 		};
 		A1000038000000000000001 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A1000077000000000000001 /* Config.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;

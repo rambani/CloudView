@@ -163,27 +163,27 @@ cd CloudView
 open CloudView.xcodeproj
 ```
 
-### 3. Configure Weather API (Optional)
+### 3. Configure Weather API
 
-To get real weather data instead of mock data:
+The app reads `OPEN_WEATHER_API_KEY` from `Info.plist`, which in turn picks up
+the value from an `.xcconfig`. To set your key:
 
-1. Sign up for a free API key at [OpenWeatherMap](https://openweathermap.org/api)
-2. Open `CloudView/Services/WeatherService.swift`
-3. Replace `YOUR_API_KEY_HERE` with your actual API key:
-
-```swift
-private let apiKey = "your_actual_api_key_here"
+```bash
+cp Config/Secrets.xcconfig.example Config/Secrets.xcconfig
+# Edit Config/Secrets.xcconfig and paste your OpenWeatherMap key.
 ```
 
-4. In `ContentView.swift`, uncomment the real weather fetch:
+Get a free key at [OpenWeatherMap](https://openweathermap.org/api).
 
-```swift
-// Replace this:
-weatherService.useMockData()
+`Config/Secrets.xcconfig` is gitignored — never commit your key. CI populates
+the same file from the `OPEN_WEATHER_API_KEY` repository secret before each
+build, so production releases ship with the real key without anyone touching
+source.
 
-// With this:
-weatherService.requestLocationAndFetchWeather()
-```
+If you skip this step:
+- **DEBUG builds** show sample weather so the UI is still populated for dev.
+- **Release builds** show a "weather unavailable" placeholder and log a
+  startup warning so a misconfigured release never silently looks fine.
 
 ### 4. Build and Run
 
