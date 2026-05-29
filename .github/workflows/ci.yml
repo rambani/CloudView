@@ -41,6 +41,9 @@ jobs:
     name: iOS build + tests
     runs-on: macos-15
     timeout-minutes: 25
+    permissions:
+      contents: read
+      pull-requests: write
     env:
       PROJECT: CloudView.xcodeproj
       SCHEME: CloudView
@@ -119,3 +122,62 @@ jobs:
             build/TestResults.xcresult
           if-no-files-found: warn
           retention-days: 7
+
+      # When a step in this job fails, post the salient lines from each log
+      # back to the PR as a comment. Lets agents reading via the API diagnose
+      # the failure without download access to the artifact bundle.
+      - name: Post failure summary to PR
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const dir = 'build/logs';
+            const HEAD = '## iOS CI failure';
+            let body = `${HEAD}\nrun: ${context.runId} attempt: ${context.runNumber}\n\n`;
+
+            if (!fs.existsSync(dir)) {
+              body += '_No logs were collected — the job likely failed before any tee'd step ran._\n';
+            } else {
+              for (const f of fs.readdirSync(dir).sort()) {
+                const full = fs.readFileSync(path.join(dir, f), 'utf8');
+                // Prefer compile errors / xcodebuild error lines if present;
+                // fall back to the last 80 lines so the human-friendly tail
+                // is always there.
+                const lines = full.split('\n');
+                const errMatches = lines.filter(l =>
+                  /error:|fatal error|warning:|FAILED|ld: |Undefined symbol|xcodebuild: error|Testing failed|\*\* TEST FAILED \*\*|\*\* BUILD FAILED \*\*/.test(l)
+                );
+                const tail = lines.slice(-80);
+                const section = (errMatches.length ? errMatches.slice(0, 60) : tail).join('\n');
+                body += `### ${f} (${lines.length} lines)\n\`\`\`\n${section}\n\`\`\`\n\n`;
+              }
+            }
+
+            // Avoid spamming: replace any prior failure comment on this PR
+            // rather than appending a new one each run.
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100,
+            });
+            const existing = comments.find(c =>
+              c.user && c.user.type === 'Bot' && c.body && c.body.startsWith(HEAD)
+            );
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
