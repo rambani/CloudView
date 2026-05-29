@@ -22,7 +22,49 @@ enum SolarCalculator {
 
         let sunrise = solarEvent(dayOfYear: dayOfYear, latitude: lat, longitude: lng, rising: true, date: date)
         let sunset  = solarEvent(dayOfYear: dayOfYear, latitude: lat, longitude: lng, rising: false, date: date)
-        return Result(sunrise: sunrise, sunset: sunset)
+
+        // The NOAA algorithm normalizes UT to 0–24h and drops the day-rollover.
+        // The clock-time is correct but the calendar day can be off by ±1 for
+        // any longitude where the event crosses midnight UTC (SF sunset lands
+        // on the next UTC day; Tokyo sunrise lands on the previous). Anchor
+        // each event to the nearest copy of itself within ±12h of solar noon.
+        let solarNoon = solarNoonUTC(for: date, longitude: lng)
+        return Result(
+            sunrise: sunrise.map { snap($0, near: solarNoon) },
+            sunset:  sunset.map  { snap($0, near: solarNoon) }
+        )
+    }
+
+    /// Solar noon in UTC for the calendar day of `date` at `longitude`.
+    /// Solar noon ≈ 12:00 local solar time = (12 − lng/15) hours UTC.
+    private static func solarNoonUTC(for date: Date, longitude: Double) -> Date {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        let comps = calendar.dateComponents([.year, .month, .day], from: date)
+        var dc = DateComponents()
+        dc.year = comps.year
+        dc.month = comps.month
+        dc.day = comps.day
+        dc.hour = 0
+        dc.timeZone = TimeZone(identifier: "UTC")
+        let startOfDay = calendar.date(from: dc)!
+        return startOfDay.addingTimeInterval((12.0 - longitude / 15.0) * 3600)
+    }
+
+    /// Shift `candidate` by whole days until it lies within ±12h of `anchor`.
+    /// Both sunrise and sunset naturally fall inside this window because
+    /// sunrise sits a few hours before solar noon and sunset a few hours after.
+    private static func snap(_ candidate: Date, near anchor: Date) -> Date {
+        var result = candidate
+        let twelveHours: TimeInterval = 12 * 3600
+        let day: TimeInterval = 24 * 3600
+        while result.timeIntervalSince(anchor) < -twelveHours {
+            result = result.addingTimeInterval(day)
+        }
+        while result.timeIntervalSince(anchor) > twelveHours {
+            result = result.addingTimeInterval(-day)
+        }
+        return result
     }
 
     // Implementation of the "Sunrise/Sunset Algorithm" published by the US
