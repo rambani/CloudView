@@ -1,6 +1,14 @@
 import Foundation
 import CoreLocation
 import Combine
+import WeatherKit
+
+// MARK: - Internal model
+//
+// The UI was originally written against an OpenWeatherMap-shaped response.
+// We've migrated the data source to Apple's WeatherKit but kept this local
+// model intact, mapping WeatherKit values into it. That keeps WeatherView /
+// ContentView / the rest of the surface untouched.
 
 struct WeatherData: Codable {
     let main: MainWeather
@@ -55,31 +63,18 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var locationPermissionStatus: CLAuthorizationStatus = .notDetermined
     @Published var currentLocation: CLLocation? // Exposed for privacy-preserving scan reporting
 
-    // Inject your OpenWeatherMap API key via Info.plist (key: "OPEN_WEATHER_API_KEY").
-    // Typically wired up through an .xcconfig that's gitignored or a CI secret —
-    // never commit the key to source. Empty / unconfigured ⇒ no live weather:
-    // DEBUG builds fall back to sample data so dev work isn't blocked; release
-    // builds surface "weather unavailable" and log a loud warning at startup.
-    private let apiKey: String = {
-        if let key = Bundle.main.object(forInfoDictionaryKey: "OPEN_WEATHER_API_KEY") as? String,
-           !key.isEmpty,
-           key != "YOUR_API_KEY_HERE" {
-            return key
-        }
-        return ""
-    }()
-    var hasAPIKey: Bool { !apiKey.isEmpty }
-    private let baseURL = "https://api.openweathermap.org/data/2.5"
+    // WeatherKit handles auth via the app's signing identity — no API key in
+    // source, no secret in the build, no key-rotation drill. Quota is 500K
+    // calls/month per Apple Developer team, well above anything this app will
+    // hit at one fetch per launch.
+    private let weatherKit = WeatherKit.WeatherService.shared
 
     private var locationManager: CLLocationManager?
     private var cancellables = Set<AnyCancellable>()
+    private let geocoder = CLGeocoder()
 
     override init() {
         super.init()
-        if !hasAPIKey {
-            print("⚠️  WeatherService: OPEN_WEATHER_API_KEY missing from Info.plist. " +
-                  "Release builds will show 'weather unavailable'; DEBUG builds will show sample data.")
-        }
         setupLocationManager()
     }
 
@@ -103,10 +98,10 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
             locationManager.requestWhenInUseAuthorization()
 
         case .restricted, .denied:
-            // Permission denied - use mock data
+            // Permission denied — surface that state to the UI.
             locationPermissionDenied = true
             error = "Location access denied. Weather info unavailable."
-            useMockData() // Fallback to mock data
+            useMockData() // DEBUG only; release clears state for placeholder
 
         case .authorizedWhenInUse, .authorizedAlways:
             // Permission granted - fetch location
@@ -139,91 +134,64 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         self.error = "Location error: \(error.localizedDescription)"
         isLoading = false
-
-        // Fallback to mock data
         useMockData()
     }
 
-    func fetchWeather(for location: CLLocation) {
-        guard hasAPIKey else {
-            // No API key configured — surface mock data so the UI still works.
-            useMockData()
-            return
-        }
+    // MARK: - WeatherKit fetch
 
+    func fetchWeather(for location: CLLocation) {
         isLoading = true
         error = nil
 
-        let lat = location.coordinate.latitude
-        let lon = location.coordinate.longitude
-
-        // Fetch current weather
-        fetchCurrentWeather(lat: lat, lon: lon)
-
-        // Fetch forecast
-        fetchForecast(lat: lat, lon: lon)
-    }
-
-    private func fetchCurrentWeather(lat: Double, lon: Double) {
-        let urlString = "\(baseURL)/weather?lat=\(lat)&lon=\(lon)&appid=\(apiKey)&units=imperial"
-
-        guard let url = URL(string: urlString) else {
-            error = "Invalid URL"
-            isLoading = false
-            return
+        Task { @MainActor in
+            await fetchWeatherAsync(for: location)
         }
-
-        URLSession.shared.dataTaskPublisher(for: url)
-            .map(\.data)
-            .decode(type: WeatherData.self, decoder: JSONDecoder())
-            .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { [weak self] completion in
-                    if case .failure(let err) = completion {
-                        self?.error = "Failed to fetch weather: \(err.localizedDescription)"
-                        self?.isLoading = false
-                    }
-                },
-                receiveValue: { [weak self] weather in
-                    self?.currentWeather = weather
-                    self?.isLoading = false
-                }
-            )
-            .store(in: &cancellables)
     }
 
-    private func fetchForecast(lat: Double, lon: Double) {
-        let urlString = "\(baseURL)/forecast?lat=\(lat)&lon=\(lon)&appid=\(apiKey)&units=imperial&cnt=8" // Next 8 intervals (24 hours)
+    @MainActor
+    private func fetchWeatherAsync(for location: CLLocation) async {
+        do {
+            // WeatherKit returns a single composite Weather object with
+            // current conditions + hourly + daily forecasts in one call.
+            let weather = try await weatherKit.weather(for: location)
+            let cityName = await reverseGeocodedName(for: location)
 
-        guard let url = URL(string: urlString) else { return }
+            self.currentWeather = mapCurrent(weather.currentWeather, name: cityName)
+            self.forecast = mapForecast(weather.hourlyForecast)
+            self.isLoading = false
+        } catch {
+            print("WeatherKit fetch failed: \(error.localizedDescription)")
+            self.error = "Couldn't reach weather service."
+            self.isLoading = false
+            useMockData()
+        }
+    }
 
-        URLSession.shared.dataTaskPublisher(for: url)
-            .map(\.data)
-            .decode(type: ForecastData.self, decoder: JSONDecoder())
-            .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { _ in },
-                receiveValue: { [weak self] forecastData in
-                    self?.forecast = forecastData.list
-                }
-            )
-            .store(in: &cancellables)
+    private func reverseGeocodedName(for location: CLLocation) async -> String {
+        do {
+            let placemarks = try await geocoder.reverseGeocodeLocation(location)
+            if let placemark = placemarks.first {
+                return placemark.locality
+                    ?? placemark.administrativeArea
+                    ?? placemark.country
+                    ?? "Current Location"
+            }
+        } catch {
+            // Geocoding hiccups (rate-limited, offline) shouldn't break weather.
+        }
+        return "Current Location"
     }
 
     func requestLocationAndFetchWeather() {
         guard let locationManager = locationManager else { return }
 
-        // Check if we have permission
         if locationManager.authorizationStatus == .authorizedWhenInUse ||
            locationManager.authorizationStatus == .authorizedAlways {
-
-            // Start location updates
             locationManager.startUpdatingLocation()
         } else if locationManager.authorizationStatus == .notDetermined {
-            // Request permission first
             locationManager.requestWhenInUseAuthorization()
         } else {
-            // Permission denied - use mock data
+            // Permission denied — surface the LocationDeniedView state.
             locationPermissionDenied = true
             error = "Location access denied. Weather info unavailable."
             useMockData()
@@ -235,7 +203,89 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
         checkLocationAuthorization()
     }
 
-    // Helper to get weather emoji
+    // MARK: - Mapping WeatherKit → local model
+
+    private func mapCurrent(_ current: CurrentWeather, name: String) -> WeatherData {
+        WeatherData(
+            main: .init(
+                temp: current.temperature.converted(to: .fahrenheit).value,
+                feelsLike: current.apparentTemperature.converted(to: .fahrenheit).value,
+                humidity: Int((current.humidity * 100).rounded())
+            ),
+            weather: [.init(
+                id: openWeatherStyleID(for: current.condition),
+                main: humanReadable(current.condition),
+                description: humanReadable(current.condition),
+                icon: current.symbolName
+            )],
+            wind: .init(speed: current.wind.speed.converted(to: .milesPerHour).value),
+            name: name
+        )
+    }
+
+    private func mapForecast(_ hourly: Forecast<HourWeather>) -> [ForecastData.ForecastItem] {
+        // Match the previous OpenWeatherMap shape: ~8 future intervals.
+        let now = Date()
+        return hourly
+            .filter { $0.date > now }
+            .prefix(8)
+            .map { hour in
+                ForecastData.ForecastItem(
+                    dt: Int(hour.date.timeIntervalSince1970),
+                    main: .init(
+                        temp: hour.temperature.converted(to: .fahrenheit).value,
+                        feelsLike: hour.apparentTemperature.converted(to: .fahrenheit).value,
+                        humidity: Int((hour.humidity * 100).rounded())
+                    ),
+                    weather: [.init(
+                        id: openWeatherStyleID(for: hour.condition),
+                        main: humanReadable(hour.condition),
+                        description: humanReadable(hour.condition),
+                        icon: hour.symbolName
+                    )]
+                )
+            }
+    }
+
+    // The UI's weatherEmoji(for:) was written for OpenWeatherMap IDs. Map each
+    // WeatherKit condition to the closest OpenWeatherMap ID range so the emoji
+    // lookup keeps working without UI changes.
+    private func openWeatherStyleID(for condition: WeatherCondition) -> Int {
+        switch condition {
+        case .thunderstorms, .strongStorms, .isolatedThunderstorms,
+             .scatteredThunderstorms, .tropicalStorm, .hurricane:
+            return 200 // Thunderstorm
+        case .drizzle, .freezingDrizzle, .sunShowers:
+            return 300 // Drizzle
+        case .rain, .heavyRain, .freezingRain, .sleet:
+            return 500 // Rain
+        case .snow, .heavySnow, .flurries, .sunFlurries,
+             .wintryMix, .blizzard, .blowingSnow, .frigid:
+            return 600 // Snow
+        case .hail:
+            return 622 // Snow (hail)
+        case .foggy, .haze, .smoky, .blowingDust:
+            return 701 // Atmosphere
+        case .clear, .mostlyClear, .hot:
+            return 800 // Clear
+        case .partlyCloudy, .breezy, .windy:
+            return 801 // Few clouds
+        case .cloudy, .mostlyCloudy:
+            return 803 // Broken/overcast clouds
+        @unknown default:
+            return 800
+        }
+    }
+
+    private func humanReadable(_ condition: WeatherCondition) -> String {
+        // condition.description is already user-friendly ("Partly Cloudy")
+        // in modern WeatherKit. Provide a fallback just in case.
+        condition.description.isEmpty
+            ? String(describing: condition).capitalized
+            : condition.description
+    }
+
+    // Helper to get weather emoji (kept verbatim — still called by the UI)
     static func weatherEmoji(for weatherId: Int) -> String {
         switch weatherId {
         case 200...232: return "⛈" // Thunderstorm
@@ -253,11 +303,9 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
 }
 
 extension WeatherService {
-    /// Stable sample weather + forecast for dev runs without a configured
-    /// OpenWeatherMap key. Compiled out of release builds so production
-    /// can never silently substitute fake data for real weather — on
-    /// release the function instead leaves state nil and surfaces the
-    /// existing "weather unavailable" UI.
+    /// Stable sample weather + forecast for dev runs. Compiled out of release
+    /// builds — production never substitutes fake data for real weather.
+    /// Release path clears state so the existing "unavailable" UI takes over.
     func useMockData() {
         #if DEBUG
         currentWeather = WeatherData(
@@ -287,18 +335,11 @@ extension WeatherService {
 
         isLoading = false
         #else
-        // Production: never invent weather. Clear any partial state and
-        // let the existing nil-weather UI render an "unavailable" hint.
         currentWeather = nil
         forecast = []
         isLoading = false
         if error == nil {
             error = "Weather unavailable"
-        }
-        if !hasAPIKey {
-            // Loud signal during App Store review / TestFlight builds in
-            // case a release ships without OPEN_WEATHER_API_KEY configured.
-            print("⚠️  Release build missing OPEN_WEATHER_API_KEY in Info.plist — weather will not populate.")
         }
         #endif
     }

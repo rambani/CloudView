@@ -91,6 +91,3 @@ iOSInjectionProject/
 
 # Mac
 .DS_Store
-
-# Local secrets (committed sibling is Secrets.xcconfig.example)
-Config/Secrets.xcconfig

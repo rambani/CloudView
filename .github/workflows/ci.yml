@@ -52,20 +52,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Materialize Config/Secrets.xcconfig from a repo secret. Empty when the
-      # secret isn't set (e.g. PRs from forks), in which case the build still
-      # succeeds — the app just renders the "weather unavailable" placeholder
-      # in release builds or sample data in DEBUG. No real key ever lands in
-      # the diff or build logs.
-      - name: Inject API key
-        env:
-          OPEN_WEATHER_API_KEY: ${{ secrets.OPEN_WEATHER_API_KEY }}
-        run: |
-          umask 077
-          cat > Config/Secrets.xcconfig <<EOF
-          OPEN_WEATHER_API_KEY = $OPEN_WEATHER_API_KEY
-          EOF
-
       - name: Show toolchain
         run: |
           mkdir -p "$LOG_DIR"

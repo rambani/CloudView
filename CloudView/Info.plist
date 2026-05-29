@@ -18,8 +18,6 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<key>OPEN_WEATHER_API_KEY</key>
-	<string>$(OPEN_WEATHER_API_KEY)</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Cloudoodle needs camera access to detect clouds and create AR drawings in the sky</string>
 	<key>NSLocationWhenInUseUsageDescription</key>

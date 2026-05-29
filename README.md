@@ -163,27 +163,27 @@ cd CloudView
 open CloudView.xcodeproj
 ```
 
-### 3. Configure Weather API
+### 3. Configure Weather (WeatherKit)
 
-The app reads `OPEN_WEATHER_API_KEY` from `Info.plist`, which in turn picks up
-the value from an `.xcconfig`. To set your key:
+The app uses Apple's **WeatherKit** for live weather. There's no API key to
+manage — WeatherKit authenticates automatically via the app's signing
+identity. You do need to enable the capability once on the Apple Developer
+Portal:
 
-```bash
-cp Config/Secrets.xcconfig.example Config/Secrets.xcconfig
-# Edit Config/Secrets.xcconfig and paste your OpenWeatherMap key.
-```
+1. https://developer.apple.com/account/resources/identifiers/list
+2. Open the App ID matching `PRODUCT_BUNDLE_IDENTIFIER` (default
+   `com.cloudview.app`) — or create one.
+3. Enable **WeatherKit** under *Capabilities*.
+4. Save.
 
-Get a free key at [OpenWeatherMap](https://openweathermap.org/api).
+That's it. The entitlement is already declared in
+`CloudView/CloudView.entitlements` and wired through `CODE_SIGN_ENTITLEMENTS`,
+so no further code changes are needed.
 
-`Config/Secrets.xcconfig` is gitignored — never commit your key. CI populates
-the same file from the `OPEN_WEATHER_API_KEY` repository secret before each
-build, so production releases ship with the real key without anyone touching
-source.
-
-If you skip this step:
+If WeatherKit isn't reachable (the capability isn't enabled, the device is
+offline, or you're running an unsigned simulator build):
 - **DEBUG builds** show sample weather so the UI is still populated for dev.
-- **Release builds** show a "weather unavailable" placeholder and log a
-  startup warning so a misconfigured release never silently looks fine.
+- **Release builds** show a "weather unavailable" placeholder.
 
 ### 4. Build and Run
 
