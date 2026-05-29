@@ -253,7 +253,7 @@ extension WeatherService {
             main: WeatherData.MainWeather(temp: 72, feelsLike: 70, humidity: 65),
             weather: [WeatherData.Weather(id: 801, main: "Clouds", description: "few clouds", icon: "02d")],
             wind: WeatherData.Wind(speed: 8.5),
-            name: "San Francisco"
+            name: "Sample Weather"
         )
 
         forecast = [

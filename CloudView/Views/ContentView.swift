@@ -222,12 +222,11 @@ struct ContentView: View {
             // Request notification permission for community features
             notificationService.requestNotificationPermission()
 
-            // Fetch weather when app appears
-            // Use mock data for testing (users can add their own API key)
-            weatherService.useMockData()
-
-            // In production, uncomment this:
-            // weatherService.requestLocationAndFetchWeather()
+            // Fetch real weather for the user's current location. WeatherService
+            // falls back to mock data on its own if OPEN_WEATHER_API_KEY isn't
+            // configured or the user denies location, so this path is always
+            // safe — no need to opt in to mock data from here.
+            weatherService.requestLocationAndFetchWeather()
 
             // Show instructions on first launch
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
