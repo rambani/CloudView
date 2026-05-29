@@ -102,10 +102,13 @@ class CloudDetector {
     private func convertToCloudShape(_ observation: VNContoursObservation, imageSize: CGSize) -> CloudShape? {
         let boundingBox = observation.boundingBox
 
-        // Convert normalized coordinates to image coordinates
+        // Vision returns normalized coords with origin at LOWER-left. Flip Y
+        // so `rect`, `screenPosition`, and the contour points are all in
+        // top-left image-pixel space — which is what camera.intrinsics and
+        // the drawing renderer downstream expect.
         let rect = CGRect(
             x: boundingBox.origin.x * imageSize.width,
-            y: boundingBox.origin.y * imageSize.height,
+            y: (1.0 - boundingBox.origin.y - boundingBox.height) * imageSize.height,
             width: boundingBox.width * imageSize.width,
             height: boundingBox.height * imageSize.height
         )
@@ -115,23 +118,12 @@ class CloudDetector {
             return nil
         }
 
-        let center = CGPoint(
-            x: rect.midX,
-            y: rect.midY
-        )
-
-        let size = CGSize(
-            width: rect.width,
-            height: rect.height
-        )
-
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        let size = CGSize(width: rect.width, height: rect.height)
         let aspectRatio = Float(size.width / size.height)
         let area = Float(size.width * size.height)
 
-        // Extract actual contour points from the cloud
         let contourPoints = extractContourPoints(from: observation, imageSize: imageSize)
-
-        // Normalize contour points to 0-1 space relative to bounding box
         let normalizedContour = normalizeContourPoints(contourPoints, relativeTo: rect)
 
         return CloudShape(
@@ -149,20 +141,18 @@ class CloudDetector {
     private func extractContourPoints(from observation: VNContoursObservation, imageSize: CGSize) -> [CGPoint] {
         var points: [CGPoint] = []
 
-        // Get the top-level contour
         let topLevelContours = observation.topLevelContours
 
         for contour in topLevelContours {
-            // Sample points along the contour path
-            let pointCount = min(contour.pointCount, 100) // Limit to 100 points for performance
+            let pointCount = min(contour.pointCount, 100)
             let step = max(1, contour.pointCount / pointCount)
 
             for i in stride(from: 0, to: contour.pointCount, by: step) {
                 if let point = try? contour.point(at: i) {
-                    // Convert normalized point to image coordinates
+                    // Same Vision lower-left → top-left flip as the bounding box.
                     let imagePoint = CGPoint(
                         x: CGFloat(point.x) * imageSize.width,
-                        y: CGFloat(point.y) * imageSize.height
+                        y: (1.0 - CGFloat(point.y)) * imageSize.height
                     )
                     points.append(imagePoint)
                 }

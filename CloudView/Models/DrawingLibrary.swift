@@ -510,8 +510,9 @@ struct ModularDrawingConcept {
     private func generateAnimalFeaturesOnCloud(_ cloudShape: CloudShape) -> [DrawingConcept.DrawingPath] {
         var paths: [DrawingConcept.DrawingPath] = []
 
-        // Find the topmost point of the cloud for ears
-        if let topPoint = cloudShape.normalizedContour.max(by: { $0.y < $1.y }) {
+        // normalizedContour is in top-left origin (y=0 at top, y=1 at bottom),
+        // so the topmost point has the SMALLEST y.
+        if let topPoint = cloudShape.normalizedContour.min(by: { $0.y < $1.y }) {
             // Ear 1 (left)
             paths.append(DrawingConcept.DrawingPath(points: [
                 CGPoint(x: topPoint.x - 0.15, y: topPoint.y),
@@ -565,8 +566,8 @@ struct ModularDrawingConcept {
     private func generateMythicalFeaturesOnCloud(_ cloudShape: CloudShape) -> [DrawingConcept.DrawingPath] {
         var paths: [DrawingConcept.DrawingPath] = []
 
-        // Add wings or horn from cloud
-        if let topPoint = cloudShape.normalizedContour.max(by: { $0.y < $1.y }) {
+        // Top-left origin: smallest y = topmost point.
+        if let topPoint = cloudShape.normalizedContour.min(by: { $0.y < $1.y }) {
             // Magical horn/unicorn horn
             paths.append(DrawingConcept.DrawingPath(points: [
                 topPoint,
@@ -685,8 +686,8 @@ struct ModularDrawingConcept {
     private func generateCloudAdaptedAccessory(_ accessory: DrawingAccessory, cloudShape: CloudShape, position: Int) -> [DrawingConcept.DrawingPath] {
         let offset = CGFloat(position) * 0.15
 
-        // Find appropriate position on cloud for this accessory
-        guard let topPoint = cloudShape.normalizedContour.max(by: { $0.y < $1.y }) else {
+        // Top-left origin: smallest y = topmost point. Hats/headwear sit there.
+        guard let topPoint = cloudShape.normalizedContour.min(by: { $0.y < $1.y }) else {
             return []
         }
 

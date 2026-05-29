@@ -11,6 +11,6 @@
     "isolatedModules": true,
     "noEmit": true
   },
-  "include": ["api/**/*"],
+  "include": ["api/**/*", "test/**/*"],
   "exclude": ["node_modules"]
 }

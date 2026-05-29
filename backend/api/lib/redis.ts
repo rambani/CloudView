@@ -1,10 +1,29 @@
 import { Redis } from '@upstash/redis';
 
-// Initialize Upstash Redis client
-// You'll set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN in Vercel environment variables
-export const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+// Lazy singleton so importing this module in tests / typecheck doesn't trip
+// "[Upstash Redis] The 'token' property is missing" warnings, and so a missing
+// env var becomes a real error at the first use site rather than at import.
+let _redis: Redis | null = null;
+
+function getRedis(): Redis {
+  if (_redis) return _redis;
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) {
+    throw new Error(
+      'Upstash Redis is not configured: set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN.'
+    );
+  }
+  _redis = new Redis({ url, token });
+  return _redis;
+}
+
+// Backwards-compatible proxy: callers keep using `redis.get(...)` etc.
+export const redis = new Proxy({} as Redis, {
+  get(_target, prop, receiver) {
+    const value = Reflect.get(getRedis(), prop, receiver);
+    return typeof value === 'function' ? value.bind(getRedis()) : value;
+  },
 });
 
 // Data models

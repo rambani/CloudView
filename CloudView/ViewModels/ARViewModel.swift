@@ -349,19 +349,39 @@ class ARViewModel: ObservableObject {
     }
 
     private func screenPointToWorldDirection(_ screenPoint: CGPoint, camera: ARCamera) -> simd_float3 {
-        // Convert screen point to normalized device coordinates
-        let viewportSize = camera.imageResolution
-        let normalizedX = Float(screenPoint.x / viewportSize.width) * 2.0 - 1.0
-        let normalizedY = Float(screenPoint.y / viewportSize.height) * 2.0 - 1.0
+        // Unproject an image-space pixel into a world-space ray direction
+        // using the camera's pinhole intrinsics. The old implementation used
+        // the camera's basis vectors as if it were a unit-FOV orthographic
+        // camera, which dropped the lens FOV entirely and placed drawings
+        // off-axis from the actual cloud.
+        //
+        // Convention:
+        //   - `screenPoint` is in top-left image-pixel coordinates
+        //     (matches what CloudDetector now produces).
+        //   - `camera.intrinsics` is the pinhole matrix in image space.
+        //   - ARKit's camera transform has +X right, +Y up, looks down -Z.
+        let K = camera.intrinsics
+        let fx = K.columns.0.x
+        let fy = K.columns.1.y
+        let cx = K.columns.2.x
+        let cy = K.columns.2.y
 
-        // Get direction from camera
-        let cameraTransform = camera.transform
-        let forward = simd_float3(cameraTransform.columns.2.x, cameraTransform.columns.2.y, cameraTransform.columns.2.z)
-        let right = simd_float3(cameraTransform.columns.0.x, cameraTransform.columns.0.y, cameraTransform.columns.0.z)
-        let up = simd_float3(cameraTransform.columns.1.x, cameraTransform.columns.1.y, cameraTransform.columns.1.z)
+        // Inverse pinhole: image pixel → camera-space ray (+Z forward, +Y down).
+        let u = Float(screenPoint.x)
+        let v = Float(screenPoint.y)
+        let rayImage = simd_float3((u - cx) / fx, (v - cy) / fy, 1.0)
 
-        let direction = normalize(forward + right * normalizedX - up * normalizedY)
-        return direction
+        // Camera-image convention → ARKit camera convention (+Y up, looks down -Z).
+        let rayCamera = simd_float3(rayImage.x, -rayImage.y, -rayImage.z)
+
+        // Camera-space → world-space via the rotation part of the transform.
+        let t = camera.transform
+        let right   = simd_float3(t.columns.0.x, t.columns.0.y, t.columns.0.z)
+        let up      = simd_float3(t.columns.1.x, t.columns.1.y, t.columns.1.z)
+        let back    = simd_float3(t.columns.2.x, t.columns.2.y, t.columns.2.z)
+        let worldRay = right * rayCamera.x + up * rayCamera.y + back * rayCamera.z
+
+        return simd_normalize(worldRay)
     }
 
     @MainActor
