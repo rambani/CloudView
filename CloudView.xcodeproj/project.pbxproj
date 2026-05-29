@@ -24,6 +24,11 @@
 		A1000049000000000000001 /* ScanReportingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000050000000000000001 /* ScanReportingService.swift */; };
 		A1000051000000000000001 /* SolarCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000052000000000000001 /* SolarCalculator.swift */; };
 		A1000054000000000000001 /* BackendConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000055000000000000001 /* BackendConfig.swift */; };
+		A1000056000000000000001 /* DrawingCategoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000057000000000000001 /* DrawingCategoryTests.swift */; };
+		A1000058000000000000001 /* CombinationRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000059000000000000001 /* CombinationRulesTests.swift */; };
+		A1000060000000000000001 /* SolarCalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000061000000000000001 /* SolarCalculatorTests.swift */; };
+		A1000062000000000000001 /* BackendConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000063000000000000001 /* BackendConfigTests.swift */; };
+		A1000075000000000000001 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000076000000000000001 /* AppState.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -46,10 +51,33 @@
 		A1000050000000000000001 /* ScanReportingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanReportingService.swift; sourceTree = "<group>"; };
 		A1000052000000000000001 /* SolarCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SolarCalculator.swift; sourceTree = "<group>"; };
 		A1000055000000000000001 /* BackendConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendConfig.swift; sourceTree = "<group>"; };
+		A1000057000000000000001 /* DrawingCategoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrawingCategoryTests.swift; sourceTree = "<group>"; };
+		A1000059000000000000001 /* CombinationRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CombinationRulesTests.swift; sourceTree = "<group>"; };
+		A1000061000000000000001 /* SolarCalculatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SolarCalculatorTests.swift; sourceTree = "<group>"; };
+		A1000063000000000000001 /* BackendConfigTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendConfigTests.swift; sourceTree = "<group>"; };
+		A1000064000000000000001 /* CloudViewTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CloudViewTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1000076000000000000001 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXContainerItemProxy section */
+		A1000065000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A1000035000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A1000031000000000000001;
+			remoteInfo = CloudView;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		A1000023000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1000070000000000000001 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -63,6 +91,7 @@
 			isa = PBXGroup;
 			children = (
 				A1000025000000000000001 /* CloudView */,
+				A1000067000000000000001 /* CloudViewTests */,
 				A1000026000000000000001 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -87,6 +116,7 @@
 			isa = PBXGroup;
 			children = (
 				A1000021000000000000001 /* CloudView.app */,
+				A1000064000000000000001 /* CloudViewTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -128,6 +158,7 @@
 			children = (
 				A1000010000000000000001 /* DrawingLibrary.swift */,
 				A1000012000000000000001 /* AnimatedDrawing.swift */,
+				A1000076000000000000001 /* AppState.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -138,6 +169,17 @@
 				A1000044000000000000001 /* DesignSystem.swift */,
 			);
 			path = Design;
+			sourceTree = "<group>";
+		};
+		A1000067000000000000001 /* CloudViewTests */ = {
+			isa = PBXGroup;
+			children = (
+				A1000057000000000000001 /* DrawingCategoryTests.swift */,
+				A1000059000000000000001 /* CombinationRulesTests.swift */,
+				A1000061000000000000001 /* SolarCalculatorTests.swift */,
+				A1000063000000000000001 /* BackendConfigTests.swift */,
+			);
+			path = CloudViewTests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -160,6 +202,24 @@
 			productReference = A1000021000000000000001 /* CloudView.app */;
 			productType = "com.apple.product-type.application";
 		};
+		A1000068000000000000001 /* CloudViewTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1000074000000000000001 /* Build configuration list for PBXNativeTarget "CloudViewTests" */;
+			buildPhases = (
+				A1000069000000000000001 /* Sources */,
+				A1000070000000000000001 /* Frameworks */,
+				A1000071000000000000001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A1000066000000000000001 /* PBXTargetDependency */,
+			);
+			name = CloudViewTests;
+			productName = CloudViewTests;
+			productReference = A1000064000000000000001 /* CloudViewTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -172,6 +232,10 @@
 				TargetAttributes = {
 					A1000031000000000000001 = {
 						CreatedOnToolsVersion = 15.0;
+					};
+					A1000068000000000000001 = {
+						CreatedOnToolsVersion = 15.0;
+						TestTargetID = A1000031000000000000001;
 					};
 				};
 			};
@@ -189,6 +253,7 @@
 			projectRoot = "";
 			targets = (
 				A1000031000000000000001 /* CloudView */,
+				A1000068000000000000001 /* CloudViewTests */,
 			);
 		};
 /* End PBXProject section */
@@ -199,6 +264,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1000019000000000000001 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1000071000000000000001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -225,10 +297,30 @@
 				A1000049000000000000001 /* ScanReportingService.swift in Sources */,
 				A1000051000000000000001 /* SolarCalculator.swift in Sources */,
 				A1000054000000000000001 /* BackendConfig.swift in Sources */,
+				A1000075000000000000001 /* AppState.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1000069000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1000056000000000000001 /* DrawingCategoryTests.swift in Sources */,
+				A1000058000000000000001 /* CombinationRulesTests.swift in Sources */,
+				A1000060000000000000001 /* SolarCalculatorTests.swift in Sources */,
+				A1000062000000000000001 /* BackendConfigTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A1000066000000000000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A1000031000000000000001 /* CloudView */;
+			targetProxy = A1000065000000000000001 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		A1000037000000000000001 /* Debug */ = {
@@ -420,6 +512,58 @@
 			};
 			name = Release;
 		};
+		A1000072000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cloudview.app.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/CloudView.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/CloudView";
+			};
+			name = Debug;
+		};
+		A1000073000000000000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cloudview.app.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/CloudView.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/CloudView";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -437,6 +581,15 @@
 			buildConfigurations = (
 				A1000037000000000000001 /* Debug */,
 				A1000038000000000000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A1000074000000000000001 /* Build configuration list for PBXNativeTarget "CloudViewTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1000072000000000000001 /* Debug */,
+				A1000073000000000000001 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
