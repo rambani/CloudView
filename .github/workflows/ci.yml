@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel an in-progress run when a new commit lands on the same ref so we
+# don't pay for stale jobs after rapid pushes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (typecheck + tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # backend/.gitignore excludes package-lock.json, so use `npm install`
+      # rather than `npm ci`. Acceptable for a small dev-only dep set.
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Run tests
+        run: npm test
+
+  ios:
+    name: iOS build + tests
+    runs-on: macos-15
+    timeout-minutes: 25
+    env:
+      PROJECT: CloudView.xcodeproj
+      SCHEME: CloudView
+      RESULT_BUNDLE: build/TestResults.xcresult
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          echo "--- Schemes ---"
+          xcodebuild -project "$PROJECT" -list
+
+      # Pick an available iPhone simulator by name rather than relying on
+      # `name=iPhone 16` so the destination stays valid if Apple renames the
+      # default device in a future macos-15 image refresh.
+      - name: Pick iOS simulator
+        id: sim
+        run: |
+          udid=$(xcrun simctl list devices available \
+            | grep -E "iPhone (15|16|17)" \
+            | head -1 \
+            | grep -oE "[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}")
+          if [ -z "$udid" ]; then
+            echo "No iPhone simulator found"
+            xcrun simctl list devices available
+            exit 1
+          fi
+          echo "Using simulator UDID: $udid"
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+
+      - name: Build and test
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -resultBundlePath "$RESULT_BUNDLE" \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload xcresult on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: TestResults.xcresult
+          path: build/TestResults.xcresult
+          retention-days: 7
