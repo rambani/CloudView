@@ -56,8 +56,10 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var currentLocation: CLLocation? // Exposed for privacy-preserving scan reporting
 
     // Inject your OpenWeatherMap API key via Info.plist (key: "OPEN_WEATHER_API_KEY").
-    // Empty / unconfigured ⇒ fall back to mock data instead of hammering the API
-    // with a 401 every minute.
+    // Typically wired up through an .xcconfig that's gitignored or a CI secret —
+    // never commit the key to source. Empty / unconfigured ⇒ no live weather:
+    // DEBUG builds fall back to sample data so dev work isn't blocked; release
+    // builds surface "weather unavailable" and log a loud warning at startup.
     private let apiKey: String = {
         if let key = Bundle.main.object(forInfoDictionaryKey: "OPEN_WEATHER_API_KEY") as? String,
            !key.isEmpty,
@@ -66,7 +68,7 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
         return ""
     }()
-    private var hasAPIKey: Bool { !apiKey.isEmpty }
+    var hasAPIKey: Bool { !apiKey.isEmpty }
     private let baseURL = "https://api.openweathermap.org/data/2.5"
 
     private var locationManager: CLLocationManager?
@@ -74,6 +76,10 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     override init() {
         super.init()
+        if !hasAPIKey {
+            print("⚠️  WeatherService: OPEN_WEATHER_API_KEY missing from Info.plist. " +
+                  "Release builds will show 'weather unavailable'; DEBUG builds will show sample data.")
+        }
         setupLocationManager()
     }
 
@@ -246,9 +252,14 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
-// Mock data for testing without API key
 extension WeatherService {
+    /// Stable sample weather + forecast for dev runs without a configured
+    /// OpenWeatherMap key. Compiled out of release builds so production
+    /// can never silently substitute fake data for real weather — on
+    /// release the function instead leaves state nil and surfaces the
+    /// existing "weather unavailable" UI.
     func useMockData() {
+        #if DEBUG
         currentWeather = WeatherData(
             main: WeatherData.MainWeather(temp: 72, feelsLike: 70, humidity: 65),
             weather: [WeatherData.Weather(id: 801, main: "Clouds", description: "few clouds", icon: "02d")],
@@ -275,5 +286,20 @@ extension WeatherService {
         ]
 
         isLoading = false
+        #else
+        // Production: never invent weather. Clear any partial state and
+        // let the existing nil-weather UI render an "unavailable" hint.
+        currentWeather = nil
+        forecast = []
+        isLoading = false
+        if error == nil {
+            error = "Weather unavailable"
+        }
+        if !hasAPIKey {
+            // Loud signal during App Store review / TestFlight builds in
+            // case a release ships without OPEN_WEATHER_API_KEY configured.
+            print("⚠️  Release build missing OPEN_WEATHER_API_KEY in Info.plist — weather will not populate.")
+        }
+        #endif
     }
 }
