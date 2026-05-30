@@ -32,7 +32,21 @@ struct CloudShapeSignature: Hashable, Codable {
     static func huMoments(of contour: [CGPoint]) -> [Double] {
         guard contour.count >= 3 else { return Array(repeating: 0, count: 7) }
 
-        let raw = polygonRawMoments(contour)
+        // Pre-center to a rough estimate of the centroid. Without this,
+        // a shape translated far from the origin (e.g., a cloud silhouette
+        // in pixel coordinates) computes raw moments that span many
+        // orders of magnitude, and the central-moment subtractions lose
+        // all precision to catastrophic cancellation. After this pass,
+        // every m_pq is on the same scale as the polygon itself, and
+        // the central moments come out correctly translation-invariant.
+        let n = Double(contour.count)
+        let vx = contour.reduce(0.0) { $0 + Double($1.x) } / n
+        let vy = contour.reduce(0.0) { $0 + Double($1.y) } / n
+        let centered: [CGPoint] = contour.map {
+            CGPoint(x: Double($0.x) - vx, y: Double($0.y) - vy)
+        }
+
+        let raw = polygonRawMoments(centered)
         // Degenerate shape (zero area) → return zero signature, don't crash.
         guard abs(raw.m00) > 1e-12 else { return Array(repeating: 0, count: 7) }
 
