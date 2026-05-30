@@ -1,0 +1,262 @@
+{
+  "sourceLanguage" : "en",
+  "version" : "1.0",
+  "strings" : {
+    "Beautiful clear skies at %d° - clouds make the best canvases! ☀️" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Beautiful clear skies at %d° - clouds make the best canvases! ☀️" }
+        }
+      }
+    },
+    "Beautiful clear skies at %d° - enjoy the sunshine! ☀️" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Beautiful clear skies at %d° - enjoy the sunshine! ☀️" }
+        }
+      }
+    },
+    "Close instructions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Close instructions" }
+        }
+      }
+    },
+    "Cloudoodle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Cloudoodle" }
+        }
+      }
+    },
+    "Cloudoodle drew %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Cloudoodle drew %@" }
+        }
+      }
+    },
+    "Cloudy skies at %d° - searching for distinct formations..." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Cloudy skies at %d° - searching for distinct formations..." }
+        }
+      }
+    },
+    "Cool cloud!" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Cool cloud!" }
+        }
+      }
+    },
+    "Community" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Community" }
+        }
+      }
+    },
+    "Crisp clear day at %d° - not a cloud in sight! ☀️" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Crisp clear day at %d° - not a cloud in sight! ☀️" }
+        }
+      }
+    },
+    "Delete my data" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Delete my data" }
+        }
+      }
+    },
+    "Discover clouds and weather" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Discover clouds and weather" }
+        }
+      }
+    },
+    "Done" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Done" }
+        }
+      }
+    },
+    "Gorgeous blue skies at %d° - perfect day outside! 🌤️" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Gorgeous blue skies at %d° - perfect day outside! 🌤️" }
+        }
+      }
+    },
+    "Got it!" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Got it!" }
+        }
+      }
+    },
+    "Hold steady" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Hold steady" }
+        }
+      }
+    },
+    "How to Use" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "How to Use" }
+        }
+      }
+    },
+    "Location Access Needed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Location Access Needed" }
+        }
+      }
+    },
+    "Open Settings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Open Settings" }
+        }
+      }
+    },
+    "Point at the sky" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Point at the sky" }
+        }
+      }
+    },
+    "Point camera upward" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Point camera upward" }
+        }
+      }
+    },
+    "Privacy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Privacy" }
+        }
+      }
+    },
+    "Privacy policy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Privacy policy" }
+        }
+      }
+    },
+    "Rain at %d° - clouds are hiding today, check back soon! 🌧️" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Rain at %d° - clouds are hiding today, check back soon! 🌧️" }
+        }
+      }
+    },
+    "Scanning the skies - hold steady! ☁️" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Scanning the skies - hold steady! ☁️" }
+        }
+      }
+    },
+    "Settings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Settings" }
+        }
+      }
+    },
+    "Share anonymous cloud activity" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Share anonymous cloud activity" }
+        }
+      }
+    },
+    "Share anonymous cloud sightings so others nearby can be reminded to look up too." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Share anonymous cloud sightings so others nearby can be reminded to look up too." }
+        }
+      }
+    },
+    "Show instructions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Show instructions" }
+        }
+      }
+    },
+    "Tap to toggle instructions. Long press for settings." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Tap to toggle instructions. Long press for settings." }
+        }
+      }
+    },
+    "Version" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Version" }
+        }
+      }
+    },
+    "Weather" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Weather" }
+        }
+      }
+    },
+    "Weather requires your location to show accurate forecasts. The app still works for cloud drawings!" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Weather requires your location to show accurate forecasts. The app still works for cloud drawings!" }
+        }
+      }
+    }
+  }
+}
