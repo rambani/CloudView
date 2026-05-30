@@ -19,7 +19,20 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { create, getNumericDate } from "https://deno.land/x/djwt@v3.0.2/mod.ts";
 
-const APNS_ENDPOINT = "https://api.push.apple.com";  // use api.sandbox.push.apple.com for dev
+// Pick the APNs endpoint that matches the build's aps-environment
+// entitlement. Debug builds + Simulator + early TestFlight runs use
+// development (sandbox) tokens; sending those to the production
+// endpoint returns BadDeviceToken from Apple, which then poisons the
+// per-token records and silently drops the notification.
+//
+// Set APNS_ENVIRONMENT=development in Supabase secrets while shooting
+// for sandbox tokens; leave it unset (or =production) for App Store
+// and most TestFlight builds. Default is production to keep
+// real-user-facing pushes working if the secret is missing.
+const APNS_ENVIRONMENT = Deno.env.get("APNS_ENVIRONMENT")?.toLowerCase() ?? "production";
+const APNS_ENDPOINT = (APNS_ENVIRONMENT === "development" || APNS_ENVIRONMENT === "sandbox")
+  ? "https://api.sandbox.push.apple.com"
+  : "https://api.push.apple.com";
 
 interface SightingPayload {
   id: string;

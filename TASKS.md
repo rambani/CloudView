@@ -85,6 +85,9 @@ supabase secrets set APNS_KEY_ID=<10-char key ID>
 supabase secrets set APNS_TEAM_ID=<10-char Apple team ID>
 supabase secrets set APNS_BUNDLE_ID=com.cloudview.app
 supabase secrets set APNS_PRIVATE_KEY="$(cat /path/to/AuthKey_XXXXXXXX.p8)"
+# Set to "development" while testing with Debug builds (sandbox tokens).
+# Leave unset or set "production" for App Store / TestFlight builds.
+supabase secrets set APNS_ENVIRONMENT=production
 ```
 
 ---
