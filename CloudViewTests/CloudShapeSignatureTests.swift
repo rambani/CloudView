@@ -47,6 +47,18 @@ final class CloudShapeSignatureTests: XCTestCase {
                        "Contours with <3 points should produce a zero signature, not crash")
     }
 
+    func testCircleAndEllipseHaveDistinctSecondHuInvariant() {
+        // Sanity-check against an algebraic prediction: h₂ for a circle is
+        // exactly 0; for an aspect-2 ellipse it is ((1/(2π)) − (1/(8π)))² ≈
+        // 0.0142. The two should land in different buckets.
+        let c = CloudShapeSignature(contour: circle(center: .zero, radius: 1))
+        let e = CloudShapeSignature(contour: ellipse(rx: 1, ry: 2, rotation: 0))
+        XCTAssertEqual(c.huMoments[1], 0, accuracy: 1e-4,
+                       "Circle's h₂ should be ~0")
+        XCTAssertGreaterThan(e.huMoments[1], 1e-3,
+                             "Ellipse's h₂ should be measurably non-zero")
+    }
+
     // MARK: - Test geometry helpers
 
     private func circle(center: CGPoint, radius: CGFloat, samples: Int = 64) -> [CGPoint] {
