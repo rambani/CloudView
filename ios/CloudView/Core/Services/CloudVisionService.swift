@@ -14,22 +14,34 @@ actor CloudVisionService {
 
     func analyzeCloudImage(_ image: UIImage) async throws -> Result {
         guard let cgImage = image.cgImage else {
-            return Result(drawingElements: [], salientRegion: .null)
+            return Result(salientRegion: .null, drawingElements: [])
         }
         let salientRegion = await findSalientRegion(cgImage: cgImage)
-        return Result(drawingElements: [], salientRegion: salientRegion)
+        return Result(salientRegion: salientRegion, drawingElements: [])
     }
 
     // MARK: - Saliency: where does the eye go?
 
     private func findSalientRegion(cgImage: CGImage) async -> CGRect {
         await withCheckedContinuation { cont in
+            // Guard against double-resume: VNImageRequestHandler.perform might
+            // throw (low memory, malformed image), in which case the request's
+            // completion handler never fires. Without the explicit catch on
+            // perform, the continuation would never resume and the async task
+            // would hang indefinitely.
+            var hasResumed = false
+            func resumeOnce(with value: CGRect) {
+                guard !hasResumed else { return }
+                hasResumed = true
+                cont.resume(returning: value)
+            }
+
             let request = VNGenerateAttentionBasedSaliencyImageRequest { req, _ in
                 guard
                     let obs = req.results?.first as? VNSaliencyImageObservation,
                     let objects = obs.salientObjects, !objects.isEmpty
                 else {
-                    cont.resume(returning: .null)
+                    resumeOnce(with: .null)
                     return
                 }
                 // Union of all salient bounding boxes, flipping Y to SwiftUI space
@@ -42,10 +54,15 @@ actor CloudVisionService {
                     )
                     return acc.isNull ? flipped : acc.union(flipped)
                 }
-                cont.resume(returning: union)
+                resumeOnce(with: union)
             }
+
             let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
-            try? handler.perform([request])
+            do {
+                try handler.perform([request])
+            } catch {
+                resumeOnce(with: .null)
+            }
         }
     }
 }
