@@ -1,0 +1,1322 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cloudoodle</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    html, body, #root { margin: 0; padding: 0; height: 100%; }
+    body {
+      font-family: 'Geist', -apple-system, system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      background: #E8E5DE;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+
+    @keyframes cv-draw {
+      to { stroke-dashoffset: 0; }
+    }
+    @keyframes cv2-cap-in {
+      0%   { transform: translateY(8px); }
+      60%  { transform: translateY(8px); }
+      100% { transform: translateY(0); }
+    }
+    .cv2-cap-anim {
+      animation: cv2-cap-in 2.4s cubic-bezier(0.32,0.72,0.18,1) both;
+    }
+    .cv2-drawer-scroll {
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    .cv2-drawer-scroll::-webkit-scrollbar {
+      display: none;
+      width: 0;
+      height: 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+    // ─── Tweaks panel ──────────────────────────────────────────────────────────
+
+    const __TWEAKS_STYLE = `
+      .twk-panel{position:fixed;right:16px;bottom:16px;z-index:2147483646;width:280px;
+        max-height:calc(100vh - 32px);display:flex;flex-direction:column;
+        background:rgba(250,249,247,.78);color:#29261b;
+        -webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);
+        border:.5px solid rgba(255,255,255,.6);border-radius:14px;
+        box-shadow:0 1px 0 rgba(255,255,255,.5) inset,0 12px 40px rgba(0,0,0,.18);
+        font:11.5px/1.4 ui-sans-serif,system-ui,-apple-system,sans-serif;overflow:hidden}
+      .twk-hd{display:flex;align-items:center;justify-content:space-between;
+        padding:10px 8px 10px 14px;cursor:move;user-select:none}
+      .twk-hd b{font-size:12px;font-weight:600;letter-spacing:.01em}
+      .twk-x{appearance:none;border:0;background:transparent;color:rgba(41,38,27,.55);
+        width:22px;height:22px;border-radius:6px;cursor:default;font-size:13px;line-height:1}
+      .twk-x:hover{background:rgba(0,0,0,.06);color:#29261b}
+      .twk-body{padding:2px 14px 14px;display:flex;flex-direction:column;gap:10px;
+        overflow-y:auto;overflow-x:hidden;min-height:0;
+        scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.15) transparent}
+      .twk-body::-webkit-scrollbar{width:8px}
+      .twk-body::-webkit-scrollbar-track{background:transparent;margin:2px}
+      .twk-body::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:4px;
+        border:2px solid transparent;background-clip:content-box}
+      .twk-body::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,.25);
+        border:2px solid transparent;background-clip:content-box}
+      .twk-row{display:flex;flex-direction:column;gap:5px}
+      .twk-row-h{flex-direction:row;align-items:center;justify-content:space-between;gap:10px}
+      .twk-lbl{display:flex;justify-content:space-between;align-items:baseline;
+        color:rgba(41,38,27,.72)}
+      .twk-lbl>span:first-child{font-weight:500}
+      .twk-val{color:rgba(41,38,27,.5);font-variant-numeric:tabular-nums}
+      .twk-sect{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+        color:rgba(41,38,27,.45);padding:10px 0 0}
+      .twk-sect:first-child{padding-top:0}
+      .twk-field{appearance:none;box-sizing:border-box;width:100%;min-width:0;height:26px;padding:0 8px;
+        border:.5px solid rgba(0,0,0,.1);border-radius:7px;
+        background:rgba(255,255,255,.6);color:inherit;font:inherit;outline:none}
+      .twk-field:focus{border-color:rgba(0,0,0,.25);background:rgba(255,255,255,.85)}
+      select.twk-field{padding-right:22px;
+        background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='rgba(0,0,0,.5)' d='M0 0h10L5 6z'/></svg>");
+        background-repeat:no-repeat;background-position:right 8px center}
+      .twk-seg{position:relative;display:flex;padding:2px;border-radius:8px;
+        background:rgba(0,0,0,.06);user-select:none}
+      .twk-seg-thumb{position:absolute;top:2px;bottom:2px;border-radius:6px;
+        background:rgba(255,255,255,.9);box-shadow:0 1px 2px rgba(0,0,0,.12);
+        transition:left .15s cubic-bezier(.3,.7,.4,1),width .15s}
+      .twk-seg.dragging .twk-seg-thumb{transition:none}
+      .twk-seg button{appearance:none;position:relative;z-index:1;flex:1;border:0;
+        background:transparent;color:inherit;font:inherit;font-weight:500;min-height:22px;
+        border-radius:6px;cursor:default;padding:4px 6px;line-height:1.2;overflow-wrap:anywhere}
+    `;
+
+    function useTweaks(defaults) {
+      const [values, setValues] = useState(defaults);
+      const setTweak = useCallback((keyOrEdits, val) => {
+        const edits = typeof keyOrEdits === 'object' && keyOrEdits !== null
+          ? keyOrEdits : { [keyOrEdits]: val };
+        setValues((prev) => ({ ...prev, ...edits }));
+      }, []);
+      return [values, setTweak];
+    }
+
+    function TweaksPanel({ title = 'Tweaks', children }) {
+      const [open, setOpen] = useState(false);
+      const dragRef = useRef(null);
+      const offsetRef = useRef({ x: 16, y: 16 });
+      const PAD = 16;
+
+      const clampToViewport = useCallback(() => {
+        const panel = dragRef.current;
+        if (!panel) return;
+        const w = panel.offsetWidth, h = panel.offsetHeight;
+        const maxRight = Math.max(PAD, window.innerWidth - w - PAD);
+        const maxBottom = Math.max(PAD, window.innerHeight - h - PAD);
+        offsetRef.current = {
+          x: Math.min(maxRight, Math.max(PAD, offsetRef.current.x)),
+          y: Math.min(maxBottom, Math.max(PAD, offsetRef.current.y)),
+        };
+        panel.style.right = offsetRef.current.x + 'px';
+        panel.style.bottom = offsetRef.current.y + 'px';
+      }, []);
+
+      useEffect(() => {
+        if (!open) return;
+        clampToViewport();
+        const ro = new ResizeObserver(clampToViewport);
+        ro.observe(document.documentElement);
+        return () => ro.disconnect();
+      }, [open, clampToViewport]);
+
+      useEffect(() => {
+        const onKey = (e) => {
+          if (e.key === 'Escape') setOpen(false);
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+      }, []);
+
+      const onDragStart = (e) => {
+        const panel = dragRef.current;
+        if (!panel) return;
+        const r = panel.getBoundingClientRect();
+        const sx = e.clientX, sy = e.clientY;
+        const startRight = window.innerWidth - r.right;
+        const startBottom = window.innerHeight - r.bottom;
+        const move = (ev) => {
+          offsetRef.current = {
+            x: startRight - (ev.clientX - sx),
+            y: startBottom - (ev.clientY - sy),
+          };
+          clampToViewport();
+        };
+        const up = () => {
+          window.removeEventListener('mousemove', move);
+          window.removeEventListener('mouseup', up);
+        };
+        window.addEventListener('mousemove', move);
+        window.addEventListener('mouseup', up);
+      };
+
+      return (
+        <>
+          <style>{__TWEAKS_STYLE}</style>
+          {/* Tweaks toggle button */}
+          <button
+            onClick={() => setOpen(o => !o)}
+            style={{
+              position: 'fixed', right: 16, bottom: open ? 'auto' : 16,
+              top: open ? 'auto' : 'auto',
+              zIndex: 2147483647,
+              background: 'rgba(250,249,247,0.92)',
+              border: '0.5px solid rgba(255,255,255,0.6)',
+              borderRadius: 10,
+              padding: '7px 14px',
+              fontSize: 11.5,
+              fontWeight: 600,
+              color: '#29261b',
+              cursor: 'default',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+              display: open ? 'none' : 'block',
+              letterSpacing: '0.03em',
+            }}
+          >
+            ✦ Tweaks
+          </button>
+          {open && (
+            <div ref={dragRef} className="twk-panel"
+                 style={{ right: offsetRef.current.x, bottom: offsetRef.current.y }}>
+              <div className="twk-hd" onMouseDown={onDragStart}>
+                <b>{title}</b>
+                <button className="twk-x" aria-label="Close tweaks"
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={() => setOpen(false)}>✕</button>
+              </div>
+              <div className="twk-body">{children}</div>
+            </div>
+          )}
+        </>
+      );
+    }
+
+    function TweakSection({ label }) {
+      return <div className="twk-sect">{label}</div>;
+    }
+
+    function TweakRow({ label, value, children, inline = false }) {
+      return (
+        <div className={inline ? 'twk-row twk-row-h' : 'twk-row'}>
+          <div className="twk-lbl">
+            <span>{label}</span>
+            {value != null && <span className="twk-val">{value}</span>}
+          </div>
+          {children}
+        </div>
+      );
+    }
+
+    function TweakRadio({ label, value, options, onChange }) {
+      const trackRef = useRef(null);
+      const [dragging, setDragging] = useState(false);
+      const valueRef = useRef(value);
+      valueRef.current = value;
+
+      const labelLen = (o) => String(typeof o === 'object' ? o.label : o).length;
+      const maxLen = options.reduce((m, o) => Math.max(m, labelLen(o)), 0);
+      const fitsAsSegments = maxLen <= ({ 2: 16, 3: 10 }[options.length] ?? 0);
+
+      if (!fitsAsSegments) {
+        return (
+          <TweakRow label={label}>
+            <select className="twk-field" value={value} onChange={(e) => onChange(e.target.value)}>
+              {options.map((o) => {
+                const v = typeof o === 'object' ? o.value : o;
+                const l = typeof o === 'object' ? o.label : o;
+                return <option key={v} value={v}>{l}</option>;
+              })}
+            </select>
+          </TweakRow>
+        );
+      }
+
+      const opts = options.map((o) => (typeof o === 'object' ? o : { value: o, label: o }));
+      const idx = Math.max(0, opts.findIndex((o) => o.value === value));
+      const n = opts.length;
+
+      const segAt = (clientX) => {
+        const r = trackRef.current.getBoundingClientRect();
+        const inner = r.width - 4;
+        const i = Math.floor(((clientX - r.left - 2) / inner) * n);
+        return opts[Math.max(0, Math.min(n - 1, i))].value;
+      };
+
+      const onPointerDown = (e) => {
+        setDragging(true);
+        const v0 = segAt(e.clientX);
+        if (v0 !== valueRef.current) onChange(v0);
+        const move = (ev) => {
+          if (!trackRef.current) return;
+          const v = segAt(ev.clientX);
+          if (v !== valueRef.current) onChange(v);
+        };
+        const up = () => {
+          setDragging(false);
+          window.removeEventListener('pointermove', move);
+          window.removeEventListener('pointerup', up);
+        };
+        window.addEventListener('pointermove', move);
+        window.addEventListener('pointerup', up);
+      };
+
+      return (
+        <TweakRow label={label}>
+          <div ref={trackRef} role="radiogroup" onPointerDown={onPointerDown}
+               className={dragging ? 'twk-seg dragging' : 'twk-seg'}>
+            <div className="twk-seg-thumb"
+                 style={{ left: `calc(2px + ${idx} * (100% - 4px) / ${n})`,
+                          width: `calc((100% - 4px) / ${n})` }} />
+            {opts.map((o) => (
+              <button key={o.value} type="button" role="radio" aria-checked={o.value === value}>
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </TweakRow>
+      );
+    }
+
+    // ─── Shared design tokens & components ────────────────────────────────────
+
+    const CV_THEMES = {
+      airy: {
+        name: 'Airy',
+        bg: '#F6F7F9', surface: '#FFFFFF', ink: '#0B1220',
+        inkSoft: 'rgba(11,18,32,0.62)', inkMute: 'rgba(11,18,32,0.42)',
+        line: 'rgba(11,18,32,0.08)', lineSoft: 'rgba(11,18,32,0.05)',
+        accent: 'oklch(0.62 0.13 230)', accentSoft: 'oklch(0.94 0.04 230)',
+        warm: 'oklch(0.78 0.12 60)', warmSoft: 'oklch(0.96 0.04 60)',
+        chipBg: '#EEF0F4', dark: false,
+      },
+      editorial: {
+        name: 'Editorial',
+        bg: '#F2EFE8', surface: '#FBF8F1', ink: '#1A1612',
+        inkSoft: 'rgba(26,22,18,0.6)', inkMute: 'rgba(26,22,18,0.4)',
+        line: 'rgba(26,22,18,0.1)', lineSoft: 'rgba(26,22,18,0.06)',
+        accent: 'oklch(0.55 0.14 35)', accentSoft: 'oklch(0.93 0.04 35)',
+        warm: 'oklch(0.68 0.12 80)', warmSoft: 'oklch(0.94 0.05 80)',
+        chipBg: '#EAE5DA', dark: false,
+      },
+      dusk: {
+        name: 'Dusk',
+        bg: '#0B1018', surface: '#141B27', ink: '#F4F6FA',
+        inkSoft: 'rgba(244,246,250,0.65)', inkMute: 'rgba(244,246,250,0.42)',
+        line: 'rgba(244,246,250,0.1)', lineSoft: 'rgba(244,246,250,0.06)',
+        accent: 'oklch(0.74 0.13 250)', accentSoft: 'oklch(0.32 0.08 250)',
+        warm: 'oklch(0.78 0.13 50)', warmSoft: 'oklch(0.35 0.08 50)',
+        chipBg: '#1C2433', dark: true,
+      },
+      dreamy: {
+        name: 'Dreamy',
+        bg: '#F4EEF7', surface: '#FFFFFF', ink: '#251A30',
+        inkSoft: 'rgba(37,26,48,0.62)', inkMute: 'rgba(37,26,48,0.4)',
+        line: 'rgba(37,26,48,0.08)', lineSoft: 'rgba(37,26,48,0.05)',
+        accent: 'oklch(0.7 0.13 320)', accentSoft: 'oklch(0.94 0.04 320)',
+        warm: 'oklch(0.82 0.1 70)', warmSoft: 'oklch(0.95 0.04 70)',
+        chipBg: '#ECE2F1', dark: false,
+      },
+    };
+
+    function CVCloudShape({ variant = 'puffy', fill = '#fff', opacity = 0.92 }) {
+      const shapes = {
+        puffy:   'M30 60 Q15 60 14 46 Q14 30 30 30 Q34 16 50 16 Q60 6 76 14 Q88 6 102 16 Q120 14 124 32 Q140 30 142 46 Q142 60 126 60 Z',
+        long:    'M20 56 Q8 56 8 44 Q8 32 22 32 Q30 22 48 24 Q60 14 78 22 Q96 16 110 26 Q128 22 142 32 Q160 28 174 36 Q188 36 188 50 Q188 60 174 60 Z',
+        cluster: 'M40 64 Q20 64 22 48 Q14 42 22 32 Q28 22 42 26 Q50 12 70 18 Q86 8 102 22 Q120 18 124 36 Q140 34 142 50 Q150 62 132 64 Z',
+        wispy:   'M14 40 Q10 32 22 30 Q30 22 46 28 Q60 18 78 26 Q100 22 110 32 Q126 30 134 40 Q146 40 146 50 Q146 56 134 56 Q120 60 100 54 Q80 60 60 52 Q40 58 24 50 Q14 50 14 40 Z',
+        tower:   'M28 70 Q14 68 16 54 Q8 44 18 36 Q14 22 30 22 Q36 8 56 12 Q70 0 82 14 Q98 8 100 26 Q116 24 116 42 Q128 42 128 56 Q132 70 116 70 Z',
+      };
+      return <path d={shapes[variant] || shapes.puffy} fill={fill} opacity={opacity} />;
+    }
+
+    function CVSkyPhoto({ mood = 'day', children, style = {} }) {
+      const moods = {
+        day: {
+          grad: 'linear-gradient(180deg, #7CB7E5 0%, #B7DAF2 55%, #DCEDF7 100%)',
+          clouds: [
+            { variant: 'cluster', x: 6, y: 18, w: 58, op: 0.96 },
+            { variant: 'puffy',   x: 52, y: 42, w: 44, op: 0.9 },
+            { variant: 'long',    x: 0,  y: 65, w: 60, op: 0.7 },
+            { variant: 'wispy',   x: 50, y: 10, w: 36, op: 0.5 },
+          ],
+        },
+        golden: {
+          grad: 'linear-gradient(180deg, #F4B27C 0%, #F6CC9C 40%, #FAE1C2 75%, #F8E9D4 100%)',
+          clouds: [
+            { variant: 'long',    x: 4,  y: 32, w: 70, op: 0.88, fill: '#FFF6E8' },
+            { variant: 'cluster', x: 40, y: 52, w: 50, op: 0.9,  fill: '#FBD4A8' },
+            { variant: 'wispy',   x: 0,  y: 70, w: 60, op: 0.7,  fill: '#F2A968' },
+          ],
+        },
+        dusk: {
+          grad: 'linear-gradient(180deg, #2A3654 0%, #4A4368 35%, #826388 70%, #C68A82 100%)',
+          clouds: [
+            { variant: 'long',    x: 0,  y: 40, w: 80, op: 0.7,  fill: '#3A4368' },
+            { variant: 'cluster', x: 35, y: 60, w: 56, op: 0.75, fill: '#5B526E' },
+            { variant: 'wispy',   x: 8,  y: 25, w: 50, op: 0.5,  fill: '#E8B89F' },
+          ],
+        },
+        stormy: {
+          grad: 'linear-gradient(180deg, #4A5566 0%, #6A7585 50%, #8A95A5 100%)',
+          clouds: [
+            { variant: 'tower',   x: 8,  y: 18, w: 60, op: 0.85, fill: '#2F3845' },
+            { variant: 'cluster', x: 45, y: 35, w: 55, op: 0.78, fill: '#3F4858' },
+            { variant: 'long',    x: 0,  y: 70, w: 70, op: 0.6,  fill: '#5A6575' },
+          ],
+        },
+        dawn: {
+          grad: 'linear-gradient(180deg, #B8C8E8 0%, #E0CDD8 45%, #F4D9C8 80%, #F8E4D2 100%)',
+          clouds: [
+            { variant: 'puffy',   x: 10, y: 30, w: 50, op: 0.88 },
+            { variant: 'long',    x: 35, y: 50, w: 65, op: 0.75, fill: '#FBE0D4' },
+            { variant: 'wispy',   x: 5,  y: 70, w: 55, op: 0.55, fill: '#F4C9B0' },
+          ],
+        },
+      };
+      const m = moods[mood] || moods.day;
+      return (
+        <div style={{ position: 'relative', overflow: 'hidden', background: m.grad, ...style }}>
+          <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none"
+            style={{ position: 'absolute', inset: 0, display: 'block' }}>
+            {m.clouds.map((c, i) => (
+              <g key={i} transform={`translate(${c.x},${c.y}) scale(${c.w / 200},${c.w / 200})`}>
+                <CVCloudShape variant={c.variant} fill={c.fill || '#FFFFFF'} opacity={c.op} />
+              </g>
+            ))}
+          </svg>
+          {/* Subtle film grain overlay */}
+          <div style={{
+            position: 'absolute', inset: 0, mixBlendMode: 'overlay', opacity: 0.18, pointerEvents: 'none',
+            backgroundImage: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.6'/></svg>\")",
+          }} />
+          {children}
+        </div>
+      );
+    }
+
+    const CV_DRAWINGS = {
+      dragon: {
+        label: 'a dragon',
+        paths: [
+          'M12 70 C 25 55, 38 75, 48 60 S 70 40, 84 50',
+          'M84 50 q 6 -4 10 -2 q 2 2 0 6 q -2 4 -8 4',
+          'M88 53 m -1 0 a 1 1 0 1 0 2 0 a 1 1 0 1 0 -2 0',
+          'M50 58 q 6 -18 22 -16 q -8 6 -10 16',
+          'M14 70 l -3 4 M18 68 l -2 5 M22 66 l -1 5',
+        ],
+      },
+      whale: {
+        label: 'a whale',
+        paths: [
+          'M18 62 q 0 -22 30 -22 q 30 0 36 18 q -4 6 -12 6 q -28 4 -54 -2 z',
+          'M14 60 q -6 -6 -10 -14 q 6 0 14 8',
+          'M70 54 m -1 0 a 1 1 0 1 0 2 0 a 1 1 0 1 0 -2 0',
+          'M64 58 q 4 3 10 1',
+          'M44 38 q -2 -8 2 -16 M50 38 q 0 -8 4 -14 M56 38 q 2 -8 8 -12',
+        ],
+      },
+      dog: {
+        label: 'a sleepy pup',
+        paths: [
+          'M30 56 q 0 -20 22 -20 q 22 0 22 20 q 0 12 -22 12 q -22 0 -22 -12 z',
+          'M30 46 q -8 -2 -10 8 q 4 4 12 0',
+          'M74 46 q 8 -2 10 8 q -4 4 -12 0',
+          'M42 52 q 3 2 6 0',
+          'M58 52 q 3 2 6 0',
+          'M48 60 q 4 4 8 0',
+          'M52 58 v 2',
+        ],
+      },
+      castle: {
+        label: 'a tiny castle',
+        paths: [
+          'M20 70 L 20 50 L 26 50 L 26 44 L 32 44 L 32 50 L 38 50 L 38 38 L 50 38 L 50 50 L 56 50 L 56 44 L 62 44 L 62 50 L 68 50 L 68 70 Z',
+          'M50 38 L 50 26',
+          'M50 26 L 60 30 L 50 32 Z',
+          'M42 70 L 42 60 q 2 -4 4 -4 q 2 0 4 4 L 50 70',
+          'M28 56 h 4 v 4 h -4 z',
+          'M60 56 h 4 v 4 h -4 z',
+        ],
+      },
+      heart: {
+        label: 'a soft heart',
+        paths: [
+          'M50 76 C 20 60, 14 36, 30 28 C 42 22, 50 32, 50 38 C 50 32, 58 22, 70 28 C 86 36, 80 60, 50 76 Z',
+        ],
+      },
+      spaceship: {
+        label: 'a parked UFO',
+        paths: [
+          'M18 56 q 16 -10 36 -10 q 20 0 36 10 q -16 8 -36 8 q -20 0 -36 -8 z',
+          'M40 46 q 0 -14 20 -14 q 20 0 20 14',
+          'M24 58 m -1 0 a 1 1 0 1 0 2 0 a 1 1 0 1 0 -2 0',
+          'M40 60 m -1 0 a 1 1 0 1 0 2 0 a 1 1 0 1 0 -2 0',
+          'M56 60 m -1 0 a 1 1 0 1 0 2 0 a 1 1 0 1 0 -2 0',
+          'M72 60 m -1 0 a 1 1 0 1 0 2 0 a 1 1 0 1 0 -2 0',
+          'M50 64 L 44 84 M50 64 L 56 84 M50 64 L 50 84',
+        ],
+      },
+    };
+
+    function cvStrokeProps(aiStyle, t) {
+      switch (aiStyle) {
+        case 'bold':
+          return { stroke: t.accent, strokeWidth: 2.6, strokeDasharray: 'none', fill: 'none' };
+        case 'dotted':
+          return { stroke: '#FFFFFF', strokeWidth: 1.6, strokeDasharray: '0.1 3', strokeLinecap: 'round', fill: 'none' };
+        case 'marker':
+          return { stroke: 'rgba(255,255,255,0.95)', strokeWidth: 3.6, strokeLinecap: 'round', strokeLinejoin: 'round', fill: 'none', filter: 'url(#cv-rough)' };
+        default:
+          return { stroke: '#FFFFFF', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', fill: 'none' };
+      }
+    }
+
+    function CVAIOverlay({ drawing = 'dragon', aiStyle = 'thin', animate = false, theme, opacity = 1 }) {
+      const d = CV_DRAWINGS[drawing] || CV_DRAWINGS.dragon;
+      const sp = cvStrokeProps(aiStyle, theme);
+      const shadow = aiStyle === 'bold'
+        ? 'drop-shadow(0 1px 2px rgba(0,0,0,0.25))'
+        : 'drop-shadow(0 1px 3px rgba(0,0,0,0.45)) drop-shadow(0 0 1px rgba(0,0,0,0.25))';
+      return (
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none"
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity, pointerEvents: 'none', filter: shadow }}>
+          <defs>
+            <filter id="cv-rough">
+              <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="2" />
+              <feDisplacementMap in="SourceGraphic" scale="1.2" />
+            </filter>
+          </defs>
+          {d.paths.map((p, i) => (
+            <path key={i} d={p} {...sp}
+              style={animate ? {
+                strokeDasharray: 220,
+                strokeDashoffset: 220,
+                animation: `cv-draw 1.8s ${i * 0.15}s cubic-bezier(0.65,0,0.35,1) forwards`,
+              } : {}}
+            />
+          ))}
+          {aiStyle === 'dotted' && d.paths.map((p, i) => (
+            <circle key={'c' + i} r="1.2" fill="#FFFFFF" cx={20 + i * 12} cy={50 + (i % 2) * 6} opacity="0.9" />
+          ))}
+        </svg>
+      );
+    }
+
+    const CVIcon = {
+      sparkle: (c = 'currentColor') => (
+        <svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke={c} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 3v6M12 15v6M3 12h6M15 12h6" />
+          <path d="M6 6l3 3M15 15l3 3M18 6l-3 3M9 15l-3 3" />
+        </svg>
+      ),
+    };
+
+    // ─── Quip data ─────────────────────────────────────────────────────────────
+
+    const CV2_CAPTIONS = {
+      dragon:    'a dragon, mid-yawn',
+      whale:     'a whale, drifting',
+      dog:       'a sleeping pup',
+      castle:    'a small castle',
+      heart:     'a soft heart',
+      spaceship: 'a parked UFO',
+    };
+
+    const CV2_QUIPS = {
+      witty: {
+        dragon:    { title: 'Dragon situation',   body: 'Better find cover, big guy — there’s rain in 2 hours and a wet flame is just an embarrassed lizard.' },
+        whale:     { title: 'Whale watch',        body: 'A whale taking a 72° vacation. Migrating south at a brisk 6 mph, which for a whale is basically sprinting.' },
+        dog:       { title: 'Good boy',           body: 'A pug napping on cumulus class. Will be gently rained on around 1pm. Will not notice.' },
+        castle:    { title: 'Castle in the air',  body: 'Architecturally ambitious. Structural integrity rated: 6 mph SW. Drawbridge closes when the rain rolls in.' },
+        heart:     { title: 'A heart, suspiciously', body: 'Romance, but only until precipitation. 72° is statistically the warmest a sky has ever been emotional.' },
+        spaceship: { title: 'Unidentified, mostly', body: 'A UFO refusing to parallel-park. Probably waiting out the 1pm rain like the rest of us.' },
+      },
+      whimsical: {
+        dragon:    { title: 'A small dragon',    body: 'Learning the names of streets below. The rain at 1pm will teach it the word “umbrella.”' },
+        whale:     { title: 'A whale, drifting', body: 'Ferrying songs from one breeze to the next. The 6 mph wind is its slow conveyor belt south.' },
+        dog:       { title: 'Someone’s lost pup', body: 'Asleep on a pillow of weather. Will be tucked in by light rain at one.' },
+        castle:    { title: 'A castle, briefly', body: 'Built only on Tuesdays at 72°. Will dissolve politely when the showers arrive.' },
+        heart:     { title: 'A heart, then nothing', body: 'Briefly a heart, then a swan, then mist. The wind is doing the editing.' },
+        spaceship: { title: 'A quiet traveler',  body: 'Asking the southwest wind for directions. The wind, polite as ever, says “down, in two hours.”' },
+      },
+      punny: {
+        dragon:    { title: 'Mist-ical creature', body: 'High-altitude dragon. Forecast: partly fire-y, with a chance of damp pride at 1pm.' },
+        whale:     { title: 'Whale, whale, whale', body: 'What do we have here — a humpback in a humpfront? Cumulonimbus inbound. Spout up.' },
+        dog:       { title: 'Bark-a-cumulus',    body: 'A very good boy of the upper troposphere. Currently 72° and a 6 mph belly rub.' },
+        castle:    { title: 'Air B-and-B',       body: 'Castle in the air. Literally. Light showers will be checking in around one.' },
+        heart:     { title: 'Atmos-fond of you', body: 'Heart-shaped, 92% sure. Forecast: warm, with a 100% chance of feelings.' },
+        spaceship: { title: 'U.F.O.',            body: 'Unidentified Floating Object. Stationary until precipitation — even aliens hate damp upholstery.' },
+      },
+    };
+
+    // ─── Drawer drag hook ──────────────────────────────────────────────────────
+
+    function useDrawer(initial = 0) {
+      const [pos, setPos] = useState(initial);
+      const [dragging, setDragging] = useState(false);
+      const drag = useRef(null);
+      const containerH = useRef(0);
+
+      const onStart = (e) => {
+        e.preventDefault();
+        const y = e.touches ? e.touches[0].clientY : e.clientY;
+        drag.current = { startY: y, startPos: pos };
+        setDragging(true);
+        const ct = e.currentTarget.closest('[data-cv2-stage]');
+        if (ct) containerH.current = ct.getBoundingClientRect().height;
+      };
+
+      const onMove = useCallback((e) => {
+        if (!drag.current) return;
+        const y = e.touches ? e.touches[0].clientY : e.clientY;
+        const dy = drag.current.startY - y;
+        const range = containerH.current * 0.72;
+        const next = Math.max(0, Math.min(1, drag.current.startPos + dy / range));
+        setPos(next);
+      }, []);
+
+      const onEnd = useCallback(() => {
+        if (!drag.current) return;
+        setPos((p) => p < 0.22 ? 0 : p < 0.78 ? 0.55 : 1);
+        drag.current = null;
+        setDragging(false);
+      }, []);
+
+      useEffect(() => {
+        if (!dragging) return;
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onEnd);
+        window.addEventListener('touchmove', onMove, { passive: false });
+        window.addEventListener('touchend', onEnd);
+        return () => {
+          window.removeEventListener('mousemove', onMove);
+          window.removeEventListener('mouseup', onEnd);
+          window.removeEventListener('touchmove', onMove);
+          window.removeEventListener('touchend', onEnd);
+        };
+      }, [dragging, onMove, onEnd]);
+
+      return { pos, setPos, dragging, handle: { onMouseDown: onStart, onTouchStart: onStart } };
+    }
+
+    // ─── Glass pill ────────────────────────────────────────────────────────────
+
+    function CV2GlassPill({ children, onDark = false }) {
+      return (
+        <div style={{
+          borderRadius: 999, position: 'relative', overflow: 'hidden',
+          background: onDark ? 'rgba(20,20,30,0.42)' : 'rgba(255,255,255,0.65)',
+          backdropFilter: 'blur(20px) saturate(160%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+          boxShadow: onDark
+            ? '0 4px 18px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.1)'
+            : '0 4px 18px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.5)',
+          border: onDark
+            ? '0.5px solid rgba(255,255,255,0.12)'
+            : '0.5px solid rgba(255,255,255,0.5)',
+        }}>{children}</div>
+      );
+    }
+
+    // ─── Sun bar ────────────────────────────────────────────────────────────────
+
+    function CV2SunBar({ theme }) {
+      const total = 14 * 60 + 28;
+      const elapsed = (9 * 60 + 41) - (5 * 60 + 46);
+      const progress = elapsed / total;
+      const goldenAm = 60 / total;
+      const goldenPmStart = (total - 60) / total;
+      return (
+        <div style={{ marginTop: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
+            <div style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 10.5, letterSpacing: 1.3, textTransform: 'uppercase', color: theme.inkMute }}>Light today</div>
+            <div style={{ fontSize: 13, color: theme.inkSoft }}>
+              golden hour at <strong style={{ color: theme.ink, fontWeight: 600 }}>7:14p</strong>
+            </div>
+          </div>
+          <div style={{
+            background: theme.dark ? 'rgba(255,255,255,0.04)' : 'rgba(11,18,32,0.03)',
+            border: `0.5px solid ${theme.line}`,
+            borderRadius: 14, padding: '16px 18px',
+          }}>
+            <div style={{ position: 'relative', height: 8, borderRadius: 4, background: theme.dark ? 'rgba(255,255,255,0.07)' : 'rgba(11,18,32,0.06)' }}>
+              <div style={{
+                position: 'absolute', left: 0, top: 0, bottom: 0, width: `${goldenAm * 100}%`,
+                background: 'linear-gradient(90deg, oklch(0.82 0.12 60), oklch(0.86 0.06 80))',
+                borderRadius: 4,
+              }} />
+              <div style={{
+                position: 'absolute', left: `${goldenPmStart * 100}%`, right: 0, top: 0, bottom: 0,
+                background: 'linear-gradient(90deg, oklch(0.86 0.06 80), oklch(0.72 0.14 40))',
+                borderRadius: 4,
+              }} />
+              <div style={{
+                position: 'absolute', left: `${progress * 100}%`, top: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: 18, height: 18, borderRadius: 9,
+                background: '#fff',
+                border: `2px solid ${theme.ink}`,
+                boxShadow: `0 0 0 4px ${theme.bg}`,
+              }} />
+            </div>
+            <div style={{ marginTop: 12, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 10, letterSpacing: 1.3, textTransform: 'uppercase', color: theme.inkMute }}>Sunrise</div>
+                <div style={{ fontFamily: '"Instrument Serif", serif', fontSize: 18, color: theme.ink, letterSpacing: -0.3, marginTop: 2 }}>5:46a</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 10, letterSpacing: 1.3, textTransform: 'uppercase', color: theme.inkMute }}>Daylight left</div>
+                <div style={{ fontFamily: '"Instrument Serif", serif', fontSize: 18, color: theme.ink, letterSpacing: -0.3, marginTop: 2 }}>10h 33m</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 10, letterSpacing: 1.3, textTransform: 'uppercase', color: theme.inkMute }}>Sunset</div>
+                <div style={{ fontFamily: '"Instrument Serif", serif', fontSize: 18, color: theme.ink, letterSpacing: -0.3, marginTop: 2 }}>8:14p</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── Drawer content ────────────────────────────────────────────────────────
+
+    function CV2DrawerContent({ theme, quip, shape, detected, drawingLabel, pos }) {
+      const expandedOpacity = Math.max(0, Math.min(1, (pos - 0.05) / 0.45));
+      return (
+        <div style={{ position: 'relative', height: '100%', color: theme.ink }}>
+          {/* Peek strip */}
+          <div style={{ padding: '0 22px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{
+                  fontFamily: '"Instrument Serif", serif', fontWeight: 400,
+                  fontSize: 56, lineHeight: 0.92, letterSpacing: -2, color: theme.ink,
+                }}>72°</div>
+                <div style={{
+                  marginTop: 4, fontSize: 12, color: theme.inkSoft,
+                  fontFamily: '"JetBrains Mono", monospace', letterSpacing: 0.2,
+                }}>light cumulus · NYC</div>
+              </div>
+              <div style={{ textAlign: 'right', paddingTop: 4 }}>
+                <div style={{
+                  fontFamily: '"JetBrains Mono", monospace', fontSize: 10, letterSpacing: 1.4,
+                  textTransform: 'uppercase', color: theme.accent, fontWeight: 600,
+                }}>Rain in 2h</div>
+                <div style={{
+                  marginTop: 4, fontSize: 11, color: theme.inkMute,
+                  fontFamily: '"JetBrains Mono", monospace',
+                }}>1pm · 0.2&quot;</div>
+              </div>
+            </div>
+
+            <div style={{ marginTop: 14, borderTop: `0.5px solid ${theme.line}`, paddingTop: 14 }}>
+              <div style={{
+                fontFamily: '"JetBrains Mono", monospace', fontSize: 10, letterSpacing: 1.5,
+                textTransform: 'uppercase', color: theme.inkMute, marginBottom: 6,
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}>
+                <div style={{ width: 11, height: 11 }}>{CVIcon.sparkle(theme.accent)}</div>
+                <span>{quip.title}</span>
+              </div>
+              <div style={{
+                fontFamily: '"Instrument Serif", serif', fontStyle: 'italic',
+                fontSize: 19, lineHeight: 1.25, letterSpacing: -0.2, color: theme.ink,
+              }}>{quip.body}</div>
+            </div>
+          </div>
+
+          {/* Expanded content */}
+          <div style={{
+            opacity: expandedOpacity,
+            pointerEvents: expandedOpacity > 0.5 ? 'auto' : 'none',
+            transition: 'opacity 200ms ease',
+            padding: '22px 22px 40px',
+          }}>
+            {/* AI detection */}
+            <div style={{
+              background: theme.dark ? 'rgba(255,255,255,0.04)' : 'rgba(11,18,32,0.03)',
+              border: `0.5px solid ${theme.line}`,
+              borderRadius: 18, padding: '16px 18px',
+            }}>
+              <div style={{
+                fontFamily: '"JetBrains Mono", monospace', fontSize: 11, letterSpacing: 1.5,
+                textTransform: 'uppercase', color: theme.inkMute, marginBottom: 6,
+              }}>AI detection</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+                <div style={{
+                  fontFamily: '"Instrument Serif", serif', fontSize: 28, lineHeight: 1.05,
+                  color: theme.ink, letterSpacing: -0.5,
+                }}>{drawingLabel}</div>
+                <div style={{
+                  fontFamily: '"JetBrains Mono", monospace', fontSize: 12, fontWeight: 600,
+                  padding: '4px 9px', borderRadius: 999,
+                  background: theme.accentSoft, color: theme.accent,
+                }}>{Math.round(detected.conf * 100)}% sure</div>
+              </div>
+              <div style={{ fontSize: 14, color: theme.inkSoft, marginTop: 4, letterSpacing: -0.1 }}>
+                painted on {detected.type}
+              </div>
+            </div>
+
+            {/* Weather stats */}
+            <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8 }}>
+              {[
+                { l: 'feels', v: '70°' },
+                { l: 'wind',  v: '6 SW' },
+                { l: 'humid', v: '54%' },
+                { l: 'UV',    v: '6' },
+              ].map((w, i) => (
+                <div key={i} style={{
+                  background: theme.dark ? 'rgba(255,255,255,0.04)' : 'rgba(11,18,32,0.03)',
+                  border: `0.5px solid ${theme.line}`,
+                  borderRadius: 14, padding: '11px 12px',
+                }}>
+                  <div style={{
+                    fontFamily: '"JetBrains Mono", monospace', fontSize: 10.5, letterSpacing: 1.3,
+                    textTransform: 'uppercase', color: theme.inkMute,
+                  }}>{w.l}</div>
+                  <div style={{
+                    marginTop: 6, fontFamily: '"Instrument Serif", serif',
+                    fontSize: 26, lineHeight: 1, color: theme.ink, letterSpacing: -0.6,
+                  }}>{w.v}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Sky details */}
+            <div style={{
+              marginTop: 12,
+              background: theme.dark ? 'rgba(255,255,255,0.04)' : 'rgba(11,18,32,0.03)',
+              border: `0.5px solid ${theme.line}`,
+              borderRadius: 14, padding: '14px 16px',
+            }}>
+              <div style={{
+                fontFamily: '"JetBrains Mono", monospace', fontSize: 10.5, letterSpacing: 1.3,
+                textTransform: 'uppercase', color: theme.inkMute, marginBottom: 10,
+              }}>Sky details</div>
+              {[
+                { l: 'Cloud cover', v: '38%',    meta: 'scattered cumulus' },
+                { l: 'Visibility',  v: '9.8 mi', meta: 'crystalline' },
+                { l: 'Dewpoint',    v: '54°',    meta: 'comfortable' },
+              ].map((r, i) => (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+                  padding: '8px 0',
+                  borderTop: i === 0 ? 'none' : `0.5px solid ${theme.lineSoft}`,
+                }}>
+                  <span style={{ fontSize: 14.5, color: theme.ink, fontWeight: 500 }}>{r.l}</span>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+                    <span style={{ fontSize: 13, color: theme.inkMute }}>{r.meta}</span>
+                    <span style={{
+                      fontFamily: '"Instrument Serif", serif', fontSize: 20,
+                      color: theme.ink, letterSpacing: -0.3, lineHeight: 1,
+                      minWidth: 50, textAlign: 'right',
+                    }}>{r.v}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Sunrise/sunset */}
+            <CV2SunBar theme={theme} />
+
+            {/* Watchability */}
+            <div style={{ marginTop: 22 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
+                <div style={{
+                  fontFamily: '"JetBrains Mono", monospace', fontSize: 10.5, letterSpacing: 1.3,
+                  textTransform: 'uppercase', color: theme.inkMute,
+                }}>Watchability · next 8h</div>
+                <div style={{ fontSize: 13, color: theme.inkSoft }}>
+                  peak <strong style={{ color: theme.ink, fontWeight: 600 }}>2pm</strong>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end' }}>
+                {[0.4, 0.62, 0.95, 0.82, 0.68, 0.5, 0.36, 0.22].map((v, i) => (
+                  <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                    <div style={{
+                      width: '100%', height: 56, borderRadius: 6,
+                      background: theme.dark ? 'rgba(255,255,255,0.07)' : 'rgba(11,18,32,0.05)',
+                      position: 'relative', overflow: 'hidden',
+                    }}>
+                      <div style={{
+                        position: 'absolute', bottom: 0, left: 0, right: 0,
+                        height: `${v * 100}%`,
+                        background: i === 2 ? theme.accent : theme.dark ? 'rgba(244,246,250,0.32)' : 'rgba(11,18,32,0.32)',
+                        borderRadius: 6,
+                      }} />
+                    </div>
+                    <span style={{
+                      fontSize: 11, color: i === 2 ? theme.ink : theme.inkMute,
+                      fontWeight: i === 2 ? 600 : 400,
+                      fontFamily: '"JetBrains Mono", monospace',
+                    }}>{['11', '12', '1', '2', '3', '4', '5', '6'][i]}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Others nearby spotted */}
+            <div style={{ marginTop: 26 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div style={{
+                  fontFamily: '"JetBrains Mono", monospace', fontSize: 10.5, letterSpacing: 1.3,
+                  textTransform: 'uppercase', color: theme.inkMute,
+                }}>Others nearby spotted</div>
+                <div style={{ fontSize: 13, color: theme.accent, fontWeight: 600 }}>see all 247</div>
+              </div>
+              <div style={{
+                background: theme.dark ? 'rgba(255,255,255,0.04)' : 'rgba(11,18,32,0.03)',
+                border: `0.5px solid ${theme.line}`,
+                borderRadius: 14, padding: '4px 16px',
+              }}>
+                {[
+                  { who: 'Mira',  where: 'Prospect Park',   saw: 'a sleeping pup',         when: '4m' },
+                  { who: 'Eitan', where: 'Astoria',          saw: 'a whale, drifting east', when: '11m' },
+                  { who: 'Sam',   where: '3 blocks west',    saw: 'a small castle',         when: '18m' },
+                  { who: 'Priya', where: 'Lower East Side',  saw: 'a heart, briefly',       when: '24m' },
+                  { who: 'Lola',  where: 'Williamsburg',     saw: 'something like a turtle',when: '31m' },
+                ].map((r, i) => (
+                  <div key={i} style={{
+                    padding: '12px 0',
+                    borderTop: i === 0 ? 'none' : `0.5px solid ${theme.lineSoft}`,
+                    display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12,
+                  }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        fontFamily: '"Instrument Serif", serif', fontSize: 19, fontStyle: 'italic',
+                        lineHeight: 1.2, color: theme.ink, letterSpacing: -0.2,
+                      }}>&ldquo;{r.saw}&rdquo;</div>
+                      <div style={{
+                        marginTop: 4, fontSize: 12.5, color: theme.inkMute,
+                        fontFamily: '"JetBrains Mono", monospace', letterSpacing: 0.2,
+                      }}>{r.who} · {r.where}</div>
+                    </div>
+                    <div style={{
+                      fontFamily: '"JetBrains Mono", monospace', fontSize: 12,
+                      color: theme.inkMute, flexShrink: 0,
+                    }}>{r.when}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Week ahead */}
+            <div style={{ marginTop: 22 }}>
+              <div style={{
+                fontFamily: '"JetBrains Mono", monospace', fontSize: 10.5, letterSpacing: 1.3,
+                textTransform: 'uppercase', color: theme.inkMute, marginBottom: 10,
+              }}>The week ahead</div>
+              <div style={{
+                background: theme.dark ? 'rgba(255,255,255,0.04)' : 'rgba(11,18,32,0.03)',
+                border: `0.5px solid ${theme.line}`,
+                borderRadius: 14, padding: '12px 16px',
+              }}>
+                {[
+                  { d: 'Tomorrow', sky: 'overcast all day',  best: '—',       hi: 68 },
+                  { d: 'Friday',   sky: 'lively cumulus',    best: '11a – 2p', hi: 74 },
+                  { d: 'Saturday', sky: 'golden, breezy',    best: '5p – 7p',  hi: 71 },
+                ].map((r, i) => (
+                  <div key={i} style={{
+                    padding: '10px 0',
+                    borderTop: i === 0 ? 'none' : `0.5px solid ${theme.lineSoft}`,
+                    display: 'grid', gridTemplateColumns: '88px 1fr 64px 40px',
+                    alignItems: 'baseline', gap: 8,
+                  }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: theme.ink }}>{r.d}</span>
+                    <span style={{ fontSize: 13.5, color: theme.inkSoft }}>{r.sky}</span>
+                    <span style={{
+                      fontFamily: '"JetBrains Mono", monospace', fontSize: 12,
+                      color: theme.accent, fontWeight: 600, textAlign: 'right',
+                    }}>{r.best}</span>
+                    <span style={{
+                      fontFamily: '"Instrument Serif", serif', fontSize: 19,
+                      color: theme.ink, letterSpacing: -0.3, textAlign: 'right',
+                    }}>{r.hi}°</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── Drawer shell ──────────────────────────────────────────────────────────
+
+    function CV2Drawer({ children, theme, pos, dragging, handleBind, peekHeight, stageHeight }) {
+      const height = peekHeight + (stageHeight * 0.95 - peekHeight) * pos;
+      return (
+        <div style={{
+          position: 'absolute', left: 0, right: 0, bottom: 0,
+          height,
+          transition: dragging ? 'none' : 'height 380ms cubic-bezier(0.32,0.72,0.18,1)',
+          borderTopLeftRadius: 32, borderTopRightRadius: 32,
+          overflow: 'hidden',
+          zIndex: 50,
+          boxShadow: '0 -20px 50px -20px rgba(0,0,0,0.3)',
+        }}>
+          {/* Glass fill */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: theme.dark ? 'rgba(20,27,39,0.42)' : 'rgba(255,255,255,0.42)',
+            backdropFilter: 'blur(28px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(28px) saturate(160%)',
+          }} />
+          {/* Inner highlight */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: theme.dark
+              ? 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 30%)'
+              : 'linear-gradient(180deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0) 30%)',
+            pointerEvents: 'none',
+          }} />
+          {/* Border ring */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            borderTopLeftRadius: 32, borderTopRightRadius: 32,
+            border: theme.dark ? '0.5px solid rgba(255,255,255,0.1)' : '0.5px solid rgba(255,255,255,0.6)',
+            borderBottom: 'none',
+            boxShadow: theme.dark
+              ? 'inset 0 1px 0 rgba(255,255,255,0.08)'
+              : 'inset 0 1px 0 rgba(255,255,255,0.9)',
+            pointerEvents: 'none',
+          }} />
+
+          {/* Handle */}
+          <div {...handleBind} style={{
+            position: 'relative', height: 28, cursor: 'grab',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            touchAction: 'none',
+          }}>
+            <div style={{
+              width: 44, height: 5, borderRadius: 100,
+              background: theme.dark ? 'rgba(244,246,250,0.45)' : 'rgba(11,18,32,0.25)',
+            }} />
+          </div>
+
+          <div className="cv2-drawer-scroll" style={{ position: 'relative', height: 'calc(100% - 28px)', overflowY: 'auto', overflowX: 'hidden' }}>
+            {children}
+          </div>
+        </div>
+      );
+    }
+
+    // ─── Hero screen ───────────────────────────────────────────────────────────
+
+    function CV2Hero({ theme, aiStyle, quipTone, mood, shape }) {
+      const drawer = useDrawer(0);
+      const animKey = useMemo(() => shape + '|' + aiStyle, [shape, aiStyle]);
+
+      const onDarkSky = mood === 'dusk' || mood === 'stormy';
+      const statusColor = onDarkSky ? '#fff' : '#0B1220';
+      const muted = onDarkSky ? 'rgba(255,255,255,0.85)' : 'rgba(11,18,32,0.75)';
+
+      const peekHeight = 220;
+      const stageHeight = 874;
+
+      const detected = {
+        dragon:    { conf: 0.94, type: 'cumulus humilis',   class: 'animal' },
+        whale:     { conf: 0.91, type: 'altocumulus',       class: 'animal' },
+        dog:       { conf: 0.88, type: 'cumulus mediocris', class: 'animal' },
+        castle:    { conf: 0.85, type: 'cumulus congestus', class: 'architecture' },
+        heart:     { conf: 0.92, type: 'altocumulus floccus', class: 'symbol' },
+        spaceship: { conf: 0.83, type: 'lenticularis',      class: 'vehicle' },
+      }[shape];
+
+      const quip = (CV2_QUIPS[quipTone] || CV2_QUIPS.witty)[shape] || { title: '', body: '' };
+      const drawingLabel = CV_DRAWINGS[shape].label;
+      const caption = CV2_CAPTIONS[shape] || '';
+
+      return (
+        <div data-cv2-stage style={{
+          position: 'relative',
+          width: 402, height: stageHeight,
+          background: '#000',
+          overflow: 'hidden',
+          fontFamily: '"Geist", -apple-system, system-ui, sans-serif',
+          color: theme.ink,
+          borderRadius: 48,
+          boxShadow: '0 40px 90px -20px rgba(0,0,0,0.35), 0 0 0 1px rgba(0,0,0,0.12)',
+        }}>
+          {/* Sky camera feed */}
+          <CVSkyPhoto mood={mood} style={{ position: 'absolute', inset: 0 }} />
+
+          {/* Vignette */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'radial-gradient(120% 80% at 50% 35%, transparent 55%, rgba(0,0,0,0.32) 100%)',
+            pointerEvents: 'none',
+          }} />
+
+          {/* Dynamic island */}
+          <div style={{
+            position: 'absolute', top: 11, left: '50%', transform: 'translateX(-50%)',
+            width: 122, height: 35, borderRadius: 24, background: '#000', zIndex: 80,
+          }} />
+
+          {/* Status bar */}
+          <div style={{
+            position: 'absolute', top: 0, left: 0, right: 0,
+            height: 47, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '15px 28px 0', zIndex: 60, color: statusColor,
+          }}>
+            <span style={{ fontWeight: 600, fontSize: 16, letterSpacing: -0.2 }}>9:41</span>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <svg width="17" height="11" viewBox="0 0 19 12">
+                <rect x="0" y="7.5" width="3.2" height="4.5" rx="0.7" fill={statusColor}/>
+                <rect x="4.8" y="5" width="3.2" height="7" rx="0.7" fill={statusColor}/>
+                <rect x="9.6" y="2.5" width="3.2" height="9.5" rx="0.7" fill={statusColor}/>
+                <rect x="14.4" y="0" width="3.2" height="12" rx="0.7" fill={statusColor}/>
+              </svg>
+              <svg width="15" height="11" viewBox="0 0 17 12">
+                <path d="M8.5 3.2C10.8 3.2 12.9 4.1 14.4 5.6L15.5 4.5C13.7 2.7 11.2 1.5 8.5 1.5C5.8 1.5 3.3 2.7 1.5 4.5L2.6 5.6C4.1 4.1 6.2 3.2 8.5 3.2Z" fill={statusColor}/>
+                <circle cx="8.5" cy="10.5" r="1.5" fill={statusColor}/>
+              </svg>
+              <svg width="25" height="12" viewBox="0 0 27 13">
+                <rect x="0.5" y="0.5" width="23" height="12" rx="3.5" stroke={statusColor} strokeOpacity="0.4" fill="none"/>
+                <rect x="2" y="2" width="20" height="9" rx="1.5" fill={statusColor}/>
+              </svg>
+            </div>
+          </div>
+
+          {/* Top pills */}
+          <div style={{
+            position: 'absolute', top: 64, left: 16, right: 16,
+            display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', zIndex: 30,
+          }}>
+            <CV2GlassPill onDark={onDarkSky}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px' }}>
+                <span style={{ width: 6, height: 6, borderRadius: 3, background: '#34D399', display: 'inline-block' }} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: statusColor }}>New York</span>
+                <span style={{ fontSize: 12, color: muted, fontFamily: '"JetBrains Mono", monospace' }}>72°</span>
+              </div>
+            </CV2GlassPill>
+
+            <CV2GlassPill onDark={onDarkSky}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px' }}>
+                <div style={{ width: 14, height: 14 }}>{CVIcon.sparkle(statusColor)}</div>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: statusColor, fontFamily: '"JetBrains Mono", monospace', letterSpacing: 0.4 }}>AI</span>
+              </div>
+            </CV2GlassPill>
+          </div>
+
+          {/* AI drawing overlay */}
+          <div key={animKey} style={{
+            position: 'absolute', top: 130, left: 32, right: 32, height: 340,
+            zIndex: 10, pointerEvents: 'none',
+          }}>
+            <CVAIOverlay drawing={shape} aiStyle={aiStyle} theme={theme} animate />
+          </div>
+
+          {/* Caption under drawing — fades as drawer rises */}
+          <div key={'cap-' + animKey} style={{
+            position: 'absolute', top: 480, left: 0, right: 0,
+            zIndex: 11, textAlign: 'center',
+            pointerEvents: 'none',
+            opacity: Math.max(0, 1 - drawer.pos * 5),
+            transition: drawer.dragging ? 'none' : 'opacity 220ms ease',
+          }}>
+            <div className="cv2-cap-anim" style={{
+              display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+            }}>
+              <div style={{
+                width: 1, height: 16,
+                background: onDarkSky ? 'rgba(255,255,255,0.5)' : 'rgba(11,18,32,0.35)',
+              }} />
+              <div style={{
+                fontFamily: '"JetBrains Mono", monospace', fontSize: 10, letterSpacing: 2,
+                textTransform: 'uppercase',
+                color: onDarkSky ? 'rgba(255,255,255,0.75)' : 'rgba(11,18,32,0.6)',
+                textShadow: onDarkSky ? '0 1px 2px rgba(0,0,0,0.4)' : '0 1px 2px rgba(255,255,255,0.4)',
+              }}>I think I see</div>
+              <div style={{
+                fontFamily: '"Instrument Serif", serif', fontStyle: 'italic',
+                fontSize: 30, lineHeight: 1.05, letterSpacing: -0.4,
+                color: onDarkSky ? '#fff' : '#0B1220',
+                textShadow: onDarkSky
+                  ? '0 2px 12px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.4)'
+                  : '0 1px 12px rgba(255,255,255,0.55), 0 1px 2px rgba(255,255,255,0.4)',
+              }}>{caption}</div>
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '4px 10px', borderRadius: 999,
+                background: onDarkSky ? 'rgba(20,20,30,0.5)' : 'rgba(255,255,255,0.78)',
+                backdropFilter: 'blur(10px)',
+                WebkitBackdropFilter: 'blur(10px)',
+                border: onDarkSky ? '0.5px solid rgba(255,255,255,0.15)' : '0.5px solid rgba(255,255,255,0.6)',
+                fontSize: 10.5, fontWeight: 600,
+                color: onDarkSky ? '#fff' : '#0B1220',
+                fontFamily: '"JetBrains Mono", monospace', letterSpacing: 0.4,
+              }}>
+                <span style={{ width: 5, height: 5, borderRadius: 3, background: theme.accent }} />
+                Cloudoodle AI · {Math.round(detected.conf * 100)}%
+              </div>
+            </div>
+          </div>
+
+          {/* Glass drawer */}
+          <CV2Drawer
+            theme={theme}
+            pos={drawer.pos}
+            dragging={drawer.dragging}
+            handleBind={drawer.handle}
+            peekHeight={peekHeight}
+            stageHeight={stageHeight}
+          >
+            <CV2DrawerContent
+              theme={theme}
+              quip={quip}
+              shape={shape}
+              aiStyle={aiStyle}
+              detected={detected}
+              drawingLabel={drawingLabel}
+              mood={mood}
+              pos={drawer.pos}
+            />
+          </CV2Drawer>
+
+          {/* Home indicator */}
+          <div style={{
+            position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)',
+            width: 134, height: 5, borderRadius: 100,
+            background: 'rgba(0,0,0,0.3)', zIndex: 90,
+          }} />
+        </div>
+      );
+    }
+
+    // ─── App shell ─────────────────────────────────────────────────────────────
+
+    const CV2_DEFAULTS = {
+      theme: 'airy',
+      aiStyle: 'thin',
+      quipTone: 'witty',
+      mood: 'day',
+      shape: 'dragon',
+    };
+
+    function CV2App() {
+      const [t, setTweak] = useTweaks(CV2_DEFAULTS);
+      const theme = CV_THEMES[t.theme] || CV_THEMES.airy;
+
+      const canvasBg = theme.dark ? '#0A0E15' : '#E8E5DE';
+      const canvasInk = theme.dark ? 'rgba(244,246,250,0.7)' : 'rgba(40,30,20,0.7)';
+
+      return (
+        <>
+          <div style={{
+            minHeight: '100vh', width: '100vw',
+            background: canvasBg,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            position: 'relative', overflow: 'hidden',
+          }}>
+            {/* Corner labels */}
+            <div style={{
+              position: 'absolute', top: 32, left: 40,
+              fontFamily: '"JetBrains Mono", monospace', fontSize: 11, letterSpacing: 2,
+              textTransform: 'uppercase', color: canvasInk,
+            }}>Cloudoodle · single hero</div>
+            <div style={{
+              position: 'absolute', top: 32, right: 40, textAlign: 'right',
+              fontFamily: '"JetBrains Mono", monospace', fontSize: 11, letterSpacing: 2,
+              textTransform: 'uppercase', color: canvasInk,
+            }}>drag the handle · swipe up ↑</div>
+
+            <div style={{
+              position: 'absolute', bottom: 32, left: 40, maxWidth: 380, color: canvasInk,
+            }}>
+              <div style={{
+                fontFamily: '"Instrument Serif", serif', fontSize: 28, lineHeight: 1.05,
+                color: theme.dark ? '#F4F6FA' : '#1A1612', letterSpacing: -0.4,
+              }}>
+                The whole app is one screen: <span style={{ fontStyle: 'italic' }}>the sky.</span>
+              </div>
+              <div style={{ marginTop: 10, fontSize: 13.5, lineHeight: 1.5 }}>
+                A live camera feed with an AI tracing what it sees in the clouds.
+                Pull the glass drawer up for weather + a quip about what you&rsquo;re looking at.
+              </div>
+            </div>
+
+            {/* Phone */}
+            <CV2Hero
+              theme={theme}
+              aiStyle={t.aiStyle}
+              quipTone={t.quipTone}
+              mood={t.mood}
+              shape={t.shape}
+            />
+          </div>
+
+          {/* Tweaks */}
+          <TweaksPanel title="Cloudoodle · Tweaks">
+            <TweakSection label="Aesthetic" />
+            <TweakRadio label="Theme" value={t.theme} onChange={(v) => setTweak('theme', v)}
+              options={[
+                { value: 'airy',      label: 'Airy' },
+                { value: 'editorial', label: 'Editorial' },
+                { value: 'dusk',      label: 'Dusk' },
+                { value: 'dreamy',    label: 'Dreamy' },
+              ]} />
+            <TweakRadio label="Sky mood" value={t.mood} onChange={(v) => setTweak('mood', v)}
+              options={[
+                { value: 'day',    label: 'Day' },
+                { value: 'golden', label: 'Golden' },
+                { value: 'dusk',   label: 'Dusk' },
+                { value: 'dawn',   label: 'Dawn' },
+                { value: 'stormy', label: 'Stormy' },
+              ]} />
+            <TweakSection label="AI overlay" />
+            <TweakRadio label="Drawing style" value={t.aiStyle} onChange={(v) => setTweak('aiStyle', v)}
+              options={[
+                { value: 'thin',   label: 'Thin sketch' },
+                { value: 'bold',   label: 'Bold outline' },
+                { value: 'dotted', label: 'Constellation' },
+                { value: 'marker', label: 'Marker' },
+              ]} />
+            <TweakRadio label="Shape" value={t.shape} onChange={(v) => setTweak('shape', v)}
+              options={[
+                { value: 'dragon',    label: 'Dragon' },
+                { value: 'whale',     label: 'Whale' },
+                { value: 'dog',       label: 'Dog' },
+                { value: 'castle',    label: 'Castle' },
+                { value: 'heart',     label: 'Heart' },
+                { value: 'spaceship', label: 'UFO' },
+              ]} />
+            <TweakSection label="Voice" />
+            <TweakRadio label="Quip tone" value={t.quipTone} onChange={(v) => setTweak('quipTone', v)}
+              options={[
+                { value: 'witty',     label: 'Witty' },
+                { value: 'whimsical', label: 'Whimsical' },
+                { value: 'punny',     label: 'Punny' },
+              ]} />
+          </TweaksPanel>
+        </>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<CV2App />);
+  </script>
+</body>
+</html>
