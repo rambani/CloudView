@@ -61,7 +61,7 @@ struct FeedView: View {
     private var header: some View {
         HStack(alignment: .bottom) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("CloudView")
+                Text("Cloudoodle")
                     .font(.system(size: 28, weight: .bold))
                     .foregroundStyle(CV.Color.textPrimary)
                 Text("What's in the sky today")

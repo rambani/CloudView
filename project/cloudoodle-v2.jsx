@@ -1,4 +1,4 @@
-// CloudView v2 — the simplified single-screen hero.
+// Cloudoodle v2 — the simplified single-screen hero.
 // Live camera feed of the sky + a glass drawer that swipes up to reveal
 // weather details and a quip about the AI-drawn shape.
 
@@ -311,7 +311,7 @@ function CV2Hero({ theme, aiStyle, quipTone, mood, shape, drawerInitial = 0, onC
             fontFamily: '"JetBrains Mono", monospace', letterSpacing: 0.4,
           }}>
             <span style={{ width: 5, height: 5, borderRadius: 3, background: theme.accent }} />
-            CloudView AI · {Math.round(detected.conf * 100)}%
+            Cloudoodle AI · {Math.round(detected.conf * 100)}%
           </div>
         </div>
       </div>
@@ -839,7 +839,7 @@ function CV2App() {
           fontFamily: '"JetBrains Mono", monospace', fontSize: 11, letterSpacing: 2,
           textTransform: 'uppercase', color: canvasInk,
         }}>
-          CloudView · v2 · single hero
+          Cloudoodle · v2 · single hero
         </div>
         <div style={{
           position: 'absolute', top: 32, right: 40, textAlign: 'right',
@@ -888,7 +888,7 @@ function CV2App() {
       </div>
 
       {/* Tweaks */}
-      <TweaksPanel title="CloudView · Tweaks">
+      <TweaksPanel title="Cloudoodle · Tweaks">
         <TweakSection label="Aesthetic" />
         <TweakRadio
           label="Theme"

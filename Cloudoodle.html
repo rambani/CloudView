@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>CloudView</title>
+  <title>Cloudoodle</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -1171,7 +1171,7 @@
                 fontFamily: '"JetBrains Mono", monospace', letterSpacing: 0.4,
               }}>
                 <span style={{ width: 5, height: 5, borderRadius: 3, background: theme.accent }} />
-                CloudView AI · {Math.round(detected.conf * 100)}%
+                Cloudoodle AI · {Math.round(detected.conf * 100)}%
               </div>
             </div>
           </div>
@@ -1237,7 +1237,7 @@
               position: 'absolute', top: 32, left: 40,
               fontFamily: '"JetBrains Mono", monospace', fontSize: 11, letterSpacing: 2,
               textTransform: 'uppercase', color: canvasInk,
-            }}>CloudView · single hero</div>
+            }}>Cloudoodle · single hero</div>
             <div style={{
               position: 'absolute', top: 32, right: 40, textAlign: 'right',
               fontFamily: '"JetBrains Mono", monospace', fontSize: 11, letterSpacing: 2,
@@ -1270,7 +1270,7 @@
           </div>
 
           {/* Tweaks */}
-          <TweaksPanel title="CloudView · Tweaks">
+          <TweaksPanel title="Cloudoodle · Tweaks">
             <TweakSection label="Aesthetic" />
             <TweakRadio label="Theme" value={t.theme} onChange={(v) => setTweak('theme', v)}
               options={[

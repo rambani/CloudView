@@ -5,16 +5,16 @@ generate:
 	xcodegen generate
 
 open: generate
-	open CloudView.xcodeproj
+	open Cloudoodle.xcodeproj
 
 clean:
-	rm -rf CloudView.xcodeproj
+	rm -rf Cloudoodle.xcodeproj
 	rm -rf .build
 
 test: generate
 	xcodebuild test \
-		-project CloudView.xcodeproj \
-		-scheme CloudView \
+		-project Cloudoodle.xcodeproj \
+		-scheme Cloudoodle \
 		-destination 'platform=iOS Simulator,name=iPhone 15 Pro'
 
 lint:

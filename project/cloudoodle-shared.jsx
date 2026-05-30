@@ -1,4 +1,4 @@
-// CloudView — shared tokens, sky scenes, AI overlay drawings, icons.
+// Cloudoodle — shared tokens, sky scenes, AI overlay drawings, icons.
 // All exports go to window so other Babel files can use them.
 
 // ─────────────────────────────────────────────────────────────

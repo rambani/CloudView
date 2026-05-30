@@ -5,7 +5,7 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>$(DEVELOPMENT_LANGUAGE)</string>
     <key>CFBundleDisplayName</key>
-    <string>CloudView</string>
+    <string>Cloudoodle</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
@@ -23,11 +23,11 @@
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>NSCameraUsageDescription</key>
-    <string>CloudView needs your camera to photograph the sky and find shapes in clouds.</string>
+    <string>Cloudoodle needs your camera to photograph the sky and find shapes in clouds.</string>
     <key>NSLocationWhenInUseUsageDescription</key>
-    <string>CloudView uses your location to show cloud sightings near you and record where you spotted clouds.</string>
+    <string>Cloudoodle uses your location to show cloud sightings near you and record where you spotted clouds.</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
-    <string>CloudView can save your cloud sighting photos to your photo library.</string>
+    <string>Cloudoodle can save your cloud sighting photos to your photo library.</string>
     <key>UIApplicationSceneManifest</key>
     <dict>
         <key>UIApplicationSupportsMultipleScenes</key>

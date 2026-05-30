@@ -2,7 +2,7 @@ import SwiftUI
 import Sentry
 
 @main
-struct CloudViewApp: App {
+struct CloudoodleApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     @State private var appState = AppState.shared

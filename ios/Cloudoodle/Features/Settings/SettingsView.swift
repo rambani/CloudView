@@ -101,7 +101,7 @@ struct SettingsView: View {
 
                         // About
                         VStack(spacing: 4) {
-                            Text("CloudView")
+                            Text("Cloudoodle")
                                 .font(.system(size: 13, weight: .semibold))
                                 .foregroundStyle(CV.Color.textTertiary)
                             Text("Find shapes in the sky")

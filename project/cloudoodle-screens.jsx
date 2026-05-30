@@ -1,4 +1,4 @@
-// CloudView — screens. Each screen is a self-contained React component
+// Cloudoodle — screens. Each screen is a self-contained React component
 // that receives { theme, aiStyle, quipTone } and renders inside a CVPhone.
 
 // ─────────────────────────────────────────────────────────────
@@ -52,7 +52,7 @@ function CVScreenWelcome({ theme }) {
           <div style={{
             fontFamily: '"JetBrains Mono", monospace', fontSize: 11, letterSpacing: 2,
             textTransform: 'uppercase', opacity: 0.7, marginBottom: 24,
-          }}>CloudView · v1.0</div>
+          }}>Cloudoodle · v1.0</div>
           <h1 style={{
             fontFamily: '"Instrument Serif", serif', fontWeight: 400,
             fontSize: 56, lineHeight: 1.02, letterSpacing: -1.2, margin: 0,
@@ -543,7 +543,7 @@ function CVScreenResult({ theme, aiStyle, quipTone, drawing = 'dragon' }) {
             fontSize: 12, fontWeight: 500,
           }}>
             <div style={{ width: 12, height: 12 }}>{CVIcon.sparkle('#0B1220')}</div>
-            CloudView AI
+            Cloudoodle AI
           </div>
           <div style={{
             padding: '6px 12px', borderRadius: 999,

@@ -1,4 +1,4 @@
-# CloudView — Tasks Before Shipping
+# Cloudoodle — Tasks Before Shipping
 
 These are the manual steps that require accounts, portals, or credentials
 that can't be automated. Complete them in order.
@@ -88,7 +88,7 @@ Set the APNs secrets for push notifications:
 ```bash
 supabase secrets set APNS_KEY_ID=<10-char key ID>
 supabase secrets set APNS_TEAM_ID=<10-char Apple team ID>
-supabase secrets set APNS_BUNDLE_ID=com.cloudview.app
+supabase secrets set APNS_BUNDLE_ID=com.cloudoodle.app
 supabase secrets set APNS_PRIVATE_KEY="$(cat /path/to/AuthKey_XXXXXXXX.p8)"
 # Set to "development" while testing with Debug builds (sandbox tokens).
 # Leave unset or set "production" for App Store / TestFlight builds.
@@ -114,7 +114,7 @@ In Supabase Dashboard → Database → Webhooks → Create webhook:
 Go to https://developer.apple.com → Certificates, Identifiers & Profiles:
 
 ### App ID
-1. Create App ID with bundle ID: `com.cloudview.app`
+1. Create App ID with bundle ID: `com.cloudoodle.app`
 2. Enable capabilities:
    - **Push Notifications**
    - **WeatherKit**
@@ -132,7 +132,7 @@ Go to https://developer.apple.com → Certificates, Identifiers & Profiles:
 
 Go to https://appstoreconnect.apple.com → My Apps → New App:
 
-1. Fill in: Name, bundle ID (`com.cloudview.app`), SKU, language
+1. Fill in: Name, bundle ID (`com.cloudoodle.app`), SKU, language
 2. Set **Age Rating**: `12+` (or `17+` if keeping user-generated content open)
 3. Add **Privacy Policy URL** — you must host this publicly (see Step 8)
 4. Fill in: App description, keywords, category (`Photo & Video`)
@@ -173,7 +173,7 @@ Host them at a stable URL (e.g., Notion page with custom domain, or a simple sta
 3. Copy the **DSN** string
 4. Add it to `ios/Config.xcconfig` as `SENTRY_DSN = <your dsn>`
 
-Sentry is already wired up in `CloudViewApp.swift` — it activates automatically when a non-empty DSN is present.
+Sentry is already wired up in `CloudoodleApp.swift` — it activates automatically when a non-empty DSN is present.
 
 ---
 
@@ -196,7 +196,7 @@ rejected on submission without it. iOS-side code is now in place; the
 remaining work is on the Apple Developer Portal and Supabase Dashboard.
 
 1. Enable **Sign In with Apple** capability in the App ID (Apple Developer Portal)
-2. ✅ Entitlement is in `CloudView.entitlements` and `CloudView.Release.entitlements`
+2. ✅ Entitlement is in `Cloudoodle.entitlements` and `Cloudoodle.Release.entitlements`
 3. ✅ `ASAuthorizationAppleIDProvider` flow is implemented in
    `Features/Settings/SignInWithAppleButtonView.swift` and rendered by `AuthForm`
 4. Enable Apple as a provider in Supabase Dashboard → Authentication → Providers:

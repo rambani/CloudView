@@ -1,4 +1,4 @@
-// CloudView — app entry. Mounts the design canvas with all screens.
+// Cloudoodle — app entry. Mounts the design canvas with all screens.
 
 const { useState, useEffect } = React;
 
@@ -10,7 +10,7 @@ const CV_DEFAULTS = /*EDITMODE-BEGIN*/{
 
 function CVTweaks({ t, setTweak }) {
   return (
-    <TweaksPanel title="CloudView · Tweaks">
+    <TweaksPanel title="Cloudoodle · Tweaks">
       <TweakSection label="Aesthetic" />
       <TweakRadio
         label="Theme"
@@ -61,7 +61,7 @@ function App() {
     <>
       <DesignCanvas minScale={0.1} maxScale={3}>
         {/* ── Intro card ────────────────────────────────────── */}
-        <DCSection id="intro" title="CloudView" subtitle="A pocket field guide for the imagination · scan the sky, find what's hiding">
+        <DCSection id="intro" title="Cloudoodle" subtitle="A pocket field guide for the imagination · scan the sky, find what's hiding">
           <DCArtboard id="cover" label="Concept" width={760} height={874}>
             <div style={{
               width: '100%', height: '100%', background: theme.bg, color: theme.ink,
@@ -81,7 +81,7 @@ function App() {
               <div style={{
                 fontFamily: '"JetBrains Mono", monospace', fontSize: 12, letterSpacing: 2.5,
                 textTransform: 'uppercase', color: theme.inkMute,
-              }}>CloudView · iOS · v1.0</div>
+              }}>Cloudoodle · iOS · v1.0</div>
               <h1 style={{
                 marginTop: 18, fontFamily: '"Instrument Serif", serif', fontWeight: 400,
                 fontSize: 88, lineHeight: 0.95, letterSpacing: -2.5, color: theme.ink, maxWidth: 460,
@@ -93,7 +93,7 @@ function App() {
               <p style={{
                 marginTop: 26, fontSize: 17, lineHeight: 1.5, color: theme.inkSoft, maxWidth: 380,
               }}>
-                Scan a patch of sky. CloudView traces the shapes hiding in the clouds, writes a small caption for what it sees, and aggregates everyone&rsquo;s finds by city &mdash; so a sky worth stepping outside for never goes unnoticed.
+                Scan a patch of sky. Cloudoodle traces the shapes hiding in the clouds, writes a small caption for what it sees, and aggregates everyone&rsquo;s finds by city &mdash; so a sky worth stepping outside for never goes unnoticed.
               </p>
 
               <div style={{

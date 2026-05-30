@@ -1,5 +1,5 @@
 import XCTest
-@testable import CloudView
+@testable import Cloudoodle
 
 final class CloudAnalysisParsingTests: XCTestCase {
 

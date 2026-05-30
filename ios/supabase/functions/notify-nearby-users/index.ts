@@ -10,7 +10,7 @@
  *   2. Set secrets:
  *        supabase secrets set APNS_KEY_ID=<10-char key ID>
  *        supabase secrets set APNS_TEAM_ID=<10-char team ID>
- *        supabase secrets set APNS_BUNDLE_ID=com.cloudview.app
+ *        supabase secrets set APNS_BUNDLE_ID=com.cloudoodle.app
  *        supabase secrets set APNS_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n..."
  *   3. Create Database Webhook in Supabase Dashboard:
  *        Table: sightings  |  Event: INSERT  |  URL: <your function URL>
