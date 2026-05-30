@@ -486,11 +486,7 @@ private struct DrawerBody: View {
             }
             .preference(key: DrawerScrollAtTopKey.self, value: isScrollAtTop)
         }
-        .onScrollGeometryChange(for: Bool.self) { geo in
-            geo.contentOffset.y <= 2
-        } action: { _, atTop in
-            isScrollAtTop = atTop
-        }
+        .trackScrollAtTop($isScrollAtTop)
         .task { await loadNearby() }
         .alert("Couldn't share sighting", isPresented: Binding(
             get: { saveError != nil },
@@ -1129,4 +1125,25 @@ private struct ShareSheet: UIViewControllerRepresentable {
         UIActivityViewController(activityItems: items, applicationActivities: nil)
     }
     func updateUIViewController(_ vc: UIActivityViewController, context: Context) {}
+}
+
+// onScrollGeometryChange is iOS 18+ but the deployment target is 17.
+// Gate it so iOS 17 simply doesn't refine the gesture-vs-scroll handoff;
+// the drawer still functions, the scroll-at-top state just stays at its
+// initial value (true) and GlassDrawer treats the drag as a drawer drag
+// when the scroll position can't be measured. Acceptable graceful
+// degradation until we can bump the deployment floor to 18.
+private extension View {
+    @ViewBuilder
+    func trackScrollAtTop(_ isAtTop: Binding<Bool>) -> some View {
+        if #available(iOS 18.0, *) {
+            self.onScrollGeometryChange(for: Bool.self) { geo in
+                geo.contentOffset.y <= 2
+            } action: { _, atTop in
+                isAtTop.wrappedValue = atTop
+            }
+        } else {
+            self
+        }
+    }
 }

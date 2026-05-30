@@ -63,7 +63,6 @@ final class CameraService: NSObject, ObservableObject {
                     return
                 }
                 self.session.addOutput(self.photoOutput)
-                self.photoOutput.maxPhotosPerCapture = 1
                 self.session.commitConfiguration()
                 self.session.startRunning()
                 cont.resume()
