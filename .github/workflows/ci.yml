@@ -52,6 +52,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Fail fast if the App Icon slot is empty. App Store submission rejects
+      # bundles without an icon, and an empty asset catalog produces only a
+      # warning at build time — it's easy to ship a broken release otherwise.
+      - name: Verify App Icon present
+        run: |
+          manifest=CloudView/Assets.xcassets/AppIcon.appiconset/Contents.json
+          if ! jq -e '.images[] | select(.filename != null)' "$manifest" > /dev/null; then
+            echo "::error file=$manifest::AppIcon.appiconset has no filename — release builds will be rejected by App Store Connect."
+            exit 1
+          fi
+          icon=CloudView/Assets.xcassets/AppIcon.appiconset/$(jq -r '.images[0].filename' "$manifest")
+          if [ ! -s "$icon" ]; then
+            echo "::error file=$icon::App icon file is missing or empty."
+            exit 1
+          fi
+
       - name: Show toolchain
         run: |
           mkdir -p "$LOG_DIR"
