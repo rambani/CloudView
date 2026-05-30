@@ -203,21 +203,32 @@ final class SupabaseService: ObservableObject {
         // Increment user's total_sightings
         try await client.rpc("increment_sightings", params: ["user_id_input": userId.uuidString]).execute()
 
-        var uploaded = sighting
-        uploaded = CloudSighting(
+        // Rebuild the in-memory sighting with the server-assigned image URL
+        // but preserve every field the caller supplied. The previous
+        // shorthand called the analysis-based initializer, which silently
+        // defaulted drawingElements / drawingLabelX / drawingLabelY back to
+        // their initializer defaults (empty + 0.5 + 0.25) — drawing data
+        // was lost on the in-memory return value even though the DB row
+        // had it correctly. CaptureFlowView discards the return today, so
+        // this is preventative; future callers that consume it (e.g. a
+        // post-upload share/preview screen) will get the right values.
+        return CloudSighting(
             id: sighting.id,
             userId: userId,
             imageURL: imageURL,
             localImageData: nil,
             analysis: sighting.analysis,
+            drawingElements: sighting.drawingElements,
+            drawingLabelX: sighting.drawingLabelX,
+            drawingLabelY: sighting.drawingLabelY,
             latitude: sighting.latitude,
             longitude: sighting.longitude,
             city: sighting.city,
             country: sighting.country,
             likes: 0,
+            isLikedByCurrentUser: false,
             createdAt: sighting.createdAt
         )
-        return uploaded
     }
 
     func fetchFeed(limit: Int = 30, offset: Int = 0) async throws -> [CloudSighting] {
@@ -244,7 +255,11 @@ final class SupabaseService: ObservableObject {
             ])
             .execute()
             .value
-        return rows.map { $0.toSighting() }
+        // Populate liked-by-current-user the same way fetchFeed does, so
+        // SightingCards rendered from the nearby list show the correct
+        // heart state and the like-toggle starts from the right value.
+        let likedIds = await fetchLikedIds()
+        return rows.map { $0.toSighting(isLiked: likedIds.contains($0.id)) }
     }
 
     func fetchCityStats() async throws -> [CityStats] {
@@ -288,7 +303,11 @@ final class SupabaseService: ObservableObject {
             .limit(limit)
             .execute()
             .value
-        return rows.map { $0.toSighting() }
+        // Same fix as fetchNearbySightings — without this the profile grid
+        // shows every heart in the unfilled state even on sightings the
+        // viewer has liked.
+        let likedIds = await fetchLikedIds()
+        return rows.map { $0.toSighting(isLiked: likedIds.contains($0.id)) }
     }
 
     func reportSighting(id: UUID, reason: String) async throws {
