@@ -59,11 +59,19 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
+            .toolbar(content: doneButtonToolbar)
+        }
+    }
+
+    // Pull the toolbar out into a separately-typed @ToolbarContentBuilder so
+    // Swift doesn't have to disambiguate between the toolbar(content:) View
+    // overload and the toolbar(content:) ToolbarContent overload at the
+    // call site. Direct inline use produced "ambiguous use of 'toolbar(content:)'"
+    // under iOS 16 SDK + Xcode 16.
+    @ToolbarContentBuilder
+    private func doneButtonToolbar() -> some ToolbarContent {
+        ToolbarItem(placement: .confirmationAction) {
+            Button("Done") { dismiss() }
         }
     }
 
