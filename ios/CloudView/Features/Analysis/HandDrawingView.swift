@@ -4,7 +4,6 @@ import SwiftUI
 // a single glowing pen tip travels through all paths sequentially,
 // drawing each stroke before moving to the next.
 struct HandDrawingView: View {
-    let elements: [CloudAnalysis.DrawingElement]
     let shapeName: String
     let labelPosition: CGPoint         // normalized 0-1
     var onComplete: (() -> Void)?
