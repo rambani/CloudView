@@ -16,4 +16,5 @@ enum BackendConfig {
     static var reportScanURL: URL { baseURL.appendingPathComponent("api/report-scan") }
     static var registerDeviceURL: URL { baseURL.appendingPathComponent("api/register-device") }
     static var regionalActivityURL: URL { baseURL.appendingPathComponent("api/regional-activity") }
+    static var deleteDeviceURL: URL { baseURL.appendingPathComponent("api/delete-device") }
 }

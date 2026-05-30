@@ -74,6 +74,34 @@ class NotificationService: ObservableObject {
         registerDeviceWithBackend(token: token)
     }
 
+    /// Honor the privacy policy's "right to erasure" — when the user
+    /// opts out, call /api/delete-device with their token so the backend
+    /// drops the record and removes the token from its region fan-out set.
+    /// No-op if we don't have a token cached (e.g., user never opted in).
+    func deleteFromBackend() {
+        guard let token = deviceToken else { return }
+        let url = BackendConfig.deleteDeviceURL
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let payload: [String: Any] = ["deviceToken": token]
+        guard let body = try? JSONSerialization.data(withJSONObject: payload) else { return }
+        request.httpBody = body
+
+        URLSession.shared.dataTask(with: request) { _, response, error in
+            if let error = error {
+                print("❌ Backend delete failed: \(error.localizedDescription)")
+                return
+            }
+            if let http = response as? HTTPURLResponse {
+                print(http.statusCode == 200
+                      ? "✅ Backend deletion acknowledged"
+                      : "⚠️  Backend delete returned status \(http.statusCode)")
+            }
+        }.resume()
+    }
+
     func didFailToRegisterForRemoteNotifications(error: Error) {
         print("❌ Failed to register for remote notifications: \(error.localizedDescription)")
     }
