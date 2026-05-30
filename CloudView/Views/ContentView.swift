@@ -7,6 +7,7 @@ struct ContentView: View {
     @EnvironmentObject var notificationService: NotificationService
     @State private var showInstructions = true
     @State private var hasShownInstructions = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
@@ -56,7 +57,7 @@ struct ContentView: View {
 
                     // Info button - Enhanced with bouncy animation
                     Button(action: {
-                        withAnimation(.bouncy) {
+                        withAnimation(reduceMotion ? .linear(duration: 0.15) : .bouncy) {
                             showInstructions.toggle()
                         }
                     }) {
@@ -75,11 +76,14 @@ struct ContentView: View {
                             Image(systemName: showInstructions ? "xmark.circle.fill" : "info.circle.fill")
                                 .font(.system(size: 22))
                                 .foregroundColor(.white)
+                                .accessibilityHidden(true)
                         }
                     }
                     .buttonStyle(BouncyButtonStyle())
                     .shadow(color: Color.glassShadow, radius: 12, x: 0, y: 6)
                     .padding(.trailing, .spacing_md)
+                    .accessibilityLabel(showInstructions ? "Close instructions" : "Show instructions")
+                    .accessibilityHint("Opens a panel explaining how to use Cloudoodle")
                     .padding(.top, 50)
                 }
 
@@ -202,10 +206,25 @@ struct ContentView: View {
                     )
                     .shadow(color: Color.sunGlow.opacity(0.3), radius: 12, x: 0, y: 6)
                     .transition(.opacity.combined(with: .scale))
+                    // VoiceOver users can't see the AR drawing appear; this
+                    // node aggregates the visual + text into one
+                    // announcement so a swipe-right after launch lands here
+                    // and reads "Cloudoodle drew a Happy Penguin Surfing".
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Cloudoodle drew \(drawingName)")
+                    .accessibilityAddTraits(.updatesFrequently)
 
                     Spacer()
                 }
                 .onAppear {
+                    // Push a focused VoiceOver announcement so blind users
+                    // know something happened — the AR scene itself is
+                    // unreachable through accessibility.
+                    UIAccessibility.post(
+                        notification: .announcement,
+                        argument: "Cloudoodle drew \(drawingName)"
+                    )
+
                     // Auto-dismiss after 4 seconds
                     DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
                         withAnimation(.easeOut(duration: 0.3)) {
