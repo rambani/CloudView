@@ -343,6 +343,25 @@ class ARViewModel: ObservableObject {
 
         // Haptic + audio cue: "look what we made"
         FeedbackService.shared.fire(.drawingRevealed)
+
+        // Save a snapshot to the local gallery once the line-drawing
+        // animation has had time to render. The 2.5s drawing animation
+        // + a little buffer gives the kid a satisfying complete image.
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 2_800_000_000)
+            captureAndArchive(label: concept.name)
+        }
+    }
+
+    @MainActor
+    private func captureAndArchive(label: String) {
+        guard let arView = arView else { return }
+        arView.snapshot(saveToHDR: false) { image in
+            guard let image = image else { return }
+            Task { @MainActor in
+                _ = DrawingArchiveService.shared.save(image: image, label: label)
+            }
+        }
     }
 
     private func screenPointToWorldDirection(_ screenPoint: CGPoint, camera: ARCamera) -> simd_float3 {

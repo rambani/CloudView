@@ -39,10 +39,29 @@ struct SettingsView: View {
                     Text("When on, Cloudoodle sends an anonymous city-level count of the drawings you create so others can see what people are spotting near them. We never send your exact location, your account, or the cloud images. You can turn this off any time.")
                 }
 
+                Section("My drawings") {
+                    NavigationLink {
+                        GalleryView()
+                    } label: {
+                        Label {
+                            HStack {
+                                Text("View saved drawings")
+                                Spacer()
+                                Text("\(DrawingArchiveService.shared.drawings.count)")
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
+                            }
+                        } icon: {
+                            Image(systemName: "photo.on.rectangle")
+                        }
+                    }
+                }
+
                 Section("Privacy") {
                     Link("Privacy policy", destination: privacyPolicyURL)
                     Button(role: .destructive) {
                         notificationService.deleteFromBackend()
+                        DrawingArchiveService.shared.deleteAll()
                         communityEnabled = false
                     } label: {
                         Text("Delete my data")
