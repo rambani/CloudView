@@ -7,6 +7,12 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
         // Set notification delegate
         UNUserNotificationCenter.current().delegate = self
+
+        // Start MetricKit subscription so we get crash / hang / energy
+        // payloads from iOS. Payloads are persisted locally; nothing is
+        // uploaded. See DiagnosticsService for retention + access details.
+        DiagnosticsService.shared.start()
+
         return true
     }
 
