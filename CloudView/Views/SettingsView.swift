@@ -60,6 +60,9 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(content: doneButtonToolbar)
+            // Form layout adapts well to the full Dynamic Type range,
+            // including the AccessibilityXXXL sizes. Allow it.
+            .dynamicTypeSize(.xSmall ... .accessibility5)
         }
     }
 

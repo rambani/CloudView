@@ -266,6 +266,11 @@ struct ContentView: View {
         }
         .statusBar(hidden: false)
         .preferredColorScheme(.dark)
+        // Allow Dynamic Type scaling but cap at .accessibility1 — the
+        // AR overlay has fixed-position glass panels that overflow at
+        // accessibility XXL. .xLarge..accessibility1 covers most users
+        // with vision accommodations without breaking the layout.
+        .dynamicTypeSize(.xSmall ... .accessibility1)
         .sheet(isPresented: $showSettings) {
             SettingsView()
                 .environmentObject(notificationService)
@@ -445,14 +450,14 @@ struct InstructionRow: View {
             }
             .shadow(color: iconColor.opacity(0.2), radius: 8, x: 0, y: 4)
 
-            // Text
+            // Text — uses semantic styles so Dynamic Type scaling works.
             VStack(alignment: .leading, spacing: 6) {
                 Text(title)
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .font(.headline)
                     .foregroundColor(.white)
 
                 Text(description)
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .font(.subheadline)
                     .foregroundColor(.white.opacity(0.75))
                     .fixedSize(horizontal: false, vertical: true)
             }
