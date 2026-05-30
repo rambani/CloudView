@@ -53,7 +53,7 @@ actor GeminiService {
             throw GeminiError.imageEncodingFailed
         }
 
-        let urlString = "\(baseURL)/\(model):generateContent?key=\(apiKey)"
+        let urlString = "\(baseURL)/\(model):generateContent"
         guard let url = URL(string: urlString) else { throw GeminiError.missingAPIKey }
 
         let body: [String: Any] = [
@@ -73,6 +73,11 @@ actor GeminiService {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        // Send the API key as a header instead of `?key=...` so it doesn't
+        // end up in URLSession metrics, Sentry breadcrumbs, crash reports,
+        // or anywhere else the request URL gets logged. Google's API
+        // accepts both transports; the header form is the recommended one.
+        request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, response) = try await URLSession.shared.data(for: request)
