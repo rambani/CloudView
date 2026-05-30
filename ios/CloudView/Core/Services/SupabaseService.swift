@@ -54,7 +54,7 @@ final class SupabaseService: ObservableObject {
     func signUp(email: String, password: String, username: String) async throws {
         guard let client else { throw SupabaseError.notConfigured }
         let response = try await client.auth.signUp(email: email, password: password)
-        guard let userId = response.user?.id else { return }
+        let userId = response.user.id
         try await upsertProfile(id: userId, username: username)
         await refreshSession()
     }
@@ -211,7 +211,7 @@ final class SupabaseService: ObservableObject {
                 options: FileOptions(contentType: "image/jpeg")
             )
 
-        let imageURL = client.storage
+        let imageURL = try client.storage
             .from("sighting-images")
             .getPublicURL(path: filename)
             .absoluteString

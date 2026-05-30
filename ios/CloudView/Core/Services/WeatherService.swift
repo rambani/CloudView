@@ -163,7 +163,7 @@ actor WeatherService {
         case .partlyCloudy:                                    return "lively cumulus"
         case .mostlyCloudy:                                    return "heavy cloud cover"
         case .cloudy:                                          return "overcast"
-        case .foggy, .haze, .blowingDust, .dust, .smoky:      return "hazy"
+        case .foggy, .haze, .blowingDust, .smoky:             return "hazy"
         case .breezy, .windy:                                  return "breezy"
         case .drizzle, .sunShowers, .freezingDrizzle:          return "light rain"
         case .rain, .heavyRain, .freezingRain:                 return "rainy"
