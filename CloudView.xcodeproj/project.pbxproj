@@ -35,6 +35,9 @@
 		A1000087000000000000001 /* CloudShapeSignature.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000088000000000000001 /* CloudShapeSignature.swift */; };
 		A1000089000000000000001 /* CloudRecognitionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000090000000000000001 /* CloudRecognitionService.swift */; };
 		A1000091000000000000001 /* CloudShapeSignatureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000092000000000000001 /* CloudShapeSignatureTests.swift */; };
+		A1000093000000000000001 /* CLIPImageEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000094000000000000001 /* CLIPImageEncoder.swift */; };
+		A1000095000000000000001 /* CloudSilhouetteRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000096000000000000001 /* CloudSilhouetteRenderer.swift */; };
+		A1000097000000000000001 /* LabelEmbeddingMatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000098000000000000001 /* LabelEmbeddingMatcher.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -70,6 +73,9 @@
 		A1000088000000000000001 /* CloudShapeSignature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudShapeSignature.swift; sourceTree = "<group>"; };
 		A1000090000000000000001 /* CloudRecognitionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudRecognitionService.swift; sourceTree = "<group>"; };
 		A1000092000000000000001 /* CloudShapeSignatureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudShapeSignatureTests.swift; sourceTree = "<group>"; };
+		A1000094000000000000001 /* CLIPImageEncoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CLIPImageEncoder.swift; sourceTree = "<group>"; };
+		A1000096000000000000001 /* CloudSilhouetteRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSilhouetteRenderer.swift; sourceTree = "<group>"; };
+		A1000098000000000000001 /* LabelEmbeddingMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabelEmbeddingMatcher.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXContainerItemProxy section */
@@ -166,6 +172,9 @@
 				A1000055000000000000001 /* BackendConfig.swift */,
 				A1000088000000000000001 /* CloudShapeSignature.swift */,
 				A1000090000000000000001 /* CloudRecognitionService.swift */,
+				A1000094000000000000001 /* CLIPImageEncoder.swift */,
+				A1000096000000000000001 /* CloudSilhouetteRenderer.swift */,
+				A1000098000000000000001 /* LabelEmbeddingMatcher.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -323,6 +332,9 @@
 				A1000085000000000000001 /* Interpretation.swift in Sources */,
 				A1000087000000000000001 /* CloudShapeSignature.swift in Sources */,
 				A1000089000000000000001 /* CloudRecognitionService.swift in Sources */,
+				A1000093000000000000001 /* CLIPImageEncoder.swift in Sources */,
+				A1000095000000000000001 /* CloudSilhouetteRenderer.swift in Sources */,
+				A1000097000000000000001 /* LabelEmbeddingMatcher.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -4,53 +4,60 @@ import Foundation
 /// picks one at random to render, preserving the "5 viewers, 5 different
 /// answers" property called out in docs/RECOGNITION.md.
 ///
-/// Implementations are tiered for cost. Today only the stub is wired up.
-/// Phase 1 adds the backend-cache implementation; Phase 3 adds the
-/// on-device tier. Both will conform to this same protocol; the call
-/// sites don't change.
+/// Today: a fully on-device implementation backed by Apple's MobileCLIP
+/// image encoder + pre-computed text embeddings for the kid-safe
+/// allowlist. $0 per call, no network, no vendor dependency.
+///
+/// When the MobileCLIP model isn't shipped in the bundle (e.g. fresh
+/// clone, before docs/CLIP_SETUP.md is followed), the service silently
+/// falls back to deterministic stub picks so the app still runs end to
+/// end for development.
 protocol CloudRecognitionService {
     func recognize(_ cluster: CloudCluster) async throws -> [Interpretation]
 }
 
-/// Cost-tiered orchestrator. Tries the on-device tier first, falls back
-/// to the backend on low confidence. Today both backing services are
-/// stubs; the abstraction is what we need now so the rest of the iOS
-/// pipeline can flow end-to-end before Phase 1 wires the vision model.
-final class TieredCloudRecognitionService: CloudRecognitionService {
-    static let shared = TieredCloudRecognitionService()
+/// Production recognition service. Lazily initializes CLIP + the label
+/// matcher; if either is unavailable, hands the call off to the stub so
+/// the app never crashes on a missing asset.
+final class OnDeviceCloudRecognitionService: CloudRecognitionService {
+    static let shared = OnDeviceCloudRecognitionService()
 
-    private let onDevice: CloudRecognitionService
-    private let backend: CloudRecognitionService
+    private let encoder: CLIPImageEncoder?
+    private let matcher: LabelEmbeddingMatcher?
+    private let fallback = StubCloudRecognitionService()
 
-    init(
-        onDevice: CloudRecognitionService = StubCloudRecognitionService(),
-        backend: CloudRecognitionService = StubCloudRecognitionService()
-    ) {
-        self.onDevice = onDevice
-        self.backend = backend
+    init() {
+        self.encoder = CLIPImageEncoder()
+        self.matcher = LabelEmbeddingMatcher()
+        if encoder == nil || matcher == nil {
+            print("⚠️  OnDeviceCloudRecognitionService: using stub fallback. " +
+                  "Recognition will return placeholder picks until the MobileCLIP " +
+                  "model and label embeddings are added — see docs/CLIP_SETUP.md.")
+        }
     }
 
     func recognize(_ cluster: CloudCluster) async throws -> [Interpretation] {
-        // Tier 1: on-device match.
-        let local = try await onDevice.recognize(cluster)
-        if let best = local.first, best.confidence >= 0.6 {
-            return local
+        guard let encoder = encoder, let matcher = matcher else {
+            return try await fallback.recognize(cluster)
         }
-        // Tier 2/3: backend. The backend itself handles cache vs.
-        // vision-model internally — we don't see the difference.
-        return try await backend.recognize(cluster)
+        guard let pixelBuffer = CloudSilhouetteRenderer.render(cluster) else {
+            return try await fallback.recognize(cluster)
+        }
+        let embedding = try await encoder.encode(pixelBuffer)
+        let picks = matcher.match(imageEmbedding: embedding)
+        // Matcher returns [] when the top match is below the confidence
+        // floor (genuinely no good match). Caller renders the "Cool cloud!"
+        // default state in that case.
+        return picks
     }
 }
 
-/// Phase 0 stub. Returns a deterministic, seeded-by-signature set of
-/// interpretations so the iOS pipeline can run end-to-end without any
-/// network call. Replaced in Phase 1 by the backend-backed implementation.
+/// Fallback returned when the CLIP model isn't present. Returns 5 canned
+/// interpretations seeded deterministically by the cluster's signature.
+/// Lives in this file so the recognition pipeline is self-contained and
+/// the rest of the app sees one type.
 final class StubCloudRecognitionService: CloudRecognitionService {
     func recognize(_ cluster: CloudCluster) async throws -> [Interpretation] {
-        // Seed by signature so the same cloud always returns the same five.
-        // The renderer picks one at random per scan, so the user still gets
-        // variety per re-scan; the determinism here is just so dev/test
-        // doesn't flap.
         let bank: [(String, Double)] = [
             ("turtle", 0.55), ("dragon", 0.55), ("rabbit", 0.55),
             ("cat", 0.55), ("whale", 0.55), ("dolphin", 0.55),
@@ -63,7 +70,7 @@ final class StubCloudRecognitionService: CloudRecognitionService {
         var i = hash
         for _ in 0..<5 {
             picks.append(bank[i % bank.count])
-            i /= bank.count + 1  // step pseudo-randomly through the bank
+            i /= bank.count + 1
             if i == 0 { i = hash &* 31 + 7 }
         }
 
