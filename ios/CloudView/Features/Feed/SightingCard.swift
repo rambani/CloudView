@@ -10,6 +10,7 @@ struct SightingCard: View {
     @State private var isLiked: Bool
     @State private var likeCount: Int
     @State private var reportSheetShown = false
+    @State private var blockSheetShown = false
     @State private var reportReason: ReportReason = .inappropriate
     @State private var reportSubmitting = false
     @State private var reportToast: String?
@@ -133,7 +134,27 @@ struct SightingCard: View {
                 } label: {
                     Label("Report", systemImage: "flag")
                 }
+                if let posterId = sighting.userId,
+                   posterId != supabase.currentUser?.id {
+                    Button(role: .destructive) {
+                        blockSheetShown = true
+                    } label: {
+                        Label("Block this user", systemImage: "hand.raised")
+                    }
+                }
             }
+        }
+        .confirmationDialog(
+            "Block this user?",
+            isPresented: $blockSheetShown,
+            titleVisibility: .visible
+        ) {
+            Button("Block", role: .destructive) {
+                Task { await submitBlock() }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("You won't see any of their sightings in your feed or on the map. You can unblock them in Settings.")
         }
         .confirmationDialog(
             "Report this sighting?",
@@ -160,6 +181,24 @@ struct SightingCard: View {
                     .transition(.move(edge: .top).combined(with: .opacity))
                     .padding(.top, 8)
             }
+        }
+    }
+
+    private func submitBlock() async {
+        guard let posterId = sighting.userId else { return }
+        do {
+            try await supabase.blockUser(id: posterId)
+            withAnimation(.spring(response: 0.35)) {
+                reportToast = "User blocked. Refresh to see changes."
+            }
+            try? await Task.sleep(for: .seconds(3))
+            withAnimation { reportToast = nil }
+        } catch {
+            withAnimation(.spring(response: 0.35)) {
+                reportToast = "Couldn't block. Try again."
+            }
+            try? await Task.sleep(for: .seconds(3))
+            withAnimation { reportToast = nil }
         }
     }
 

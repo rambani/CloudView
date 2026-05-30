@@ -42,6 +42,7 @@ In your Supabase Dashboard → SQL Editor, run the migrations **in order**:
 6. `ios/supabase/migrations/006_toggle_like_auth_check.sql` — security fix: prevent acting on other users' behalf via toggle_like RPC
 7. `ios/supabase/migrations/007_restrict_profiles_within_radius.sql` — security fix: restrict profiles_within_radius to service role to prevent device_token leak
 8. `ios/supabase/migrations/008_hide_private_profile_columns.sql` — security fix: column-level grants on profiles so other users can't read device_token / last_latitude / last_longitude
+9. `ios/supabase/migrations/009_blocked_users.sql` — UGC: blocked_users table + view/RPCs that filter out blocked authors (App Review Guideline 1.2)
 
 ---
 
