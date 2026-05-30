@@ -44,7 +44,10 @@ jobs:
 
       - name: Generate Xcode project
         working-directory: ${{ env.WORKING_DIR }}
-        run: xcodegen generate
+        run: |
+          set -o pipefail
+          mkdir -p build/logs
+          xcodegen generate 2>&1 | tee build/logs/xcodegen.log
 
       - name: Show toolchain
         run: |
@@ -54,7 +57,8 @@ jobs:
       - name: Pick iOS simulator
         id: sim
         run: |
-          xcrun simctl list devices available 2>&1 | tee /tmp/simulators.log
+          mkdir -p "${WORKING_DIR}/${LOG_DIR}"
+          xcrun simctl list devices available 2>&1 | tee "${WORKING_DIR}/${LOG_DIR}/simulators.log"
           udid=$(xcrun simctl list devices available \
             | grep -E "iPhone (15|16|17)" \
             | head -1 \
@@ -71,8 +75,8 @@ jobs:
           set -o pipefail
           mkdir -p "$LOG_DIR"
           xcodebuild build-for-testing \
-            -project CloudView.xcodeproj \
-            -scheme CloudView \
+            -project Cloudoodle.xcodeproj \
+            -scheme Cloudoodle \
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
             -derivedDataPath build/dd \
             CODE_SIGNING_ALLOWED=NO \
@@ -83,8 +87,8 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild test-without-building \
-            -project CloudView.xcodeproj \
-            -scheme CloudView \
+            -project Cloudoodle.xcodeproj \
+            -scheme Cloudoodle \
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
             -derivedDataPath build/dd \
             -resultBundlePath "$RESULT_BUNDLE" \
@@ -112,19 +116,25 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const paths = [
-              '${{ env.WORKING_DIR }}/build/logs/build.log',
-              '${{ env.WORKING_DIR }}/build/logs/test.log',
-            ];
+            const path = require('path');
+            const logDir = '${{ env.WORKING_DIR }}/build/logs';
             const sha = context.payload.pull_request.head.sha.slice(0, 7);
             let body = `### iOS CI failure on \`${sha}\` (run ${context.runId})\n\n`;
-            const errorRe = /(error:|fatal error|Undefined symbol|ld: |Command\s+\w+\s+failed)/;
-            for (const p of paths) {
-              if (!fs.existsSync(p)) continue;
+            // Glob whatever logs exist in ios/build/logs — xcodegen.log,
+            // simulators.log, toolchain.log, build.log, test.log. The set
+            // varies depending on which step failed first.
+            const files = fs.existsSync(logDir)
+              ? fs.readdirSync(logDir).sort().map(f => path.join(logDir, f))
+              : [];
+            if (!files.length) {
+              body += `_No log files found under \`${logDir}\` — failure was likely in checkout, brew install, or the github-script step itself. Check the run page directly._\n`;
+            }
+            const errorRe = /(error:|fatal error|Undefined symbol|ld: |Command\s+\w+\s+failed|No such file|^xcodegen:|cannot find)/i;
+            for (const p of files) {
               const lines = fs.readFileSync(p, 'utf8').split('\n');
               const errors = lines.filter(l => errorRe.test(l)).slice(-40);
               const tail = lines.slice(-150);
-              body += `**${p.split('/').pop()}**\n\n`;
+              body += `**${path.basename(p)}**\n\n`;
               if (errors.length) {
                 body += `_Filtered error lines:_\n\`\`\`\n${errors.join('\n')}\n\`\`\`\n\n`;
               } else {
