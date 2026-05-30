@@ -7,6 +7,7 @@ struct ContentView: View {
     @EnvironmentObject var notificationService: NotificationService
     @State private var showInstructions = true
     @State private var hasShownInstructions = false
+    @State private var showSettings = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -83,7 +84,14 @@ struct ContentView: View {
                     .shadow(color: Color.glassShadow, radius: 12, x: 0, y: 6)
                     .padding(.trailing, .spacing_md)
                     .accessibilityLabel(showInstructions ? "Close instructions" : "Show instructions")
-                    .accessibilityHint("Opens a panel explaining how to use Cloudoodle")
+                    .accessibilityHint("Tap to toggle instructions. Long press for settings.")
+                    .simultaneousGesture(
+                        LongPressGesture(minimumDuration: 0.6)
+                            .onEnded { _ in showSettings = true }
+                    )
+                    .accessibilityAction(named: "Settings") {
+                        showSettings = true
+                    }
                     .padding(.top, 50)
                 }
 
@@ -258,6 +266,10 @@ struct ContentView: View {
         }
         .statusBar(hidden: false)
         .preferredColorScheme(.dark)
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
+                .environmentObject(notificationService)
+        }
     }
 }
 
