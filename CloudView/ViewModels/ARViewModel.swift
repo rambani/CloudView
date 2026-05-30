@@ -13,7 +13,7 @@ class ARViewModel: ObservableObject {
 
     var arView: ARView?
     private let cloudDetector = CloudDetector()
-    private let drawingLibrary = DrawingLibrary()
+    private let recognitionService: CloudRecognitionService = OnDeviceCloudRecognitionService.shared
     private var cancellables = Set<AnyCancellable>()
     private var activeDrawings: [UUID: DrawingAnchor] = [:]
     // Insertion order of drawing IDs so we can evict the actual oldest.
@@ -267,12 +267,25 @@ class ARViewModel: ObservableObject {
 
         guard !hasNearbyDrawing else { return }
 
-        // Select a random drawing concept based on cloud shape
-        guard let concept = drawingLibrary.selectDrawing(for: cloudShape) else {
+        // CLIP-based recognition: cluster the cloud (single-cloud today),
+        // ask the recognizer for 5 alternative interpretations, take the
+        // first (matcher already softmax-samples for variety). When the
+        // CLIP model isn't bundled, the service returns deterministic
+        // stub picks so this path still produces something.
+        let cluster = CloudClusteringService.cluster([cloudShape]).first
+        let interpretations = (try? await recognitionService.recognize(cluster!)) ?? []
+        guard let interpretation = interpretations.first else {
+            // No good match — leave the cloud unannotated rather than show
+            // a confidently-wrong label. UI's existing nil-name state.
             return
         }
 
-        // Update UI with drawing name
+        let concept = Self.makeDrawingConcept(
+            from: interpretation,
+            cloudShape: cloudShape
+        )
+
+        // Update UI with the recognized label
         currentDrawingName = concept.name
         lastDrawingName = concept.name // Persist for quirky weather statements
 
@@ -420,6 +433,76 @@ class ARViewModel: ObservableObject {
             if self.appState == .arSessionError {
                 self.appState = .scanning
             }
+        }
+    }
+
+    // MARK: - Recognition → DrawingConcept adapter
+
+    /// Convert a recognized Interpretation into the DrawingConcept shape
+    /// that AnimatedDrawing already knows how to animate: the cloud's
+    /// own outline as the body, plus a small budget of annotation paths
+    /// (eye dots, mouths, ears) layered on top in order.
+    ///
+    /// Annotation budget caps live here for now — we hard-limit to 10
+    /// annotation paths regardless of what the hints library declares,
+    /// so the cloud always stays visually dominant.
+    private static func makeDrawingConcept(
+        from interpretation: Interpretation,
+        cloudShape: CloudShape
+    ) -> DrawingConcept {
+        var paths: [DrawingConcept.DrawingPath] = []
+
+        // 1. The cloud's own outline IS the body.
+        if !cloudShape.normalizedContour.isEmpty {
+            paths.append(DrawingConcept.DrawingPath(
+                points: cloudShape.normalizedContour,
+                closed: true,
+                order: 1
+            ))
+        }
+
+        // 2. Annotations: small marks layered on top, animated in order.
+        //    Dot annotations (single point) expand to a tiny circle so the
+        //    line-mesh renderer has something to trace.
+        let annotationCap = 10
+        for (idx, annotation) in interpretation.annotations.prefix(annotationCap).enumerated() {
+            let pts: [CGPoint]
+            let closed: Bool
+            switch annotation.kind {
+            case .dot:
+                pts = expandDot(at: annotation.points.first ?? .zero, radius: 0.012)
+                closed = true
+            case .line:
+                pts = annotation.points
+                closed = false
+            case .arc:
+                pts = annotation.points
+                closed = false
+            }
+            paths.append(DrawingConcept.DrawingPath(
+                points: pts,
+                closed: closed,
+                order: idx + 2
+            ))
+        }
+
+        return DrawingConcept(
+            name: interpretation.label.capitalized,
+            paths: paths,
+            preferredShape: nil
+        )
+    }
+
+    /// Six-point regular polygon approximating a small filled circle.
+    /// Used for `Annotation.dot` because the existing line-mesh renderer
+    /// needs ≥2 points to draw anything.
+    private static func expandDot(at center: CGPoint, radius: CGFloat) -> [CGPoint] {
+        (0..<6).map { i in
+            let t = Double(i) / 6 * 2 * .pi
+            return CGPoint(
+                x: center.x + radius * CGFloat(cos(t)),
+                y: center.y + radius * CGFloat(sin(t))
+            )
         }
     }
 }
