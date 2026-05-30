@@ -67,6 +67,20 @@ final class SupabaseService: ObservableObject {
 
     func signOut() async throws {
         guard let client else { return }
+        // Clear the device token on the outgoing profile before signing
+        // out so a subsequent user signing in on this same device won't
+        // receive pushes that were targeted at the previous account.
+        // Without this, profile A keeps its device_token pointing at
+        // this hardware indefinitely, and the notify-nearby-users
+        // Edge Function will send "<shape> spotted near <A's city>"
+        // pushes that land on the screen of whoever is logged in now.
+        if let userId = currentUser?.id {
+            let row: [String: AnyJSON] = ["device_token": .null]
+            try? await client.from("profiles")
+                .update(row)
+                .eq("id", value: userId.uuidString)
+                .execute()
+        }
         try await client.auth.signOut()
         currentUser = nil
         isAuthenticated = false

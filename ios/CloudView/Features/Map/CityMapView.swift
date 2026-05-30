@@ -7,6 +7,7 @@ struct CityMapView: View {
 
     @State private var cityStats: [CityStats] = []
     @State private var isLoading = false
+    @State private var fetchError: Error?
     @State private var selectedCity: CityStats?
     @State private var cameraPosition: MapCameraPosition = .automatic
 
@@ -48,27 +49,41 @@ struct CityMapView: View {
 
             // Header
             VStack {
-                ZStack {
-                    Color.black.opacity(0.001) // hit area
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Cloud Map")
-                                .font(.system(size: 22, weight: .bold))
-                                .foregroundStyle(CV.Color.textPrimary)
-                            Text("\(cityStats.count) cities scouting")
-                                .font(CV.Font.caption)
-                                .foregroundStyle(CV.Color.textTertiary)
-                        }
-                        Spacer()
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Cloud Map")
+                            .font(.system(size: 22, weight: .bold))
+                            .foregroundStyle(CV.Color.textPrimary)
+                        headerSubtitle
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 56)
-                    .padding(.bottom, 16)
+                    Spacer()
+                    if isLoading {
+                        ProgressView()
+                            .tint(CV.Color.textTertiary)
+                            .scaleEffect(0.8)
+                    }
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 56)
+                .padding(.bottom, 16)
                 .background(.ultraThinMaterial)
                 Spacer()
             }
             .ignoresSafeArea(edges: .top)
+
+            // Empty / error overlay surfaced from the bottom so the map
+            // chrome stays visible behind it.
+            if let _ = fetchError, cityStats.isEmpty, !isLoading {
+                fetchErrorBanner
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 120)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            } else if cityStats.isEmpty && !isLoading && fetchError == nil {
+                emptyBanner
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 120)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
         .task {
             await loadStats()
@@ -76,11 +91,77 @@ struct CityMapView: View {
         }
     }
 
+    @ViewBuilder
+    private var headerSubtitle: some View {
+        if isLoading && cityStats.isEmpty {
+            Text("Loading sightings…")
+                .font(CV.Font.caption)
+                .foregroundStyle(CV.Color.textTertiary)
+        } else if fetchError != nil && cityStats.isEmpty {
+            Text("Couldn't load sightings")
+                .font(CV.Font.caption)
+                .foregroundStyle(.red.opacity(0.85))
+        } else {
+            Text("\(cityStats.count) cit\(cityStats.count == 1 ? "y" : "ies") scouting")
+                .font(CV.Font.caption)
+                .foregroundStyle(CV.Color.textTertiary)
+        }
+    }
+
+    private var emptyBanner: some View {
+        VStack(spacing: 10) {
+            Text("No sightings on the map yet")
+                .font(CV.Font.headline)
+                .foregroundStyle(CV.Color.textPrimary)
+            Text("Add the first cloud and your pin appears here.")
+                .font(CV.Font.caption)
+                .foregroundStyle(CV.Color.textSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: CV.Radius.lg)
+                .fill(.ultraThinMaterial)
+        )
+    }
+
+    private var fetchErrorBanner: some View {
+        VStack(spacing: 12) {
+            Text("Couldn't load sightings")
+                .font(CV.Font.headline)
+                .foregroundStyle(CV.Color.textPrimary)
+            Text(fetchError?.localizedDescription ?? "Check your connection and try again.")
+                .font(CV.Font.caption)
+                .foregroundStyle(CV.Color.textSecondary)
+                .multilineTextAlignment(.center)
+            Button {
+                Task { await loadStats() }
+            } label: {
+                Text("Try again")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 8)
+                    .background(RoundedRectangle(cornerRadius: CV.Radius.md).fill(CV.Color.accent))
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: CV.Radius.lg)
+                .fill(.ultraThinMaterial)
+        )
+    }
+
     private func loadStats() async {
         isLoading = true
+        fetchError = nil
         do {
             cityStats = try await supabase.fetchCityStats()
-        } catch {}
+        } catch {
+            fetchError = error
+        }
         isLoading = false
     }
 

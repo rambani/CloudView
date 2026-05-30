@@ -5,8 +5,14 @@ struct SightingCard: View {
     var onLike: (() -> Void)?
     var onTap: (() -> Void)?
 
+    @EnvironmentObject private var supabase: SupabaseService
+
     @State private var isLiked: Bool
     @State private var likeCount: Int
+    @State private var reportSheetShown = false
+    @State private var reportReason: ReportReason = .inappropriate
+    @State private var reportSubmitting = false
+    @State private var reportToast: String?
 
     init(sighting: CloudSighting, onLike: (() -> Void)? = nil, onTap: (() -> Void)? = nil) {
         self.sighting = sighting
@@ -14,6 +20,17 @@ struct SightingCard: View {
         self.onTap = onTap
         _isLiked = State(initialValue: sighting.isLikedByCurrentUser)
         _likeCount = State(initialValue: sighting.likes)
+    }
+
+    // App Review (UGC apps) requires a way to flag objectionable content.
+    // Keeping the reason set short and human-readable so the moderation
+    // queue is actually triagable.
+    enum ReportReason: String, CaseIterable, Identifiable {
+        case inappropriate = "Inappropriate content"
+        case spam          = "Spam or off-topic"
+        case harassment    = "Harassment or hate"
+        case other         = "Something else"
+        var id: String { rawValue }
     }
 
     var body: some View {
@@ -105,6 +122,65 @@ struct SightingCard: View {
         }
         .contentShape(Rectangle())
         .onTapGesture { onTap?() }
+        // Long-press exposes the moderation actions Apple requires for
+        // UGC feeds. Less prominent than a dedicated button (the like
+        // count is the primary action), but discoverable via the
+        // standard iOS long-press affordance.
+        .contextMenu {
+            if supabase.isAuthenticated {
+                Button(role: .destructive) {
+                    reportSheetShown = true
+                } label: {
+                    Label("Report", systemImage: "flag")
+                }
+            }
+        }
+        .confirmationDialog(
+            "Report this sighting?",
+            isPresented: $reportSheetShown,
+            titleVisibility: .visible
+        ) {
+            ForEach(ReportReason.allCases) { reason in
+                Button(reason.rawValue) {
+                    Task { await submitReport(reason: reason) }
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Reports are reviewed by our team. You won't see this sighting in your feed again.")
+        }
+        .overlay(alignment: .top) {
+            if let toast = reportToast {
+                Text(toast)
+                    .font(CV.Font.caption)
+                    .foregroundStyle(CV.Color.textPrimary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Capsule().fill(.ultraThinMaterial))
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .padding(.top, 8)
+            }
+        }
+    }
+
+    private func submitReport(reason: ReportReason) async {
+        reportSubmitting = true
+        do {
+            try await supabase.reportSighting(id: sighting.id, reason: reason.rawValue)
+            withAnimation(.spring(response: 0.35)) {
+                reportToast = "Thanks — we'll review this."
+            }
+            // Auto-dismiss after 3s
+            try? await Task.sleep(for: .seconds(3))
+            withAnimation { reportToast = nil }
+        } catch {
+            withAnimation(.spring(response: 0.35)) {
+                reportToast = "Couldn't submit report. Try again."
+            }
+            try? await Task.sleep(for: .seconds(3))
+            withAnimation { reportToast = nil }
+        }
+        reportSubmitting = false
     }
 
     @ViewBuilder
