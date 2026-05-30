@@ -284,7 +284,7 @@ class ARViewModel: ObservableObject {
             return
         }
 
-        let concept = Self.makeDrawingConcept(
+        let concept = RecognitionToDrawingAdapter.makeDrawingConcept(
             from: interpretation,
             cloudShape: cloudShape
         )
@@ -458,73 +458,4 @@ class ARViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Recognition → DrawingConcept adapter
-
-    /// Convert a recognized Interpretation into the DrawingConcept shape
-    /// that AnimatedDrawing already knows how to animate: the cloud's
-    /// own outline as the body, plus a small budget of annotation paths
-    /// (eye dots, mouths, ears) layered on top in order.
-    ///
-    /// Annotation budget caps live here for now — we hard-limit to 10
-    /// annotation paths regardless of what the hints library declares,
-    /// so the cloud always stays visually dominant.
-    private static func makeDrawingConcept(
-        from interpretation: Interpretation,
-        cloudShape: CloudShape
-    ) -> DrawingConcept {
-        var paths: [DrawingConcept.DrawingPath] = []
-
-        // 1. The cloud's own outline IS the body.
-        if !cloudShape.normalizedContour.isEmpty {
-            paths.append(DrawingConcept.DrawingPath(
-                points: cloudShape.normalizedContour,
-                closed: true,
-                order: 1
-            ))
-        }
-
-        // 2. Annotations: small marks layered on top, animated in order.
-        //    Dot annotations (single point) expand to a tiny circle so the
-        //    line-mesh renderer has something to trace.
-        let annotationCap = 10
-        for (idx, annotation) in interpretation.annotations.prefix(annotationCap).enumerated() {
-            let pts: [CGPoint]
-            let closed: Bool
-            switch annotation.kind {
-            case .dot:
-                pts = expandDot(at: annotation.points.first ?? .zero, radius: 0.012)
-                closed = true
-            case .line:
-                pts = annotation.points
-                closed = false
-            case .arc:
-                pts = annotation.points
-                closed = false
-            }
-            paths.append(DrawingConcept.DrawingPath(
-                points: pts,
-                closed: closed,
-                order: idx + 2
-            ))
-        }
-
-        return DrawingConcept(
-            name: interpretation.label.capitalized,
-            paths: paths,
-            preferredShape: nil
-        )
-    }
-
-    /// Six-point regular polygon approximating a small filled circle.
-    /// Used for `Annotation.dot` because the existing line-mesh renderer
-    /// needs ≥2 points to draw anything.
-    private static func expandDot(at center: CGPoint, radius: CGFloat) -> [CGPoint] {
-        (0..<6).map { i in
-            let t = Double(i) / 6 * 2 * .pi
-            return CGPoint(
-                x: center.x + radius * CGFloat(cos(t)),
-                y: center.y + radius * CGFloat(sin(t))
-            )
-        }
-    }
 }

@@ -44,6 +44,8 @@
 		A1000112000000000000001 /* ArchivedDrawing.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000113000000000000001 /* ArchivedDrawing.swift */; };
 		A1000114000000000000001 /* DrawingArchiveService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000115000000000000001 /* DrawingArchiveService.swift */; };
 		A1000116000000000000001 /* GalleryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000117000000000000001 /* GalleryView.swift */; };
+		A1000118000000000000001 /* RecognitionToDrawingAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000119000000000000001 /* RecognitionToDrawingAdapter.swift */; };
+		A1000120000000000000001 /* RecognitionToDrawingAdapterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000121000000000000001 /* RecognitionToDrawingAdapterTests.swift */; };
 		A1000103000000000000001 /* AnnotationHints.json in Resources */ = {isa = PBXBuildFile; fileRef = A1000104000000000000001 /* AnnotationHints.json */; };
 		A1000106000000000000001 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A1000107000000000000001 /* Localizable.xcstrings */; };
 /* End PBXBuildFile section */
@@ -90,6 +92,8 @@
 		A1000113000000000000001 /* ArchivedDrawing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchivedDrawing.swift; sourceTree = "<group>"; };
 		A1000115000000000000001 /* DrawingArchiveService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrawingArchiveService.swift; sourceTree = "<group>"; };
 		A1000117000000000000001 /* GalleryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GalleryView.swift; sourceTree = "<group>"; };
+		A1000119000000000000001 /* RecognitionToDrawingAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecognitionToDrawingAdapter.swift; sourceTree = "<group>"; };
+		A1000121000000000000001 /* RecognitionToDrawingAdapterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecognitionToDrawingAdapterTests.swift; sourceTree = "<group>"; };
 		A1000104000000000000001 /* AnnotationHints.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = AnnotationHints.json; sourceTree = "<group>"; };
 		A1000107000000000000001 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -207,6 +211,7 @@
 				A1000109000000000000001 /* DiagnosticsService.swift */,
 				A1000111000000000000001 /* FeedbackService.swift */,
 				A1000115000000000000001 /* DrawingArchiveService.swift */,
+				A1000119000000000000001 /* RecognitionToDrawingAdapter.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -239,6 +244,7 @@
 				A1000061000000000000001 /* SolarCalculatorTests.swift */,
 				A1000063000000000000001 /* BackendConfigTests.swift */,
 				A1000092000000000000001 /* CloudShapeSignatureTests.swift */,
+				A1000121000000000000001 /* RecognitionToDrawingAdapterTests.swift */,
 			);
 			path = CloudViewTests;
 			sourceTree = "<group>";
@@ -376,6 +382,7 @@
 				A1000112000000000000001 /* ArchivedDrawing.swift in Sources */,
 				A1000114000000000000001 /* DrawingArchiveService.swift in Sources */,
 				A1000116000000000000001 /* GalleryView.swift in Sources */,
+				A1000118000000000000001 /* RecognitionToDrawingAdapter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -387,6 +394,7 @@
 				A1000060000000000000001 /* SolarCalculatorTests.swift in Sources */,
 				A1000062000000000000001 /* BackendConfigTests.swift in Sources */,
 				A1000091000000000000001 /* CloudShapeSignatureTests.swift in Sources */,
+				A1000120000000000000001 /* RecognitionToDrawingAdapterTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
