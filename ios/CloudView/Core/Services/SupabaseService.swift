@@ -289,7 +289,7 @@ final class SupabaseService: ObservableObject {
         guard let client else { throw SupabaseError.notConfigured }
         let rows: [SightingRow] = try await client
             .from("sightings")
-            .select("*, profiles(username, avatar_url)")
+            .select("*")
             .order("created_at", ascending: false)
             .range(from: offset, to: offset + limit - 1)
             .execute()
@@ -351,7 +351,7 @@ final class SupabaseService: ObservableObject {
         guard let client else { throw SupabaseError.notConfigured }
         let rows: [SightingRow] = try await client
             .from("sightings")
-            .select("*, profiles(username, avatar_url)")
+            .select("*")
             .eq("user_id", value: userId.uuidString)
             .order("created_at", ascending: false)
             .limit(limit)
@@ -373,53 +373,6 @@ final class SupabaseService: ObservableObject {
             "reason": .string(reason)
         ]
         try await client.from("sighting_reports").insert(row).execute()
-    }
-
-    /// Block another user. Their sightings stop appearing in this
-    /// caller's feed / city stats / nearby results immediately.
-    /// Idempotent: blocking the same user twice is fine.
-    func blockUser(id: UUID) async throws {
-        guard let client else { throw SupabaseError.notConfigured }
-        guard let userId = currentUser?.id else { throw SupabaseError.notAuthenticated }
-        guard userId != id else {
-            throw SupabaseError.queryFailed(URLError(.badURL))
-        }
-        let row: [String: AnyJSON] = [
-            "blocker_id": .string(userId.uuidString),
-            "blocked_id": .string(id.uuidString)
-        ]
-        // upsert so a repeat tap is a no-op rather than an FK error.
-        try await client.from("blocked_users").upsert(row).execute()
-    }
-
-    /// Reverse a previous block.
-    func unblockUser(id: UUID) async throws {
-        guard let client else { throw SupabaseError.notConfigured }
-        guard let userId = currentUser?.id else { throw SupabaseError.notAuthenticated }
-        try await client.from("blocked_users")
-            .delete()
-            .eq("blocker_id", value: userId.uuidString)
-            .eq("blocked_id", value: id.uuidString)
-            .execute()
-    }
-
-    /// IDs of users the current account has blocked. Used by the iOS
-    /// client to filter UI state pre-emptively (e.g. hide the report
-    /// option on already-blocked users) even though the DB-side view
-    /// already excludes them from the feed.
-    func fetchBlockedIds() async -> Set<UUID> {
-        guard let client, let userId = currentUser?.id else { return [] }
-        struct BlockRow: Codable {
-            let blockedId: UUID
-            enum CodingKeys: String, CodingKey { case blockedId = "blocked_id" }
-        }
-        let rows: [BlockRow] = (try? await client
-            .from("blocked_users")
-            .select("blocked_id")
-            .eq("blocker_id", value: userId.uuidString)
-            .execute()
-            .value) ?? []
-        return Set(rows.map(\.blockedId))
     }
 
     func toggleLike(sightingId: UUID) async throws -> Bool {
