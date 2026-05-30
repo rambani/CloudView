@@ -17,88 +17,94 @@ struct SightingCard: View {
     }
 
     var body: some View {
-        Button(action: { onTap?() }) {
-            VStack(alignment: .leading, spacing: 0) {
-                // Photo with overlay
-                ZStack(alignment: .bottomLeading) {
-                    cloudImage
-                        .frame(height: 240)
-                        .clipped()
+        // Card outer is a tap gesture target rather than a Button so
+        // the inner like Button gets its own hit region. SwiftUI's
+        // behaviour for Button-inside-Button is unspecified pre-iOS 18
+        // (variously: outer wins, both fire, neither fires depending on
+        // gesture timing). Tap gesture on a VStack + Button for the like
+        // is the supported pattern.
+        VStack(alignment: .leading, spacing: 0) {
+            // Photo with overlay
+            ZStack(alignment: .bottomLeading) {
+                cloudImage
+                    .frame(height: 240)
+                    .clipped()
 
-                    // AI drawing overlay
-                    CloudOverlayView(sighting: sighting, animationProgress: 1.0)
-                        .frame(height: 240)
+                // AI drawing overlay
+                CloudOverlayView(sighting: sighting, animationProgress: 1.0)
+                    .frame(height: 240)
 
-                    // Bottom gradient
-                    LinearGradient(
-                        colors: [.clear, .black.opacity(0.7)],
-                        startPoint: .center,
-                        endPoint: .bottom
-                    )
+                // Bottom gradient
+                LinearGradient(
+                    colors: [.clear, .black.opacity(0.7)],
+                    startPoint: .center,
+                    endPoint: .bottom
+                )
 
-                    // Cloud type chip
-                    Text(sighting.cloudType)
-                        .font(CV.Font.mono)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Capsule().fill(.black.opacity(0.45)))
-                        .padding(12)
+                // Cloud type chip
+                Text(sighting.cloudType)
+                    .font(CV.Font.mono)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(.black.opacity(0.45)))
+                    .padding(12)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: CV.Radius.md, style: .continuous))
+
+            // Card body
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(sighting.shapeName)
+                        .font(CV.Font.headline)
+                        .foregroundStyle(CV.Color.textPrimary)
+                    Spacer()
+                    Text(sighting.weatherMood)
+                        .font(CV.Font.shapeName)
+                        .foregroundStyle(CV.Color.accent)
                 }
-                .clipShape(RoundedRectangle(cornerRadius: CV.Radius.md, style: .continuous))
 
-                // Card body
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text(sighting.shapeName)
-                            .font(CV.Font.headline)
-                            .foregroundStyle(CV.Color.textPrimary)
-                        Spacer()
-                        Text(sighting.weatherMood)
-                            .font(CV.Font.shapeName)
-                            .foregroundStyle(CV.Color.accent)
-                    }
+                Text(sighting.quip)
+                    .font(CV.Font.quip)
+                    .foregroundStyle(CV.Color.textSecondary)
+                    .lineLimit(2)
 
-                    Text(sighting.quip)
-                        .font(CV.Font.quip)
-                        .foregroundStyle(CV.Color.textSecondary)
-                        .lineLimit(2)
-
-                    HStack(spacing: 12) {
-                        // Location
-                        if let city = sighting.city {
-                            Label(city, systemImage: "location.fill")
-                                .font(CV.Font.caption)
-                                .foregroundStyle(CV.Color.textTertiary)
-                        }
-
-                        Spacer()
-
-                        // Time
-                        Text(sighting.createdAt, style: .relative)
+                HStack(spacing: 12) {
+                    // Location
+                    if let city = sighting.city {
+                        Label(city, systemImage: "location.fill")
                             .font(CV.Font.caption)
                             .foregroundStyle(CV.Color.textTertiary)
-
-                        // Like button
-                        Button {
-                            withAnimation(.spring(response: 0.25)) {
-                                isLiked.toggle()
-                                likeCount += isLiked ? 1 : -1
-                            }
-                            onLike?()
-                        } label: {
-                            Label("\(likeCount)", systemImage: isLiked ? "heart.fill" : "heart")
-                                .font(CV.Font.caption)
-                                .foregroundStyle(isLiked ? .red : CV.Color.textTertiary)
-                        }
-                        .buttonStyle(.plain)
                     }
+
+                    Spacer()
+
+                    // Time
+                    Text(sighting.createdAt, style: .relative)
+                        .font(CV.Font.caption)
+                        .foregroundStyle(CV.Color.textTertiary)
+
+                    // Like button — isolated hit region; tap on this does
+                    // not bubble up to the card-tap gesture.
+                    Button {
+                        withAnimation(.spring(response: 0.25)) {
+                            isLiked.toggle()
+                            likeCount += isLiked ? 1 : -1
+                        }
+                        onLike?()
+                    } label: {
+                        Label("\(likeCount)", systemImage: isLiked ? "heart.fill" : "heart")
+                            .font(CV.Font.caption)
+                            .foregroundStyle(isLiked ? .red : CV.Color.textTertiary)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .padding(.top, 10)
-                .padding(.horizontal, 2)
             }
+            .padding(.top, 10)
+            .padding(.horizontal, 2)
         }
-        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        .onTapGesture { onTap?() }
     }
 
     @ViewBuilder
