@@ -38,6 +38,7 @@ In your Supabase Dashboard → SQL Editor, run the migrations **in order**:
 2. `ios/supabase/migrations/002_push_notifications.sql` — push notification support
 3. `ios/supabase/migrations/003_delete_account.sql` — account deletion function
 4. `ios/supabase/migrations/004_toggle_like_locking.sql` — concurrency fix for likes
+5. `ios/supabase/migrations/005_delete_storage_on_account_delete.sql` — delete uploaded images on account deletion
 
 ---
 
