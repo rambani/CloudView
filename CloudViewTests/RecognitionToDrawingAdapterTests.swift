@@ -1,5 +1,6 @@
 import XCTest
 import CoreGraphics
+import simd
 @testable import CloudView
 
 final class RecognitionToDrawingAdapterTests: XCTestCase {

@@ -43,13 +43,15 @@ final class CLIPImageEncoder {
 
     /// Run the CLIP image encoder. Returns an L2-normalized 512-dim vector
     /// suitable for cosine similarity against the pre-computed label
-    /// embeddings.
+    /// embeddings. Kept `async` for callers — Core ML's prediction is
+    /// synchronous but the public surface stays uniform with the rest
+    /// of the recognition pipeline.
     func encode(_ pixelBuffer: CVPixelBuffer) async throws -> [Float] {
         let inputs = try MLDictionaryFeatureProvider(dictionary: [
             inputName: MLFeatureValue(pixelBuffer: pixelBuffer)
         ])
 
-        let prediction = try await model.prediction(from: inputs)
+        let prediction = try model.prediction(from: inputs)
 
         guard let embedding = prediction.featureValue(for: outputName)?.multiArrayValue else {
             throw RecognitionError.invalidModelOutput(
