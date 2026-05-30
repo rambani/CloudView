@@ -40,6 +40,7 @@ In your Supabase Dashboard → SQL Editor, run the migrations **in order**:
 4. `ios/supabase/migrations/004_toggle_like_locking.sql` — concurrency fix for likes
 5. `ios/supabase/migrations/005_delete_storage_on_account_delete.sql` — delete uploaded images on account deletion
 6. `ios/supabase/migrations/006_toggle_like_auth_check.sql` — security fix: prevent acting on other users' behalf via toggle_like RPC
+7. `ios/supabase/migrations/007_restrict_profiles_within_radius.sql` — security fix: restrict profiles_within_radius to service role to prevent device_token leak
 
 ---
 
