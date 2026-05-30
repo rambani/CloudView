@@ -94,6 +94,12 @@ final class SupabaseService: ObservableObject {
             let profile = try await fetchProfile(id: session.user.id)
             currentUser = profile
             isAuthenticated = true
+            // If the user granted notification permission before signing
+            // in, the device token was captured in NotificationService
+            // but the original syncDeviceToken() call from AppDelegate
+            // would have early-returned (no currentUser). Sync it now
+            // that we have one. Cheap no-op when the token isn't set yet.
+            await NotificationService.shared.syncDeviceToken()
         } catch {
             currentUser = nil
             isAuthenticated = false
