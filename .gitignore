@@ -18,6 +18,9 @@ DerivedData/
 .build/
 ios/.build/
 
+# Node (defensive — repo is Swift-only today, but tooling sometimes pulls in JS)
+node_modules/
+
 # CocoaPods (not used but just in case)
 Pods/
 

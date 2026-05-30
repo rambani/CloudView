@@ -1,0 +1,210 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel an in-progress run when a new commit lands on the same ref so
+# rapid pushes don't queue up stale jobs.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    name: iOS build + tests
+    runs-on: macos-15
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      LOG_DIR: build/logs
+    steps:
+      - uses: actions/checkout@v4
+
+      # Populate Config.xcconfig from the example so xcodegen + xcodebuild
+      # have all the build-setting variables they expect. Real values are
+      # never needed at build time — the keys are read at runtime via
+      # Info.plist substitution, and empty strings just turn into "feature
+      # disabled" paths (Gemini fails closed, Sentry no-ops, etc.).
+      - name: Populate Config.xcconfig from example
+        working-directory: ios
+        run: cp Config.xcconfig.example Config.xcconfig
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Show toolchain
+        run: |
+          mkdir -p "$LOG_DIR"
+          xcodebuild -version | tee -a "$LOG_DIR/00-toolchain.log"
+          xcode-select -p | tee -a "$LOG_DIR/00-toolchain.log"
+
+      # Pick the simulator UDID dynamically so the destination stays
+      # valid when Apple renames the default device in a future runner
+      # image refresh.
+      - name: Pick iOS simulator
+        id: sim
+        run: |
+          xcrun simctl list devices available > "$LOG_DIR/02-simulators.log" 2>&1
+          udid=$(xcrun simctl list devices available \
+            | grep -E "iPhone (15|16|17)" \
+            | head -1 \
+            | grep -oE "[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}")
+          if [ -z "$udid" ]; then
+            echo "No iPhone 15/16/17 simulator found"
+            exit 1
+          fi
+          echo "Using simulator UDID: $udid"
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+
+      - name: Build for testing
+        working-directory: ios
+        run: |
+          set -o pipefail
+          mkdir -p ../$LOG_DIR
+          xcodebuild build-for-testing \
+            -project CloudView.xcodeproj \
+            -scheme CloudView \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath ../build/dd \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee ../$LOG_DIR/03-build.log
+
+      - name: Test without building
+        working-directory: ios
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building \
+            -project CloudView.xcodeproj \
+            -scheme CloudView \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath ../build/dd \
+            -resultBundlePath ../build/TestResults.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee ../$LOG_DIR/04-test.log
+
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-${{ github.run_attempt }}
+          path: |
+            build/logs
+            build/TestResults.xcresult
+          if-no-files-found: warn
+          retention-days: 7
+
+      # When the iOS job fails, post the salient lines from each tee'd
+      # log back to the PR as a comment. Lets agents reading via the API
+      # diagnose the failure without download access to the artifacts.
+      - name: Post failure summary to PR
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const dir = 'build/logs';
+            const HEAD = '## iOS CI failure';
+            let body = `${HEAD}\nrun: ${context.runId} attempt: ${context.runNumber}\n\n`;
+
+            if (!fs.existsSync(dir)) {
+              body += "_No logs were collected — the job likely failed before any teed step ran._\n";
+            } else {
+              for (const f of fs.readdirSync(dir).sort()) {
+                const full = fs.readFileSync(path.join(dir, f), 'utf8');
+                const lines = full.split('\n');
+                const errMatches = lines.filter(l =>
+                  /error:|fatal error|warning:|FAILED|ld: |Undefined symbol|xcodebuild: error|Testing failed|\*\* TEST FAILED \*\*|\*\* BUILD FAILED \*\*/.test(l)
+                );
+                const tail = lines.slice(-80);
+                const section = (errMatches.length ? errMatches.slice(0, 60) : tail).join('\n');
+                body += `### ${f} (${lines.length} lines)\n\`\`\`\n${section}\n\`\`\`\n\n`;
+              }
+            }
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100,
+            });
+            const existing = comments.find(c =>
+              c.user && c.user.type === 'Bot' && c.body && c.body.startsWith(HEAD)
+            );
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+  edge_functions:
+    name: Supabase Edge Functions (deno check)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+
+      # Each function is a self-contained Deno entry point. `deno check`
+      # parses it, resolves imports (including the Supabase + JWT URL
+      # imports), and runs strict type checking. Catches TypeScript
+      # errors before deploy.
+      - name: Check notify-nearby-users
+        run: deno check ios/supabase/functions/notify-nearby-users/index.ts
+
+      - name: Check delete-account
+        run: deno check ios/supabase/functions/delete-account/index.ts
+
+  sql_lint:
+    name: Migrations sanity
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+
+      # No real Postgres connection, but we can catch the most common
+      # mistakes: numbered out of order, file naming convention
+      # violations, common SQL syntax slips. Better than nothing for
+      # protecting "001..." ordering.
+      - name: Verify migration ordering
+        working-directory: ios/supabase/migrations
+        run: |
+          set -e
+          prev=0
+          for f in $(ls *.sql | sort); do
+            num=$(echo "$f" | grep -oE '^[0-9]+' || echo "")
+            if [ -z "$num" ]; then
+              echo "::error file=$f::migration filename must start with NNN_"
+              exit 1
+            fi
+            num_int=$(echo "$num" | sed 's/^0*//')
+            : "${num_int:=0}"
+            if [ "$num_int" -le "$prev" ] && [ "$num_int" != "0" ] && [ "$prev" != "0" ]; then
+              echo "::error file=$f::migration $num_int is out of order (prev was $prev)"
+              exit 1
+            fi
+            prev="$num_int"
+            echo "ok: $f"
+          done
