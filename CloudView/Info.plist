@@ -16,12 +16,14 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.entertainment</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Cloudoodle needs camera access to detect clouds and create AR drawings in the sky</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Cloudoodle needs your location to provide accurate weather information</string>
+	<string>Cloudoodle uses your location to show local weather, to know whether it's daytime where you are, and (if you opt in) to count cloud sightings near you anonymously.</string>
 	<key>NSMotionUsageDescription</key>
 	<string>Cloudoodle uses motion sensors to detect when your camera is pointed at the sky</string>
 	<key>NSUserNotificationsUsageDescription</key>

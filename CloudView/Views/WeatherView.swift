@@ -1,4 +1,5 @@
 import SwiftUI
+import WeatherKit
 
 // Swipeable Weather Panel with drag gestures
 struct SwipeableWeatherPanel: View {
@@ -567,7 +568,46 @@ struct MagicalWeatherContentView: View {
         )
         .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 10)
         .padding(.horizontal, 16)
-        .padding(.bottom, 32)
+        .padding(.bottom, 8)
+
+        // WeatherKit TOS attribution — required by Apple when consuming
+        // WeatherKit data. The view fetches the official Apple/data-vendor
+        // logos and links to the legal pages on tap.
+        WeatherAttributionLine()
+            .padding(.bottom, 24)
+    }
+}
+
+/// Apple's standard attribution view + the required link to the legal page.
+/// Sits at the bottom of the expanded weather panel so it's visible whenever
+/// the user is looking at weather data.
+struct WeatherAttributionLine: View {
+    @State private var attribution: WeatherAttribution?
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Spacer()
+            if let attribution {
+                Link(destination: attribution.legalPageURL) {
+                    AsyncImage(url: attribution.combinedMarkLightURL) { phase in
+                        if let image = phase.image {
+                            image
+                                .resizable()
+                                .scaledToFit()
+                                .frame(height: 14)
+                        } else {
+                            Text("Weather").font(.system(size: 11)).foregroundColor(.white.opacity(0.7))
+                        }
+                    }
+                }
+            } else {
+                Text("Weather").font(.system(size: 11)).foregroundColor(.white.opacity(0.7))
+            }
+            Spacer()
+        }
+        .task {
+            attribution = try? await WeatherKit.WeatherService.shared.attribution
+        }
     }
 }
 
