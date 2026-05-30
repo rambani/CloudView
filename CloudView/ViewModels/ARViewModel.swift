@@ -4,20 +4,6 @@ import ARKit
 import Combine
 import CoreMotion
 
-// App state for contextual feedback
-enum AppState {
-    case scanning // Normal scanning mode
-    case noCloudsClearSky // No clouds but weather is clear/sunny
-    case noCloudsOvercast // No clouds but weather is cloudy/rainy
-    case pointAtSky // Camera not pointing upward
-    case nightTime // Too dark / nighttime
-    case movingTooFast // Camera moving too much
-    case noWeatherData // Can't determine weather context
-    case permissionsNeeded // Camera/Location permissions required
-    case arNotSupported // Device doesn't support ARKit
-    case arSessionError // AR session failed or interrupted
-}
-
 class ARViewModel: ObservableObject {
     @Published var isProcessing = false
     @Published var detectedClouds: [CloudRegion] = []
@@ -27,9 +13,11 @@ class ARViewModel: ObservableObject {
 
     var arView: ARView?
     private let cloudDetector = CloudDetector()
-    private let drawingLibrary = DrawingLibrary()
+    private let recognitionService: CloudRecognitionService = OnDeviceCloudRecognitionService.shared
     private var cancellables = Set<AnyCancellable>()
-    private var activeDrawings: [UUID: DrawingAnchor] = []
+    private var activeDrawings: [UUID: DrawingAnchor] = [:]
+    // Insertion order of drawing IDs so we can evict the actual oldest.
+    private var drawingOrder: [UUID] = []
 
     // Services for privacy-preserving notifications
     weak var weatherService: WeatherService? // To get current location for scan reporting
@@ -40,17 +28,22 @@ class ARViewModel: ObservableObject {
 
     // Frame processing throttle
     private var lastProcessTime: Date = .distantPast
-    private let processingInterval: TimeInterval = 1.0 // Process every 1 second
+    private let processingInterval: TimeInterval = 0.25 // Process 4 frames per second
 
     // No cloud detection tracking
     private var consecutiveNoCloudFrames = 0
-    private let noCloudThreshold = 5 // 5 seconds without clouds
+    // Frames before declaring "no clouds" — 20 frames * 0.25s = ~5 seconds.
+    private let noCloudThreshold = 20
 
-    // Camera stability tracking
+    // Camera stability tracking — measured against actual camera transforms.
     private var cameraStabilityTimer: Timer?
     private var currentCloudRegion: CloudRegion?
     private var stableFrameCount = 0
-    private let requiredStableFrames = 15 // ~0.5 seconds at 30fps
+    // 8 frames * 0.25s = ~2 seconds of "hold still" before we draw.
+    private let requiredStableFrames = 8
+    private var lastCameraTransform: simd_float4x4?
+    private let stabilityTranslationThreshold: Float = 0.03 // meters / frame
+    private let stabilityRotationThreshold: Float = 0.05    // radians / frame
 
     // Performance limits
     private let maxDrawings = 20 // Max concurrent drawings to prevent memory issues
@@ -116,9 +109,22 @@ class ARViewModel: ObservableObject {
     // MARK: - Time of Day Check
 
     private func isDaytime() -> Bool {
+        // Prefer the astronomical sunrise/sunset for the user's location and date.
+        if let location = weatherService?.currentLocation {
+            let now = Date()
+            let solar = SolarCalculator.sunriseSunset(
+                for: location.coordinate,
+                date: now
+            )
+            if let sunrise = solar.sunrise, let sunset = solar.sunset {
+                return now >= sunrise && now <= sunset
+            }
+        }
+
+        // Fallback when no location is available yet: widened to 5–21 to be
+        // less wrong at high latitudes and during DST changes.
         let hour = Calendar.current.component(.hour, from: Date())
-        // Consider 6 AM to 8 PM as daytime
-        return hour >= 6 && hour < 20
+        return hour >= 5 && hour < 21
     }
 
     struct CloudRegion: Identifiable {
@@ -161,6 +167,7 @@ class ARViewModel: ObservableObject {
             appState = .nightTime
             consecutiveNoCloudFrames = 0
             stableFrameCount = 0
+            lastCameraTransform = nil
             return
         }
 
@@ -169,6 +176,7 @@ class ARViewModel: ObservableObject {
             appState = .pointAtSky
             consecutiveNoCloudFrames = 0
             stableFrameCount = 0
+            lastCameraTransform = nil
             return
         }
 
@@ -213,28 +221,41 @@ class ARViewModel: ObservableObject {
     }
 
     private func isCameraStable(_ frame: ARFrame) -> Bool {
-        // Check if camera movement is minimal
-        let camera = frame.camera
-        let transform = camera.transform
+        let transform = frame.camera.transform
+        defer { lastCameraTransform = transform }
 
-        // Simple stability check based on camera transform
-        // In a real app, you'd track transform delta between frames
-        return true // Simplified for now
+        guard let previous = lastCameraTransform else {
+            // First frame — no baseline, assume stable.
+            return true
+        }
+
+        // Translation delta (camera position columns.3 holds tx/ty/tz).
+        let dx = transform.columns.3.x - previous.columns.3.x
+        let dy = transform.columns.3.y - previous.columns.3.y
+        let dz = transform.columns.3.z - previous.columns.3.z
+        let translation = sqrtf(dx * dx + dy * dy + dz * dz)
+
+        // Rotation delta via forward vector (camera looks down -Z).
+        let prevForward = -simd_float3(previous.columns.2.x, previous.columns.2.y, previous.columns.2.z)
+        let currForward = -simd_float3(transform.columns.2.x, transform.columns.2.y, transform.columns.2.z)
+        let dot = simd_dot(simd_normalize(prevForward), simd_normalize(currForward))
+        let cosAngle = max(Float(-1), min(Float(1), dot))
+        let rotation = acosf(cosAngle)
+
+        return translation < stabilityTranslationThreshold
+            && rotation < stabilityRotationThreshold
     }
 
     @MainActor
     private func createDrawingForCloud(_ cloudShape: CloudShape, frame: ARFrame) async {
         guard let arView = arView else { return }
 
-        // Performance limit: Check max drawings
-        if activeDrawings.count >= maxDrawings {
-            // Remove oldest drawing to make room
-            if let oldestDrawing = activeDrawings.values.min(by: { _ , _ in true }) {
-                oldestDrawing.anchor.removeFromParent()
-                if let key = activeDrawings.first(where: { $0.value.anchor == oldestDrawing.anchor })?.key {
-                    activeDrawings.removeValue(forKey: key)
-                }
+        // Performance limit: evict the actual oldest drawing if we're at the cap.
+        while activeDrawings.count >= maxDrawings, let oldestID = drawingOrder.first {
+            if let oldest = activeDrawings.removeValue(forKey: oldestID) {
+                oldest.anchor.removeFromParent()
             }
+            drawingOrder.removeFirst()
         }
 
         // Check if we already have a drawing near this location
@@ -246,12 +267,29 @@ class ARViewModel: ObservableObject {
 
         guard !hasNearbyDrawing else { return }
 
-        // Select a random drawing concept based on cloud shape
-        guard let concept = drawingLibrary.selectDrawing(for: cloudShape) else {
+        // CLIP-based recognition: cluster the cloud (single-cloud today),
+        // ask the recognizer for 5 alternative interpretations, take the
+        // first (matcher already softmax-samples for variety). When the
+        // CLIP model isn't bundled, the service returns deterministic
+        // stub picks so this path still produces something.
+        // Quiet "I see something" cue while recognition runs.
+        FeedbackService.shared.fire(.sightingBegan)
+
+        let cluster = CloudClusteringService.cluster([cloudShape]).first
+        let interpretations = (try? await recognitionService.recognize(cluster!)) ?? []
+        guard let interpretation = interpretations.first else {
+            // No good match — soft haptic so the user knows we tried, no
+            // sound. UI's existing nil-name state shows "Cool cloud!".
+            FeedbackService.shared.fire(.noMatch)
             return
         }
 
-        // Update UI with drawing name
+        let concept = RecognitionToDrawingAdapter.makeDrawingConcept(
+            from: interpretation,
+            cloudShape: cloudShape
+        )
+
+        // Update UI with the recognized label
         currentDrawingName = concept.name
         lastDrawingName = concept.name // Persist for quirky weather statements
 
@@ -261,14 +299,9 @@ class ARViewModel: ObservableObject {
             location: weatherService?.currentLocation
         )
 
-        // Create AR anchor at cloud position
-        let raycastQuery = arView.makeRaycast(
-            from: cloudShape.screenPosition,
-            allowing: .estimatedPlane,
-            alignment: .any
-        )
-
-        // Create anchor in the sky direction
+        // Create anchor in the sky direction. We don't raycast — clouds aren't
+        // surfaces, so the AR session has nothing to hit — and instead place
+        // the drawing along the unprojected camera ray at a fixed distance.
         let anchor = AnchorEntity()
         let distance: Float = 50.0 // Place drawing 50 meters away
 
@@ -305,27 +338,66 @@ class ARViewModel: ObservableObject {
         )
 
         activeDrawings[cloudRegion.id] = drawingAnchor
+        drawingOrder.append(cloudRegion.id)
         drawingCreationCount += 1
 
-        // Trigger haptic feedback for drawing creation
-        let impact = UIImpactFeedbackGenerator(style: .medium)
-        impact.impactOccurred()
+        // Haptic + audio cue: "look what we made"
+        FeedbackService.shared.fire(.drawingRevealed)
+
+        // Save a snapshot to the local gallery once the line-drawing
+        // animation has had time to render. The 2.5s drawing animation
+        // + a little buffer gives the kid a satisfying complete image.
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 2_800_000_000)
+            captureAndArchive(label: concept.name)
+        }
+    }
+
+    @MainActor
+    private func captureAndArchive(label: String) {
+        guard let arView = arView else { return }
+        arView.snapshot(saveToHDR: false) { image in
+            guard let image = image else { return }
+            Task { @MainActor in
+                _ = DrawingArchiveService.shared.save(image: image, label: label)
+            }
+        }
     }
 
     private func screenPointToWorldDirection(_ screenPoint: CGPoint, camera: ARCamera) -> simd_float3 {
-        // Convert screen point to normalized device coordinates
-        let viewportSize = camera.imageResolution
-        let normalizedX = Float(screenPoint.x / viewportSize.width) * 2.0 - 1.0
-        let normalizedY = Float(screenPoint.y / viewportSize.height) * 2.0 - 1.0
+        // Unproject an image-space pixel into a world-space ray direction
+        // using the camera's pinhole intrinsics. The old implementation used
+        // the camera's basis vectors as if it were a unit-FOV orthographic
+        // camera, which dropped the lens FOV entirely and placed drawings
+        // off-axis from the actual cloud.
+        //
+        // Convention:
+        //   - `screenPoint` is in top-left image-pixel coordinates
+        //     (matches what CloudDetector now produces).
+        //   - `camera.intrinsics` is the pinhole matrix in image space.
+        //   - ARKit's camera transform has +X right, +Y up, looks down -Z.
+        let K = camera.intrinsics
+        let fx = K.columns.0.x
+        let fy = K.columns.1.y
+        let cx = K.columns.2.x
+        let cy = K.columns.2.y
 
-        // Get direction from camera
-        let cameraTransform = camera.transform
-        let forward = simd_float3(cameraTransform.columns.2.x, cameraTransform.columns.2.y, cameraTransform.columns.2.z)
-        let right = simd_float3(cameraTransform.columns.0.x, cameraTransform.columns.0.y, cameraTransform.columns.0.z)
-        let up = simd_float3(cameraTransform.columns.1.x, cameraTransform.columns.1.y, cameraTransform.columns.1.z)
+        // Inverse pinhole: image pixel → camera-space ray (+Z forward, +Y down).
+        let u = Float(screenPoint.x)
+        let v = Float(screenPoint.y)
+        let rayImage = simd_float3((u - cx) / fx, (v - cy) / fy, 1.0)
 
-        let direction = normalize(forward + right * normalizedX - up * normalizedY)
-        return direction
+        // Camera-image convention → ARKit camera convention (+Y up, looks down -Z).
+        let rayCamera = simd_float3(rayImage.x, -rayImage.y, -rayImage.z)
+
+        // Camera-space → world-space via the rotation part of the transform.
+        let t = camera.transform
+        let right   = simd_float3(t.columns.0.x, t.columns.0.y, t.columns.0.z)
+        let up      = simd_float3(t.columns.1.x, t.columns.1.y, t.columns.1.z)
+        let back    = simd_float3(t.columns.2.x, t.columns.2.y, t.columns.2.z)
+        let worldRay = right * rayCamera.x + up * rayCamera.y + back * rayCamera.z
+
+        return simd_normalize(worldRay)
     }
 
     @MainActor
@@ -356,6 +428,7 @@ class ARViewModel: ObservableObject {
             drawing.anchor.removeFromParent()
         }
         activeDrawings.removeAll()
+        drawingOrder.removeAll()
         drawingCreationCount = 0
     }
 
@@ -384,4 +457,5 @@ class ARViewModel: ObservableObject {
             }
         }
     }
+
 }

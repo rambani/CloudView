@@ -243,7 +243,7 @@ class AnimatedDrawing {
                 let progress = Float(i + 1) / Float(steps)
                 // Gradually increase opacity to simulate drawing
                 if var material = entity.model?.materials.first as? UnlitMaterial {
-                    material.blending = .transparent(opacity: .init(floatLiteral: Double(progress)))
+                    material.blending = .transparent(opacity: .init(floatLiteral: progress))
                     entity.model?.materials = [material]
                 }
             }

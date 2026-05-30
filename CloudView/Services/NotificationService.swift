@@ -8,7 +8,7 @@ class NotificationService: ObservableObject {
     @Published var deviceToken: String?
 
     private let notificationCenter = UNUserNotificationCenter.current()
-    private let backendURL = "https://cloud-view-backend.vercel.app/api/register-device"
+    private var backendURL: URL { BackendConfig.registerDeviceURL }
 
     init() {
         checkNotificationAuthorization()
@@ -54,10 +54,52 @@ class NotificationService: ObservableObject {
         let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
         self.deviceToken = tokenString
 
-        print("📱 Device token: \(tokenString)")
+        print("📱 Device token captured (length \(tokenString.count))")
 
-        // Send token to backend (with user's region if available)
-        registerDeviceWithBackend(token: tokenString)
+        // Don't ship the token to the backend unless the user has opted in
+        // to the community-aggregation feature. The token is a persistent
+        // device identifier; pairing it with a region is a privacy ask we
+        // shouldn't make without consent — especially for a 4+ rated app.
+        if ScanReportingService.shared.isEnabled {
+            registerDeviceWithBackend(token: tokenString)
+        }
+    }
+
+    /// Call this when the user toggles community participation on, so a
+    /// device that's already registered with iOS for push can be added to
+    /// the backend's region set after the fact.
+    func registerWithBackendIfConsented() {
+        guard ScanReportingService.shared.isEnabled,
+              let token = deviceToken else { return }
+        registerDeviceWithBackend(token: token)
+    }
+
+    /// Honor the privacy policy's "right to erasure" — when the user
+    /// opts out, call /api/delete-device with their token so the backend
+    /// drops the record and removes the token from its region fan-out set.
+    /// No-op if we don't have a token cached (e.g., user never opted in).
+    func deleteFromBackend() {
+        guard let token = deviceToken else { return }
+        let url = BackendConfig.deleteDeviceURL
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let payload: [String: Any] = ["deviceToken": token]
+        guard let body = try? JSONSerialization.data(withJSONObject: payload) else { return }
+        request.httpBody = body
+
+        URLSession.shared.dataTask(with: request) { _, response, error in
+            if let error = error {
+                print("❌ Backend delete failed: \(error.localizedDescription)")
+                return
+            }
+            if let http = response as? HTTPURLResponse {
+                print(http.statusCode == 200
+                      ? "✅ Backend deletion acknowledged"
+                      : "⚠️  Backend delete returned status \(http.statusCode)")
+            }
+        }.resume()
     }
 
     func didFailToRegisterForRemoteNotifications(error: Error) {
@@ -86,10 +128,7 @@ class NotificationService: ObservableObject {
     // MARK: - Backend Registration
 
     private func registerDeviceWithBackend(token: String, region: String? = nil) {
-        guard let url = URL(string: backendURL) else {
-            print("❌ Invalid backend URL")
-            return
-        }
+        let url = backendURL
 
         let payload: [String: Any] = [
             "deviceToken": token,

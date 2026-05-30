@@ -1,0 +1,199 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel an in-progress run when a new commit lands on the same ref so we
+# don't pay for stale jobs after rapid pushes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (typecheck + tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # backend/.gitignore excludes package-lock.json, so use `npm install`
+      # rather than `npm ci`. Acceptable for a small dev-only dep set.
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Run tests
+        run: npm test
+
+  ios:
+    name: iOS build + tests
+    runs-on: macos-15
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      PROJECT: CloudView.xcodeproj
+      SCHEME: CloudView
+      RESULT_BUNDLE: build/TestResults.xcresult
+      LOG_DIR: build/logs
+    steps:
+      - uses: actions/checkout@v4
+
+      # Fail fast if the App Icon slot is empty. App Store submission rejects
+      # bundles without an icon, and an empty asset catalog produces only a
+      # warning at build time — it's easy to ship a broken release otherwise.
+      - name: Verify App Icon present
+        run: |
+          manifest=CloudView/Assets.xcassets/AppIcon.appiconset/Contents.json
+          if ! jq -e '.images[] | select(.filename != null)' "$manifest" > /dev/null; then
+            echo "::error file=$manifest::AppIcon.appiconset has no filename — release builds will be rejected by App Store Connect."
+            exit 1
+          fi
+          icon=CloudView/Assets.xcassets/AppIcon.appiconset/$(jq -r '.images[0].filename' "$manifest")
+          if [ ! -s "$icon" ]; then
+            echo "::error file=$icon::App icon file is missing or empty."
+            exit 1
+          fi
+
+      - name: Show toolchain
+        run: |
+          mkdir -p "$LOG_DIR"
+          xcodebuild -version | tee -a "$LOG_DIR/00-toolchain.log"
+          echo "--- xcode-select" | tee -a "$LOG_DIR/00-toolchain.log"
+          xcode-select -p | tee -a "$LOG_DIR/00-toolchain.log"
+
+      - name: Show project structure
+        run: |
+          xcodebuild -project "$PROJECT" -list 2>&1 | tee -a "$LOG_DIR/01-list.log"
+          echo "--- workspace check"
+          ls -la "$PROJECT"
+          ls -la "$PROJECT/xcshareddata/xcschemes/" || echo "(no shared schemes dir)"
+
+      - name: Pick iOS simulator
+        id: sim
+        run: |
+          xcrun simctl list devices available 2>&1 | tee -a "$LOG_DIR/02-simulators.log"
+          udid=$(xcrun simctl list devices available \
+            | grep -E "iPhone (15|16|17)" \
+            | head -1 \
+            | grep -oE "[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}")
+          if [ -z "$udid" ]; then
+            echo "No iPhone 15/16/17 simulator found"
+            exit 1
+          fi
+          echo "Using simulator UDID: $udid"
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+
+      # Build-for-testing on its own — separating from "test" means a compile
+      # failure here surfaces as a build failure, not a "test execution" failure,
+      # and the next step's log only contains test-time noise.
+      - name: Build for testing
+        run: |
+          set -o pipefail
+          rm -rf build
+          mkdir -p "$LOG_DIR"
+          xcodebuild build-for-testing \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath build/dd \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee "$LOG_DIR/03-build.log"
+
+      - name: Test without building
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath build/dd \
+            -resultBundlePath "$RESULT_BUNDLE" \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee "$LOG_DIR/04-test.log"
+
+      # Always upload logs + xcresult, not just on failure — when something
+      # works *most* of the time, the logs from the green runs are also useful
+      # for diff'ing against a regression.
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-${{ github.run_attempt }}
+          path: |
+            build/logs
+            build/TestResults.xcresult
+          if-no-files-found: warn
+          retention-days: 7
+
+      # When a step in this job fails, post the salient lines from each log
+      # back to the PR as a comment. Lets agents reading via the API diagnose
+      # the failure without download access to the artifact bundle.
+      - name: Post failure summary to PR
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const dir = 'build/logs';
+            const HEAD = '## iOS CI failure';
+            let body = `${HEAD}\nrun: ${context.runId} attempt: ${context.runNumber}\n\n`;
+
+            if (!fs.existsSync(dir)) {
+              body += "_No logs were collected — the job likely failed before any teed step ran._\n";
+            } else {
+              for (const f of fs.readdirSync(dir).sort()) {
+                const full = fs.readFileSync(path.join(dir, f), 'utf8');
+                // Prefer compile errors / xcodebuild error lines if present;
+                // fall back to the last 80 lines so the human-friendly tail
+                // is always there.
+                const lines = full.split('\n');
+                const errMatches = lines.filter(l =>
+                  /error:|fatal error|warning:|FAILED|ld: |Undefined symbol|xcodebuild: error|Testing failed|\*\* TEST FAILED \*\*|\*\* BUILD FAILED \*\*/.test(l)
+                );
+                const tail = lines.slice(-80);
+                const section = (errMatches.length ? errMatches.slice(0, 60) : tail).join('\n');
+                body += `### ${f} (${lines.length} lines)\n\`\`\`\n${section}\n\`\`\`\n\n`;
+              }
+            }
+
+            // Avoid spamming: replace any prior failure comment on this PR
+            // rather than appending a new one each run.
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100,
+            });
+            const existing = comments.find(c =>
+              c.user && c.user.type === 'Bot' && c.body && c.body.startsWith(HEAD)
+            );
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }

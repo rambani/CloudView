@@ -163,27 +163,27 @@ cd CloudView
 open CloudView.xcodeproj
 ```
 
-### 3. Configure Weather API (Optional)
+### 3. Configure Weather (WeatherKit)
 
-To get real weather data instead of mock data:
+The app uses Apple's **WeatherKit** for live weather. There's no API key to
+manage — WeatherKit authenticates automatically via the app's signing
+identity. You do need to enable the capability once on the Apple Developer
+Portal:
 
-1. Sign up for a free API key at [OpenWeatherMap](https://openweathermap.org/api)
-2. Open `CloudView/Services/WeatherService.swift`
-3. Replace `YOUR_API_KEY_HERE` with your actual API key:
+1. https://developer.apple.com/account/resources/identifiers/list
+2. Open the App ID matching `PRODUCT_BUNDLE_IDENTIFIER` (default
+   `com.cloudview.app`) — or create one.
+3. Enable **WeatherKit** under *Capabilities*.
+4. Save.
 
-```swift
-private let apiKey = "your_actual_api_key_here"
-```
+That's it. The entitlement is already declared in
+`CloudView/CloudView.entitlements` and wired through `CODE_SIGN_ENTITLEMENTS`,
+so no further code changes are needed.
 
-4. In `ContentView.swift`, uncomment the real weather fetch:
-
-```swift
-// Replace this:
-weatherService.useMockData()
-
-// With this:
-weatherService.requestLocationAndFetchWeather()
-```
+If WeatherKit isn't reachable (the capability isn't enabled, the device is
+offline, or you're running an unsigned simulator build):
+- **DEBUG builds** show sample weather so the UI is still populated for dev.
+- **Release builds** show a "weather unavailable" placeholder.
 
 ### 4. Build and Run
 

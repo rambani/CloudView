@@ -102,29 +102,38 @@ export function getGeneralActivityMessage(
   }
 }
 
-export function checkThresholds(activity: RegionalActivity): {
-  category?: string;
-  message?: NotificationMessage;
-} {
-  // Check each category
-  for (const [category, count] of Object.entries(activity.categories)) {
-    const threshold = THRESHOLDS[category as keyof typeof THRESHOLDS] || 10;
+export interface ThresholdHit {
+  category: string;
+  count: number;
+  message: NotificationMessage;
+}
 
+/**
+ * Returns every category that has crossed its threshold for the day.
+ * The caller is responsible for per-(region,date,category) dedupe so we
+ * don't send the same notification twice.
+ */
+export function checkThresholds(activity: RegionalActivity): ThresholdHit[] {
+  const hits: ThresholdHit[] = [];
+
+  for (const [category, count] of Object.entries(activity.categories)) {
+    const threshold = THRESHOLDS[category as keyof typeof THRESHOLDS] ?? 10;
     if (count >= threshold) {
-      return {
+      hits.push({
         category,
+        count,
         message: getNotificationMessage(category, count, activity.region),
-      };
+      });
     }
   }
 
-  // Check total threshold
   if (activity.totalScans >= THRESHOLDS.total) {
-    return {
+    hits.push({
       category: 'total',
+      count: activity.totalScans,
       message: getGeneralActivityMessage(activity.totalScans, activity.region),
-    };
+    });
   }
 
-  return {};
+  return hits;
 }

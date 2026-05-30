@@ -27,9 +27,15 @@ export default async function handler(req: Request) {
     const region = searchParams.get('region');
     const date = searchParams.get('date') || getTodayDate();
 
-    if (!region) {
+    if (!region || region.length > 80) {
       return Response.json(
-        { error: 'Missing required parameter: region' },
+        { error: 'Missing or invalid parameter: region' },
+        { status: 400 }
+      );
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return Response.json(
+        { error: 'Invalid date format (expected YYYY-MM-DD)' },
         { status: 400 }
       );
     }

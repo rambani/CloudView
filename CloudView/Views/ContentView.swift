@@ -7,6 +7,8 @@ struct ContentView: View {
     @EnvironmentObject var notificationService: NotificationService
     @State private var showInstructions = true
     @State private var hasShownInstructions = false
+    @State private var showSettings = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
@@ -56,7 +58,7 @@ struct ContentView: View {
 
                     // Info button - Enhanced with bouncy animation
                     Button(action: {
-                        withAnimation(.bouncy) {
+                        withAnimation(reduceMotion ? .linear(duration: 0.15) : .bouncy) {
                             showInstructions.toggle()
                         }
                     }) {
@@ -75,11 +77,21 @@ struct ContentView: View {
                             Image(systemName: showInstructions ? "xmark.circle.fill" : "info.circle.fill")
                                 .font(.system(size: 22))
                                 .foregroundColor(.white)
+                                .accessibilityHidden(true)
                         }
                     }
                     .buttonStyle(BouncyButtonStyle())
                     .shadow(color: Color.glassShadow, radius: 12, x: 0, y: 6)
                     .padding(.trailing, .spacing_md)
+                    .accessibilityLabel(showInstructions ? "Close instructions" : "Show instructions")
+                    .accessibilityHint("Tap to toggle instructions. Long press for settings.")
+                    .simultaneousGesture(
+                        LongPressGesture(minimumDuration: 0.6)
+                            .onEnded { _ in showSettings = true }
+                    )
+                    .accessibilityAction(named: "Settings") {
+                        showSettings = true
+                    }
                     .padding(.top, 50)
                 }
 
@@ -202,10 +214,25 @@ struct ContentView: View {
                     )
                     .shadow(color: Color.sunGlow.opacity(0.3), radius: 12, x: 0, y: 6)
                     .transition(.opacity.combined(with: .scale))
+                    // VoiceOver users can't see the AR drawing appear; this
+                    // node aggregates the visual + text into one
+                    // announcement so a swipe-right after launch lands here
+                    // and reads "Cloudoodle drew a Happy Penguin Surfing".
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Cloudoodle drew \(drawingName)")
+                    .accessibilityAddTraits(.updatesFrequently)
 
                     Spacer()
                 }
                 .onAppear {
+                    // Push a focused VoiceOver announcement so blind users
+                    // know something happened — the AR scene itself is
+                    // unreachable through accessibility.
+                    UIAccessibility.post(
+                        notification: .announcement,
+                        argument: "Cloudoodle drew \(drawingName)"
+                    )
+
                     // Auto-dismiss after 4 seconds
                     DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
                         withAnimation(.easeOut(duration: 0.3)) {
@@ -222,12 +249,11 @@ struct ContentView: View {
             // Request notification permission for community features
             notificationService.requestNotificationPermission()
 
-            // Fetch weather when app appears
-            // Use mock data for testing (users can add their own API key)
-            weatherService.useMockData()
-
-            // In production, uncomment this:
-            // weatherService.requestLocationAndFetchWeather()
+            // Fetch real weather for the user's current location. WeatherService
+            // falls back to mock data on its own if OPEN_WEATHER_API_KEY isn't
+            // configured or the user denies location, so this path is always
+            // safe — no need to opt in to mock data from here.
+            weatherService.requestLocationAndFetchWeather()
 
             // Show instructions on first launch
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
@@ -240,6 +266,15 @@ struct ContentView: View {
         }
         .statusBar(hidden: false)
         .preferredColorScheme(.dark)
+        // Allow Dynamic Type scaling but cap at .accessibility1 — the
+        // AR overlay has fixed-position glass panels that overflow at
+        // accessibility XXL. .xLarge..accessibility1 covers most users
+        // with vision accommodations without breaking the layout.
+        .dynamicTypeSize(.xSmall ... .accessibility1)
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
+                .environmentObject(notificationService)
+        }
     }
 }
 
@@ -415,14 +450,14 @@ struct InstructionRow: View {
             }
             .shadow(color: iconColor.opacity(0.2), radius: 8, x: 0, y: 4)
 
-            // Text
+            // Text — uses semantic styles so Dynamic Type scaling works.
             VStack(alignment: .leading, spacing: 6) {
                 Text(title)
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .font(.headline)
                     .foregroundColor(.white)
 
                 Text(description)
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .font(.subheadline)
                     .foregroundColor(.white.opacity(0.75))
                     .fixedSize(horizontal: false, vertical: true)
             }
