@@ -96,7 +96,7 @@ final class LabelEmbeddingMatcher {
             Interpretation(
                 label: entry.label,
                 confidence: Double(entry.score),
-                annotations: []  // Phase 2: annotation hints lookup
+                annotations: AnnotationHints.hints(for: entry.label)
             )
         }
     }

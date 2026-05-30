@@ -38,6 +38,9 @@
 		A1000093000000000000001 /* CLIPImageEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000094000000000000001 /* CLIPImageEncoder.swift */; };
 		A1000095000000000000001 /* CloudSilhouetteRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000096000000000000001 /* CloudSilhouetteRenderer.swift */; };
 		A1000097000000000000001 /* LabelEmbeddingMatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000098000000000000001 /* LabelEmbeddingMatcher.swift */; };
+		A1000099000000000000001 /* CloudClusteringService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000100000000000000001 /* CloudClusteringService.swift */; };
+		A1000101000000000000001 /* AnnotationHints.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000102000000000000001 /* AnnotationHints.swift */; };
+		A1000103000000000000001 /* AnnotationHints.json in Resources */ = {isa = PBXBuildFile; fileRef = A1000104000000000000001 /* AnnotationHints.json */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -76,6 +79,9 @@
 		A1000094000000000000001 /* CLIPImageEncoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CLIPImageEncoder.swift; sourceTree = "<group>"; };
 		A1000096000000000000001 /* CloudSilhouetteRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSilhouetteRenderer.swift; sourceTree = "<group>"; };
 		A1000098000000000000001 /* LabelEmbeddingMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabelEmbeddingMatcher.swift; sourceTree = "<group>"; };
+		A1000100000000000000001 /* CloudClusteringService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudClusteringService.swift; sourceTree = "<group>"; };
+		A1000102000000000000001 /* AnnotationHints.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationHints.swift; sourceTree = "<group>"; };
+		A1000104000000000000001 /* AnnotationHints.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = AnnotationHints.json; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXContainerItemProxy section */
@@ -125,11 +131,20 @@
 				A1000029000000000000001 /* Services */,
 				A1000030000000000000001 /* Models */,
 				A1000053000000000000001 /* Design */,
+				A1000105000000000000001 /* Resources */,
 				A1000020000000000000001 /* Assets.xcassets */,
 				A1000022000000000000001 /* Info.plist */,
 				A1000080000000000000001 /* CloudView.entitlements */,
 			);
 			path = CloudView;
+			sourceTree = "<group>";
+		};
+		A1000105000000000000001 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				A1000104000000000000001 /* AnnotationHints.json */,
+			);
+			path = Resources;
 			sourceTree = "<group>";
 		};
 		A1000026000000000000001 /* Products */ = {
@@ -175,6 +190,8 @@
 				A1000094000000000000001 /* CLIPImageEncoder.swift */,
 				A1000096000000000000001 /* CloudSilhouetteRenderer.swift */,
 				A1000098000000000000001 /* LabelEmbeddingMatcher.swift */,
+				A1000100000000000000001 /* CloudClusteringService.swift */,
+				A1000102000000000000001 /* AnnotationHints.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -293,6 +310,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1000019000000000000001 /* Assets.xcassets in Resources */,
+				A1000103000000000000001 /* AnnotationHints.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -335,6 +353,8 @@
 				A1000093000000000000001 /* CLIPImageEncoder.swift in Sources */,
 				A1000095000000000000001 /* CloudSilhouetteRenderer.swift in Sources */,
 				A1000097000000000000001 /* LabelEmbeddingMatcher.swift in Sources */,
+				A1000099000000000000001 /* CloudClusteringService.swift in Sources */,
+				A1000101000000000000001 /* AnnotationHints.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
