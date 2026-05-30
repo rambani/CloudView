@@ -4,12 +4,25 @@ import CoreLocation
 /// Privacy-preserving scan reporting service
 /// Reports ONLY: region, date, and drawing category
 /// NO user IDs, device IDs, or exact locations
+///
+/// Disabled by default — kids' / 4+ apps cannot send telemetry without
+/// explicit consent. The user enables this from the consent flow at first
+/// launch; the preference is persisted in UserDefaults so it survives
+/// reinstalls within the same iCloud account.
 class ScanReportingService {
     static let shared = ScanReportingService()
 
+    private static let consentKey = "ScanReporting.userConsented"
+
     // Backend API endpoint — points at BackendConfig by default.
     private var backendURL: URL = BackendConfig.reportScanURL
-    private var isEnabled = true // Backend is now live!
+
+    /// Whether the user has explicitly opted in to anonymous community
+    /// scan-reporting. Defaults to false; persists across app launches.
+    var isEnabled: Bool {
+        get { UserDefaults.standard.bool(forKey: Self.consentKey) }
+        set { UserDefaults.standard.set(newValue, forKey: Self.consentKey) }
+    }
 
     private init() {}
 
@@ -115,22 +128,16 @@ class ScanReportingService {
 
     // MARK: - Configuration
 
-    /// Enable scan reporting against a specific backend URL (overrides the default).
-    func enable(withBackendURL urlString: String) {
+    /// Override the default backend URL (useful for tests / staging). The
+    /// per-user consent flag is independent of which backend we talk to.
+    func setBackendURL(_ urlString: String) {
         guard let url = URL(string: urlString) else {
             print("Ignoring invalid backend URL: \(urlString)")
             return
         }
         backendURL = url
-        isEnabled = true
-        print("Scan reporting enabled with backend: \(url)")
     }
 
-    /// Disable scan reporting
-    func disable() {
-        isEnabled = false
-        print("Scan reporting disabled")
-    }
 }
 
 // MARK: - Data Models

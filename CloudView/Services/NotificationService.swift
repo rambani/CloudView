@@ -54,10 +54,24 @@ class NotificationService: ObservableObject {
         let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
         self.deviceToken = tokenString
 
-        print("📱 Device token: \(tokenString)")
+        print("📱 Device token captured (length \(tokenString.count))")
 
-        // Send token to backend (with user's region if available)
-        registerDeviceWithBackend(token: tokenString)
+        // Don't ship the token to the backend unless the user has opted in
+        // to the community-aggregation feature. The token is a persistent
+        // device identifier; pairing it with a region is a privacy ask we
+        // shouldn't make without consent — especially for a 4+ rated app.
+        if ScanReportingService.shared.isEnabled {
+            registerDeviceWithBackend(token: tokenString)
+        }
+    }
+
+    /// Call this when the user toggles community participation on, so a
+    /// device that's already registered with iOS for push can be added to
+    /// the backend's region set after the fact.
+    func registerWithBackendIfConsented() {
+        guard ScanReportingService.shared.isEnabled,
+              let token = deviceToken else { return }
+        registerDeviceWithBackend(token: token)
     }
 
     func didFailToRegisterForRemoteNotifications(error: Error) {
