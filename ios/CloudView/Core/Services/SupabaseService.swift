@@ -59,6 +59,40 @@ final class SupabaseService: ObservableObject {
         await refreshSession()
     }
 
+    /// Sign in with Apple — exchanges the identity token from
+    /// ASAuthorizationAppleIDProvider for a Supabase session via the
+    /// built-in Apple OAuth provider (must also be enabled in Supabase
+    /// Dashboard → Authentication → Providers → Apple).
+    ///
+    /// Apple only returns the user's name/email on the FIRST sign-in;
+    /// callers should pass them through so we can write them into the
+    /// profile row. On subsequent sign-ins both will be nil and the
+    /// existing profile is left alone.
+    func signInWithApple(
+        idToken: String,
+        nonce: String?,
+        appleUserName: String?
+    ) async throws {
+        guard let client else { throw SupabaseError.notConfigured }
+        _ = try await client.auth.signInWithIdToken(
+            credentials: .init(
+                provider: .apple,
+                idToken: idToken,
+                nonce: nonce
+            )
+        )
+        // First-time signers don't have a profile row yet — the
+        // handle_new_user trigger inserts one with a sensible default
+        // username (from the JWT's email). If Apple gave us a real
+        // name, prefer that.
+        if let name = appleUserName,
+           !name.isEmpty,
+           let userId = try await client.auth.session.user.id as UUID? {
+            try? await upsertProfile(id: userId, username: name)
+        }
+        await refreshSession()
+    }
+
     func signIn(email: String, password: String) async throws {
         guard let client else { throw SupabaseError.notConfigured }
         try await client.auth.signIn(email: email, password: password)

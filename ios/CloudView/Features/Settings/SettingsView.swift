@@ -363,6 +363,22 @@ private struct AuthForm: View {
             }
             .disabled(isLoading)
 
+            // Apple requires Sign In with Apple as an option whenever
+            // email/password auth is offered (App Review Guideline 4.8).
+            // The button is rendered with the standard Apple-provided
+            // style so it doesn't fall outside HIG.
+            HStack(spacing: 8) {
+                Rectangle().fill(Color.white.opacity(0.1)).frame(height: 0.5)
+                Text("or")
+                    .font(CV.Font.caption)
+                    .foregroundStyle(CV.Color.textTertiary)
+                Rectangle().fill(Color.white.opacity(0.1)).frame(height: 0.5)
+            }
+            .padding(.vertical, 2)
+
+            SignInWithAppleButtonView()
+                .frame(height: 44)
+
             HStack(spacing: 16) {
                 Button {
                     withAnimation { isSignUp.toggle() }

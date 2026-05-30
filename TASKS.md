@@ -188,14 +188,27 @@ The AI generates shape names and quips that go into the public feed. Edge cases 
 
 ---
 
-## 11. Sign In with Apple (Recommended)
+## 11. Sign In with Apple (Required if email/password is offered)
 
-Not strictly required (only mandatory if you offer other OAuth providers), but strongly recommended — Apple users expect it.
+App Review Guideline 4.8 *requires* Sign In with Apple when you offer
+email/password authentication (which this app does). The app will be
+rejected on submission without it. iOS-side code is now in place; the
+remaining work is on the Apple Developer Portal and Supabase Dashboard.
 
-1. Enable **Sign In with Apple** in the App ID (Apple Developer Portal)
-2. Add the entitlement to `CloudView.entitlements`
-3. Implement `ASAuthorizationAppleIDProvider` flow in `SettingsView`
-4. Supabase supports Apple OAuth natively — enable it in Dashboard → Authentication → Providers
+1. Enable **Sign In with Apple** capability in the App ID (Apple Developer Portal)
+2. ✅ Entitlement is in `CloudView.entitlements` and `CloudView.Release.entitlements`
+3. ✅ `ASAuthorizationAppleIDProvider` flow is implemented in
+   `Features/Settings/SignInWithAppleButtonView.swift` and rendered by `AuthForm`
+4. Enable Apple as a provider in Supabase Dashboard → Authentication → Providers:
+   - **Services ID**: create one in Apple Developer Portal under
+     Identifiers → Services IDs. This is *separate* from the app's
+     bundle ID and is what Supabase verifies against.
+   - **Team ID**: your 10-character Apple Team ID
+   - **Key ID**: from the Sign In with Apple key you create in
+     Certificates, Identifiers & Profiles → Keys
+   - **Private key**: the `.p8` contents of that key
+5. Test sign-in on a physical device — Apple Sign In doesn't run on
+   the Simulator for tokens that Supabase will accept
 
 ---
 
