@@ -41,6 +41,7 @@
 		A1000099000000000000001 /* CloudClusteringService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000100000000000000001 /* CloudClusteringService.swift */; };
 		A1000101000000000000001 /* AnnotationHints.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000102000000000000001 /* AnnotationHints.swift */; };
 		A1000108000000000000001 /* DiagnosticsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000109000000000000001 /* DiagnosticsService.swift */; };
+		A1000110000000000000001 /* FeedbackService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000111000000000000001 /* FeedbackService.swift */; };
 		A1000103000000000000001 /* AnnotationHints.json in Resources */ = {isa = PBXBuildFile; fileRef = A1000104000000000000001 /* AnnotationHints.json */; };
 		A1000106000000000000001 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A1000107000000000000001 /* Localizable.xcstrings */; };
 /* End PBXBuildFile section */
@@ -84,6 +85,7 @@
 		A1000100000000000000001 /* CloudClusteringService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudClusteringService.swift; sourceTree = "<group>"; };
 		A1000102000000000000001 /* AnnotationHints.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationHints.swift; sourceTree = "<group>"; };
 		A1000109000000000000001 /* DiagnosticsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsService.swift; sourceTree = "<group>"; };
+		A1000111000000000000001 /* FeedbackService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackService.swift; sourceTree = "<group>"; };
 		A1000104000000000000001 /* AnnotationHints.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = AnnotationHints.json; sourceTree = "<group>"; };
 		A1000107000000000000001 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -198,6 +200,7 @@
 				A1000100000000000000001 /* CloudClusteringService.swift */,
 				A1000102000000000000001 /* AnnotationHints.swift */,
 				A1000109000000000000001 /* DiagnosticsService.swift */,
+				A1000111000000000000001 /* FeedbackService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -363,6 +366,7 @@
 				A1000099000000000000001 /* CloudClusteringService.swift in Sources */,
 				A1000101000000000000001 /* AnnotationHints.swift in Sources */,
 				A1000108000000000000001 /* DiagnosticsService.swift in Sources */,
+				A1000110000000000000001 /* FeedbackService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

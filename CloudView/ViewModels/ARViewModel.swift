@@ -272,11 +272,15 @@ class ARViewModel: ObservableObject {
         // first (matcher already softmax-samples for variety). When the
         // CLIP model isn't bundled, the service returns deterministic
         // stub picks so this path still produces something.
+        // Quiet "I see something" cue while recognition runs.
+        FeedbackService.shared.fire(.sightingBegan)
+
         let cluster = CloudClusteringService.cluster([cloudShape]).first
         let interpretations = (try? await recognitionService.recognize(cluster!)) ?? []
         guard let interpretation = interpretations.first else {
-            // No good match — leave the cloud unannotated rather than show
-            // a confidently-wrong label. UI's existing nil-name state.
+            // No good match — soft haptic so the user knows we tried, no
+            // sound. UI's existing nil-name state shows "Cool cloud!".
+            FeedbackService.shared.fire(.noMatch)
             return
         }
 
@@ -337,9 +341,8 @@ class ARViewModel: ObservableObject {
         drawingOrder.append(cloudRegion.id)
         drawingCreationCount += 1
 
-        // Trigger haptic feedback for drawing creation
-        let impact = UIImpactFeedbackGenerator(style: .medium)
-        impact.impactOccurred()
+        // Haptic + audio cue: "look what we made"
+        FeedbackService.shared.fire(.drawingRevealed)
     }
 
     private func screenPointToWorldDirection(_ screenPoint: CGPoint, camera: ARCamera) -> simd_float3 {
