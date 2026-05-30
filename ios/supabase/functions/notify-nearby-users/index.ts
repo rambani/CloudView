@@ -58,6 +58,19 @@ Deno.serve(async (req) => {
     return new Response("No location — skipping", { status: 200 });
   }
 
+  // Don't fan out push notifications for content that doesn't pass a
+  // basic objectionable-content screen. App Review specifically checks
+  // that UGC apps filter abusive material before broadcasting it. The
+  // database row still exists (so the in-app feed renders it for
+  // viewers, where the report/block flow can do the rest), but no
+  // off-device push will carry the offending text.
+  if (isObjectionable(sighting.shape_name) || isObjectionable(sighting.city ?? "")) {
+    console.warn("Skipping push fan-out for filtered content", {
+      sighting_id: sighting.id,
+    });
+    return new Response("Filtered", { status: 200 });
+  }
+
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -149,4 +162,42 @@ async function sendApnsNotification({
     },
     body: JSON.stringify(payload),
   });
+}
+
+// MARK: - Content moderation
+//
+// Tiny built-in keyword filter so we have *something* before integrating
+// a real moderation API. Catches the obvious classes — sexual content,
+// slurs, gore — but is intentionally conservative; the goal is to keep
+// the worst stuff out of the push fan-out, not to be a comprehensive
+// moderation system. The in-app feed shows the row regardless; report
+// + block do the rest.
+//
+// Replace this with an OpenAI Moderation API call (or Perspective API,
+// or similar) once you have the keys. See TASKS.md item 10.
+
+const DENY_WORDS = new Set([
+  // Sexual / explicit
+  "porn", "sex", "nude", "naked", "xxx", "nsfw",
+  // Slurs and hate (minimal seed list — extend as needed)
+  "nigger", "faggot", "retard", "kike", "spic", "chink",
+  // Self-harm / violence
+  "kill", "murder", "suicide", "rape", "rapist",
+  // Substances
+  "cocaine", "heroin", "meth",
+]);
+
+function isObjectionable(text: string): boolean {
+  if (!text) return false;
+  const normalised = text
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9 ]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalised) return false;
+  for (const word of normalised.split(" ")) {
+    if (DENY_WORDS.has(word)) return true;
+  }
+  return false;
 }

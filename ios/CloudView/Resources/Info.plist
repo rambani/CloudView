@@ -34,7 +34,16 @@
         <false/>
     </dict>
     <key>UILaunchScreen</key>
-    <dict/>
+    <dict>
+        <!-- Dark background that matches the app's preferred color scheme,
+             so cold start doesn't flash white before SwiftUI mounts. The
+             color reference resolves via Assets.xcassets — fallback to
+             black if the asset is missing so the launch is never broken. -->
+        <key>UIColorName</key>
+        <string>LaunchBackground</string>
+        <key>UIImageRespectsSafeAreaInsets</key>
+        <true/>
+    </dict>
     <key>UIRequiredDeviceCapabilities</key>
     <array>
         <string>arm64</string>
