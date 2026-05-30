@@ -205,11 +205,31 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     // MARK: - Mapping WeatherKit → local model
 
+    /// User's locale-preferred temperature unit. US locales get Fahrenheit;
+    /// the rest of the world gets Celsius. Falls back to °F if the locale
+    /// hasn't declared a preference (uncommon on real devices).
+    private var preferredTempUnit: UnitTemperature {
+        switch Locale.current.measurementSystem {
+        case .us:           return .fahrenheit
+        case .metric, .uk:  return .celsius
+        default:            return .fahrenheit
+        }
+    }
+
+    /// US uses mph; UK uses mph too (for road speeds); rest of world uses km/h.
+    private var preferredWindUnit: UnitSpeed {
+        switch Locale.current.measurementSystem {
+        case .us, .uk:      return .milesPerHour
+        case .metric:       return .kilometersPerHour
+        default:            return .milesPerHour
+        }
+    }
+
     private func mapCurrent(_ current: CurrentWeather, name: String) -> WeatherData {
         WeatherData(
             main: .init(
-                temp: current.temperature.converted(to: .fahrenheit).value,
-                feelsLike: current.apparentTemperature.converted(to: .fahrenheit).value,
+                temp: current.temperature.converted(to: preferredTempUnit).value,
+                feelsLike: current.apparentTemperature.converted(to: preferredTempUnit).value,
                 humidity: Int((current.humidity * 100).rounded())
             ),
             weather: [.init(
@@ -218,7 +238,7 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
                 description: humanReadable(current.condition),
                 icon: current.symbolName
             )],
-            wind: .init(speed: current.wind.speed.converted(to: .milesPerHour).value),
+            wind: .init(speed: current.wind.speed.converted(to: preferredWindUnit).value),
             name: name
         )
     }
@@ -233,8 +253,8 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
                 ForecastData.ForecastItem(
                     dt: Int(hour.date.timeIntervalSince1970),
                     main: .init(
-                        temp: hour.temperature.converted(to: .fahrenheit).value,
-                        feelsLike: hour.apparentTemperature.converted(to: .fahrenheit).value,
+                        temp: hour.temperature.converted(to: preferredTempUnit).value,
+                        feelsLike: hour.apparentTemperature.converted(to: preferredTempUnit).value,
                         humidity: Int((hour.humidity * 100).rounded())
                     ),
                     weather: [.init(

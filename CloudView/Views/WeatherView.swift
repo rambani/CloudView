@@ -158,17 +158,39 @@ struct QuirkyWeatherStatement: View {
         let condition = weather.weather.first?.main.lowercased() ?? "clear"
 
         if condition.contains("clear") || condition.contains("sun") {
-            if temp > 75 {
-                return "Beautiful clear skies at \(temp)° - enjoy the sunshine! ☀️"
-            } else if temp > 60 {
-                return "Gorgeous blue skies at \(temp)° - perfect day outside! 🌤️"
-            } else {
-                return "Crisp clear day at \(temp)° - not a cloud in sight! ☀️"
+            switch warmthBracket(temp: weather.main.temp) {
+            case .warm:  return "Beautiful clear skies at \(temp)° - enjoy the sunshine! ☀️"
+            case .mild:  return "Gorgeous blue skies at \(temp)° - perfect day outside! 🌤️"
+            case .cool:  return "Crisp clear day at \(temp)° - not a cloud in sight! ☀️"
             }
         } else {
             return "Clear conditions at \(temp)° - waiting for clouds to appear! 🌤️"
         }
     }
+
+    /// Bucket the temperature into "warm/mild/cool" using thresholds in the
+    /// user's measurement system. 75°F/24°C is "warm", 60°F/16°C and up is
+    /// "mild", anything below is "cool".
+    private func warmthBracket(temp: Double) -> WarmthBracket {
+        let warmThreshold: Double
+        let mildThreshold: Double
+        switch Locale.current.measurementSystem {
+        case .metric, .uk:
+            warmThreshold = 24
+            mildThreshold = 16
+        case .us:
+            warmThreshold = 75
+            mildThreshold = 60
+        default:
+            warmThreshold = 75
+            mildThreshold = 60
+        }
+        if temp > warmThreshold { return .warm }
+        if temp > mildThreshold { return .mild }
+        return .cool
+    }
+
+    private enum WarmthBracket { case warm, mild, cool }
 
     private func generateNoCloudWeatherMessage() -> String {
         guard let condition = weather.weather.first?.main.lowercased() else {
