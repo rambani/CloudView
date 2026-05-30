@@ -30,6 +30,11 @@
 		A1000062000000000000001 /* BackendConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000063000000000000001 /* BackendConfigTests.swift */; };
 		A1000075000000000000001 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000076000000000000001 /* AppState.swift */; };
 		A1000081000000000000001 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000082000000000000001 /* SettingsView.swift */; };
+		A1000083000000000000001 /* CloudCluster.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000084000000000000001 /* CloudCluster.swift */; };
+		A1000085000000000000001 /* Interpretation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000086000000000000001 /* Interpretation.swift */; };
+		A1000087000000000000001 /* CloudShapeSignature.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000088000000000000001 /* CloudShapeSignature.swift */; };
+		A1000089000000000000001 /* CloudRecognitionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000090000000000000001 /* CloudRecognitionService.swift */; };
+		A1000091000000000000001 /* CloudShapeSignatureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000092000000000000001 /* CloudShapeSignatureTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -60,6 +65,11 @@
 		A1000076000000000000001 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		A1000080000000000000001 /* CloudView.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CloudView.entitlements; sourceTree = "<group>"; };
 		A1000082000000000000001 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		A1000084000000000000001 /* CloudCluster.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudCluster.swift; sourceTree = "<group>"; };
+		A1000086000000000000001 /* Interpretation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Interpretation.swift; sourceTree = "<group>"; };
+		A1000088000000000000001 /* CloudShapeSignature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudShapeSignature.swift; sourceTree = "<group>"; };
+		A1000090000000000000001 /* CloudRecognitionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudRecognitionService.swift; sourceTree = "<group>"; };
+		A1000092000000000000001 /* CloudShapeSignatureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudShapeSignatureTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXContainerItemProxy section */
@@ -154,6 +164,8 @@
 				A1000050000000000000001 /* ScanReportingService.swift */,
 				A1000052000000000000001 /* SolarCalculator.swift */,
 				A1000055000000000000001 /* BackendConfig.swift */,
+				A1000088000000000000001 /* CloudShapeSignature.swift */,
+				A1000090000000000000001 /* CloudRecognitionService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -164,6 +176,8 @@
 				A1000010000000000000001 /* DrawingLibrary.swift */,
 				A1000012000000000000001 /* AnimatedDrawing.swift */,
 				A1000076000000000000001 /* AppState.swift */,
+				A1000084000000000000001 /* CloudCluster.swift */,
+				A1000086000000000000001 /* Interpretation.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -183,6 +197,7 @@
 				A1000059000000000000001 /* CombinationRulesTests.swift */,
 				A1000061000000000000001 /* SolarCalculatorTests.swift */,
 				A1000063000000000000001 /* BackendConfigTests.swift */,
+				A1000092000000000000001 /* CloudShapeSignatureTests.swift */,
 			);
 			path = CloudViewTests;
 			sourceTree = "<group>";
@@ -304,6 +319,10 @@
 				A1000054000000000000001 /* BackendConfig.swift in Sources */,
 				A1000075000000000000001 /* AppState.swift in Sources */,
 				A1000081000000000000001 /* SettingsView.swift in Sources */,
+				A1000083000000000000001 /* CloudCluster.swift in Sources */,
+				A1000085000000000000001 /* Interpretation.swift in Sources */,
+				A1000087000000000000001 /* CloudShapeSignature.swift in Sources */,
+				A1000089000000000000001 /* CloudRecognitionService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -315,6 +334,7 @@
 				A1000058000000000000001 /* CombinationRulesTests.swift in Sources */,
 				A1000060000000000000001 /* SolarCalculatorTests.swift in Sources */,
 				A1000062000000000000001 /* BackendConfigTests.swift in Sources */,
+				A1000091000000000000001 /* CloudShapeSignatureTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
