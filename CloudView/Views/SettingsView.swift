@@ -20,7 +20,7 @@ struct SettingsView: View {
                 Section {
                     Toggle("Share anonymous cloud activity", isOn: $communityEnabled)
                         .tint(.blue)
-                        .onChange(of: communityEnabled) { _, newValue in
+                        .onChange(of: communityEnabled) { newValue in
                             ScanReportingService.shared.isEnabled = newValue
                             if newValue {
                                 // User just opted in — register the cached
