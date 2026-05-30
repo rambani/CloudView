@@ -302,7 +302,15 @@ struct CaptureFlowView: View {
             let drawingElements = geminiResult.drawingElements.map { $0.toDrawingElement() }
 
             let loc = location.currentLocation
+            // Argument order matches the CloudSighting initializer declaration —
+            // Swift requires labeled arguments to appear in declaration order, and
+            // localImageData (init position 4) sits before analysis (position 5).
+            // The previous form had it tucked in after `country`, which compiles
+            // only because the parameter happens to allow that under some Swift
+            // compiler versions; explicit declaration-order is safer and avoids
+            // a future compile break when the rules tighten.
             let sighting = CloudSighting(
+                localImageData: image.preparedForAnalysis(),
                 analysis: analysis,
                 drawingElements: drawingElements,
                 drawingLabelX: labelX,
@@ -310,8 +318,7 @@ struct CaptureFlowView: View {
                 latitude: loc?.coordinate.latitude,
                 longitude: loc?.coordinate.longitude,
                 city: location.currentCity,
-                country: location.currentCountry,
-                localImageData: image.preparedForAnalysis()
+                country: location.currentCountry
             )
 
             appState.pendingSighting = sighting
