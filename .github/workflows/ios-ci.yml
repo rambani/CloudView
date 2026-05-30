@@ -1,0 +1,103 @@
+name: iOS CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel an in-progress run when a new commit lands on the same ref so we
+# don't pay for stale jobs after rapid pushes.
+concurrency:
+  group: ios-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build + tests
+    runs-on: macos-15
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      WORKING_DIR: ios
+      RESULT_BUNDLE: build/TestResults.xcresult
+      LOG_DIR: build/logs
+    steps:
+      - uses: actions/checkout@v4
+
+      # CI doesn't have real API keys, so create a stub Config.xcconfig
+      # from the committed template. The xcconfig values are read at
+      # runtime (Bundle.main.object(forInfoDictionaryKey:)), so the build
+      # doesn't fail when they're empty — Settings just shows "configure
+      # me" prompts at runtime.
+      - name: Stub Config.xcconfig
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          if [ ! -f Config.xcconfig ]; then
+            cp Config.xcconfig.example Config.xcconfig
+            echo "Created stub Config.xcconfig from template"
+          fi
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ${{ env.WORKING_DIR }}
+        run: xcodegen generate
+
+      - name: Show toolchain
+        run: |
+          mkdir -p "${WORKING_DIR}/${LOG_DIR}"
+          xcodebuild -version | tee "${WORKING_DIR}/${LOG_DIR}/toolchain.log"
+
+      - name: Pick iOS simulator
+        id: sim
+        run: |
+          xcrun simctl list devices available 2>&1 | tee /tmp/simulators.log
+          udid=$(xcrun simctl list devices available \
+            | grep -E "iPhone (15|16|17)" \
+            | head -1 \
+            | grep -oE "[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}")
+          if [ -z "$udid" ]; then
+            echo "No suitable iPhone simulator found"
+            exit 1
+          fi
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+
+      - name: Build for testing
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          set -o pipefail
+          mkdir -p "$LOG_DIR"
+          xcodebuild build-for-testing \
+            -project CloudView.xcodeproj \
+            -scheme CloudView \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath build/dd \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee "$LOG_DIR/build.log"
+
+      - name: Test without building
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building \
+            -project CloudView.xcodeproj \
+            -scheme CloudView \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath build/dd \
+            -resultBundlePath "$RESULT_BUNDLE" \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee "$LOG_DIR/test.log"
+
+      - name: Upload artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-logs-${{ github.run_attempt }}
+          path: |
+            ${{ env.WORKING_DIR }}/build/logs
+            ${{ env.WORKING_DIR }}/build/TestResults.xcresult
+          if-no-files-found: warn
+          retention-days: 7
