@@ -8,7 +8,7 @@ _Started 2026-05-24 03:27 UTC_
 
 Create a complete mockup of an app which allows users to scan clouds in the sky, after which AI is used to draw lines ontop of the picture and create an image out of the clouds (similae to cloud watching). It then creates a funny quip/phrase to describe the picture and aggregates this information for cities. People can then be notified and asked to go outside, to check if they can go outside and see similar stuff as well. It's a weather app mixed with the cloud scanning. I want to it look incredibly clean and modern. 
 
-Refer to this github for my initial efforts: https://github.com/rambani/CloudView.git
+Refer to this github for my initial efforts: https://github.com/rambani/Cloudoodle.git
 
 ## Assistant
 
@@ -85,7 +85,7 @@ _[tool: done]_
 
 _[tool: fork_verifier_agent]_
 
-Built **CloudView** as a clean iOS mockup spread across a design canvas — pan/zoom around to see all 11 screens at once, or click any artboard's expand icon to focus it.
+Built **Cloudoodle** as a clean iOS mockup spread across a design canvas — pan/zoom around to see all 11 screens at once, or click any artboard's expand icon to focus it.
 
 **The flow:**
 - **01 · Onboarding** — Welcome with the editorial serif treatment, then permissions
@@ -136,7 +136,7 @@ Simplified to a single hero. Now it's just **the sky** — a live camera feed wi
 
 **Tweaks** — theme (4), sky mood (5: day/golden/dusk/dawn/stormy), AI overlay style (4), drawing shape (6), quip tone (3).
 
-v1 is preserved at **CloudView v1.html** if you ever want the multi-screen flow back.
+v1 is preserved at **Cloudoodle v1.html** if you ever want the multi-screen flow back.
 
 ## User
 
@@ -198,7 +198,7 @@ Two fixes:
 
 ## User
 
-you can still see the caption and the cloudview AI components behind the panel that slid up
+you can still see the caption and the cloudoodle AI components behind the panel that slid up
 
 ## Assistant
 

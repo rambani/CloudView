@@ -1,0 +1,152 @@
+name: iOS CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel an in-progress run when a new commit lands on the same ref so we
+# don't pay for stale jobs after rapid pushes.
+concurrency:
+  group: ios-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build + tests
+    runs-on: macos-15
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      WORKING_DIR: ios
+      RESULT_BUNDLE: build/TestResults.xcresult
+      LOG_DIR: build/logs
+    steps:
+      - uses: actions/checkout@v4
+
+      # CI doesn't have real API keys, so create a stub Config.xcconfig
+      # from the committed template. The xcconfig values are read at
+      # runtime (Bundle.main.object(forInfoDictionaryKey:)), so the build
+      # doesn't fail when they're empty — Settings just shows "configure
+      # me" prompts at runtime.
+      - name: Stub Config.xcconfig
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          if [ ! -f Config.xcconfig ]; then
+            cp Config.xcconfig.example Config.xcconfig
+            echo "Created stub Config.xcconfig from template"
+          fi
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          set -o pipefail
+          mkdir -p build/logs
+          xcodegen generate 2>&1 | tee build/logs/xcodegen.log
+
+      - name: Show toolchain
+        run: |
+          mkdir -p "${WORKING_DIR}/${LOG_DIR}"
+          xcodebuild -version | tee "${WORKING_DIR}/${LOG_DIR}/toolchain.log"
+
+      - name: Pick iOS simulator
+        id: sim
+        run: |
+          mkdir -p "${WORKING_DIR}/${LOG_DIR}"
+          xcrun simctl list devices available 2>&1 | tee "${WORKING_DIR}/${LOG_DIR}/simulators.log"
+          udid=$(xcrun simctl list devices available \
+            | grep -E "iPhone (15|16|17)" \
+            | head -1 \
+            | grep -oE "[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}")
+          if [ -z "$udid" ]; then
+            echo "No suitable iPhone simulator found"
+            exit 1
+          fi
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+
+      - name: Build for testing
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          set -o pipefail
+          mkdir -p "$LOG_DIR"
+          xcodebuild build-for-testing \
+            -project Cloudoodle.xcodeproj \
+            -scheme Cloudoodle \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath build/dd \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee "$LOG_DIR/build.log"
+
+      - name: Test without building
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building \
+            -project Cloudoodle.xcodeproj \
+            -scheme Cloudoodle \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath build/dd \
+            -resultBundlePath "$RESULT_BUNDLE" \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee "$LOG_DIR/test.log"
+
+      - name: Upload artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-logs-${{ github.run_attempt }}
+          path: |
+            ${{ env.WORKING_DIR }}/build/logs
+            ${{ env.WORKING_DIR }}/build/TestResults.xcresult
+          if-no-files-found: warn
+          retention-days: 7
+
+      # Private-repo artifacts/logs aren't readable from the Claude
+      # PR-watching session, so on failure we mirror the most useful
+      # slices of the build / test logs into a PR comment. Cheap and
+      # only fires on red runs.
+      - name: Post failure tail to PR
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const logDir = '${{ env.WORKING_DIR }}/build/logs';
+            const sha = context.payload.pull_request.head.sha.slice(0, 7);
+            let body = `### iOS CI failure on \`${sha}\` (run ${context.runId})\n\n`;
+            // Glob whatever logs exist in ios/build/logs — xcodegen.log,
+            // simulators.log, toolchain.log, build.log, test.log. The set
+            // varies depending on which step failed first.
+            const files = fs.existsSync(logDir)
+              ? fs.readdirSync(logDir).sort().map(f => path.join(logDir, f))
+              : [];
+            if (!files.length) {
+              body += `_No log files found under \`${logDir}\` — failure was likely in checkout, brew install, or the github-script step itself. Check the run page directly._\n`;
+            }
+            const errorRe = /(error:|fatal error|Undefined symbol|ld: |Command\s+\w+\s+failed|No such file|^xcodegen:|cannot find)/i;
+            for (const p of files) {
+              const lines = fs.readFileSync(p, 'utf8').split('\n');
+              const errors = lines.filter(l => errorRe.test(l)).slice(-40);
+              const tail = lines.slice(-150);
+              body += `**${path.basename(p)}**\n\n`;
+              if (errors.length) {
+                body += `_Filtered error lines:_\n\`\`\`\n${errors.join('\n')}\n\`\`\`\n\n`;
+              } else {
+                body += `_No error/fail lines matched the filter._\n\n`;
+              }
+              body += `<details><summary>last 150 lines</summary>\n\n\`\`\`\n${tail.join('\n')}\n\`\`\`\n\n</details>\n\n`;
+            }
+            // GitHub caps comments at 65536 chars.
+            if (body.length > 60000) body = body.slice(0, 60000) + '\n\n... (truncated)';
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            });

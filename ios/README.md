@@ -1,4 +1,4 @@
-# CloudView iOS
+# Cloudoodle iOS
 
 A cloud-watching app where you scan the sky, Claude draws shapes onto actual clouds, and generates witty quips. Community sightings aggregated by city.
 
@@ -27,7 +27,7 @@ cd ios
 make open          # generates Xcode project and opens it
 ```
 
-Then in Xcode: select the CloudView scheme → iPhone 15 Pro simulator → Run.
+Then in Xcode: select the Cloudoodle scheme → iPhone 15 Pro simulator → Run.
 
 On first launch, go to Settings and enter:
 1. Your Anthropic API key
@@ -44,9 +44,9 @@ On first launch, go to Settings and enter:
 ## Project structure
 
 ```
-CloudView/
+Cloudoodle/
 ├── App/
-│   ├── CloudViewApp.swift     — @main entry, environment setup
+│   ├── CloudoodleApp.swift     — @main entry, environment setup
 │   ├── AppState.swift         — @Observable global navigation state
 │   └── ContentView.swift      — Root TabView + modal coordination
 ├── Core/

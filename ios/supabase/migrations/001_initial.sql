@@ -1,4 +1,4 @@
--- CloudView database schema
+-- Cloudoodle database schema
 -- Run this in your Supabase SQL editor to initialize the database
 
 -- Enable PostGIS for geo queries (optional, skip if not available)
