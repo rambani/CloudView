@@ -15,7 +15,7 @@ struct CameraPermissionPage: View {
             eyebrow: "Camera",
             headline: "Let me see the sky",
             italicWord: "sky",
-            body: "I read clouds straight from your camera. Nothing is saved or uploaded unless you choose to share a sighting.",
+            bodyText: "I read clouds straight from your camera. Nothing is saved or uploaded unless you choose to share a sighting.",
             chips: ["Private by default", "No photos stored", "Point & go"],
             primaryTitle: "Allow camera",
             primaryAction: {

@@ -14,7 +14,7 @@ struct LocationPermissionPage: View {
             eyebrow: "Location",
             headline: "Find the sky nearby",
             italicWord: "nearby",
-            body: "See what cloud-spotters around you are finding, and get the forecast for exactly where you're standing.",
+            bodyText: "See what cloud-spotters around you are finding, and get the forecast for exactly where you're standing.",
             chips: ["Local forecast", "Spotters near you", "Only while using"],
             primaryTitle: "Share location",
             primaryAction: {

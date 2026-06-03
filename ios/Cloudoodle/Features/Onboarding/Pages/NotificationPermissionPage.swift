@@ -13,7 +13,7 @@ struct NotificationPermissionPage: View {
             eyebrow: "Nudges",
             headline: "I'll ping you when the sky shows off",
             italicWord: "shows off",
-            body: "Golden hour, dramatic clouds, a sky worth looking up for. A couple of nudges a week — never spam.",
+            bodyText: "Golden hour, dramatic clouds, a sky worth looking up for. A couple of nudges a week — never spam.",
             chips: ["Golden hour", "Big skies", "~2 a week"],
             primaryTitle: "Turn on nudges",
             primaryAction: {

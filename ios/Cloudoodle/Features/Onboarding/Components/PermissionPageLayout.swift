@@ -10,14 +10,14 @@ struct PermissionPageLayout: View {
     let eyebrow: String
     let headline: String           // can contain italic via the `italicWord` arg
     let italicWord: String?        // word inside `headline` to render in serif italic
-    let body: String
+    let bodyText: String
     let chips: [String]
     let primaryTitle: String
     let primaryAction: () -> Void
     let secondaryTitle: String?
     let secondaryAction: (() -> Void)?
 
-    var bodyView: some View {
+    var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             ZStack {
                 SkyBackdrop(palette: backdrop)
@@ -39,7 +39,7 @@ struct PermissionPageLayout: View {
                     .foregroundStyle(CV.Color.textPrimary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                Text(body)
+                Text(bodyText)
                     .font(.system(size: 16, weight: .regular))
                     .foregroundStyle(CV.Color.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -61,10 +61,6 @@ struct PermissionPageLayout: View {
             .padding(.horizontal, 24)
             .padding(.bottom, 28)
         }
-    }
-
-    var body: some View {
-        bodyView
     }
 
     /// Headline with optional italic-serif span. The match is case-insensitive
