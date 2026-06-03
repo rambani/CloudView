@@ -15,7 +15,6 @@ import SwiftUI
 /// not "Alice saw a dragon."
 struct SightingCard: View {
     let sighting: CloudSighting
-    var onLike: (() -> Void)?
     var onTap: (() -> Void)?
 
     @EnvironmentObject private var supabase: SupabaseService
@@ -25,9 +24,8 @@ struct SightingCard: View {
     @State private var reportSheetShown = false
     @State private var reportToast: String?
 
-    init(sighting: CloudSighting, onLike: (() -> Void)? = nil, onTap: (() -> Void)? = nil) {
+    init(sighting: CloudSighting, onTap: (() -> Void)? = nil) {
         self.sighting = sighting
-        self.onLike = onLike
         self.onTap = onTap
         _isLiked = State(initialValue: sighting.isLikedByCurrentUser)
         _likeCount = State(initialValue: sighting.likes)
@@ -87,17 +85,14 @@ struct SightingCard: View {
                     .foregroundStyle(CV.Color.textTertiary)
                 Spacer()
                 Button {
-                    withAnimation(.spring(response: 0.25)) {
-                        isLiked.toggle()
-                        likeCount += isLiked ? 1 : -1
-                    }
-                    onLike?()
+                    Task { await toggleLike() }
                 } label: {
                     Label("\(likeCount)", systemImage: isLiked ? "heart.fill" : "heart")
                         .font(CV.Font.caption)
                         .foregroundStyle(isLiked ? .red : CV.Color.textTertiary)
                 }
                 .buttonStyle(.plain)
+                .disabled(!supabase.isAuthenticated)
             }
         }
         .padding(18)
@@ -147,6 +142,34 @@ struct SightingCard: View {
                     .padding(.top, 8)
             }
         }
+    }
+
+    /// Optimistically toggle the heart, call Supabase, revert + toast
+    /// on failure so the count doesn't lie. Anonymous taps never reach
+    /// the network — the button is `.disabled` when isAuthenticated is
+    /// false, and the report flow promotes sign-in.
+    private func toggleLike() async {
+        guard supabase.isAuthenticated else { return }
+        let wasLiked = isLiked
+        withAnimation(.spring(response: 0.25)) {
+            isLiked.toggle()
+            likeCount += isLiked ? 1 : -1
+        }
+        do {
+            _ = try await supabase.toggleLike(sightingId: sighting.id)
+        } catch {
+            withAnimation(.spring(response: 0.25)) {
+                isLiked = wasLiked
+                likeCount += wasLiked ? 1 : -1
+            }
+            await showToast("Couldn't save your like. Try again.")
+        }
+    }
+
+    private func showToast(_ message: String) async {
+        withAnimation(.spring(response: 0.35)) { reportToast = message }
+        try? await Task.sleep(for: .seconds(3))
+        withAnimation { reportToast = nil }
     }
 
     private func submitReport(reason: ReportReason) async {

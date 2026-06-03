@@ -7,9 +7,9 @@ struct FeedView: View {
     @State private var sightings: [CloudSighting] = []
     @State private var isLoading = false
     @State private var error: Error?
-    @State private var selectedSighting: CloudSighting?
     @State private var page = 0
     @State private var showSettings = false
+    @State private var loadMoreError: String?
 
     var body: some View {
         ZStack {
@@ -28,10 +28,7 @@ struct FeedView: View {
                     } else {
                         LazyVStack(spacing: 28) {
                             ForEach(sightings) { sighting in
-                                SightingCard(
-                                    sighting: sighting,
-                                    onLike: { Task { await toggleLike(sighting) } }
-                                )
+                                SightingCard(sighting: sighting)
                                 .onAppear {
                                     if sighting.id == sightings.last?.id {
                                         Task { await loadMore() }
@@ -42,6 +39,13 @@ struct FeedView: View {
                             if isLoading {
                                 ProgressView()
                                     .tint(CV.Color.accentBlue)
+                                    .padding()
+                            }
+
+                            if let loadMoreError {
+                                Text(loadMoreError)
+                                    .font(CV.Font.caption)
+                                    .foregroundStyle(CV.Color.textTertiary)
                                     .padding()
                             }
                         }
@@ -161,14 +165,17 @@ struct FeedView: View {
             let more = try await supabase.fetchFeed(limit: 20, offset: page * 20)
             sightings.append(contentsOf: more)
             page += 1
-        } catch {}
+        } catch {
+            // Don't blow away the existing feed for a transient
+            // load-more failure — flash a small banner under the
+            // spinner so the user knows pagination stalled.
+            withAnimation(.spring(response: 0.3)) {
+                loadMoreError = "Couldn't load more — pull to refresh."
+            }
+            try? await Task.sleep(for: .seconds(3))
+            withAnimation { loadMoreError = nil }
+        }
         isLoading = false
-    }
-
-    private func toggleLike(_ sighting: CloudSighting) async {
-        do {
-            _ = try await supabase.toggleLike(sightingId: sighting.id)
-        } catch {}
     }
 }
 

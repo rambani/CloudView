@@ -332,10 +332,41 @@ struct CaptureFlowView: View {
                 phase = .revealing(sighting)
             }
         } catch {
-            scanError = "AI couldn't identify a shape this time. Try an area of sky with more distinct cloud formations."
+            scanError = Self.scanErrorMessage(for: error)
             withAnimation { phase = .viewfinder }
             try? await camera.requestPermissionAndSetup()
         }
+    }
+
+    /// Translate the raw error into something a user can act on. The
+    /// generic "couldn't identify a shape" fallback is the last resort
+    /// — usually we can be much more specific (missing API key, rate
+    /// limit, network down, server hiccup).
+    private static func scanErrorMessage(for error: Error) -> String {
+        if let gemini = error as? GeminiError {
+            switch gemini {
+            case .missingAPIKey:
+                return "Add your Gemini API key in Settings to scan clouds. It's free at aistudio.google.com."
+            case .imageEncodingFailed:
+                return "Couldn't read that photo. Try capturing again."
+            case .networkError:
+                return "Network hiccup — check your connection and try again."
+            case .invalidResponse(let code, _):
+                switch code {
+                case 401, 403: return "Gemini rejected the request — your API key may be invalid."
+                case 429:      return "Too many scans this minute. Take a breath and try again."
+                case 500...599: return "Gemini is having a moment. Try again in a few seconds."
+                default:       return "Gemini returned an error (\(code)). Try again."
+                }
+            case .parseError:
+                return "AI couldn't identify a shape this time. Try an area of sky with more distinct cloud formations."
+            }
+        }
+        let ns = error as NSError
+        if ns.domain == NSURLErrorDomain {
+            return "Network hiccup — check your connection and try again."
+        }
+        return "AI couldn't identify a shape this time. Try an area of sky with more distinct cloud formations."
     }
 }
 

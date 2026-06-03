@@ -4,7 +4,27 @@ struct ContentView: View {
     @Environment(AppState.self) private var appState
     @EnvironmentObject private var supabase: SupabaseService
 
+    /// First-launch onboarding gate. Persisted across launches by iOS.
+    /// Reset on reinstall — TestFlight builds always get the flow.
+    @AppStorage("hasOnboarded") private var hasOnboarded = false
+
+    /// Lives at ContentView scope so a user backing through pages keeps
+    /// their draft username and progress; recreated only on first launch.
+    @State private var onboardingStore = OnboardingStore()
+
     var body: some View {
+        mainContent
+            .fullScreenCover(isPresented: Binding(
+                get: { !hasOnboarded },
+                set: { newValue in if newValue == false { hasOnboarded = true } }
+            )) {
+                OnboardingFlowView(store: onboardingStore) {
+                    hasOnboarded = true
+                }
+            }
+    }
+
+    private var mainContent: some View {
         ZStack(alignment: .bottom) {
             TabView(selection: Binding(
                 get: { appState.selectedTab },
