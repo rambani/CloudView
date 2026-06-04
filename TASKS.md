@@ -148,21 +148,22 @@ Go to https://appstoreconnect.apple.com → My Apps → New App:
 
 ## 8. Privacy Policy & Terms of Service
 
-You must write and host these before App Store submission.
+Draft text is already shipped — see `docs/PrivacyPolicy.md` and
+`docs/TermsOfService.md` (mirrored into the app bundle at
+`ios/Cloudoodle/Resources/Legal/*.md`, viewable in-app under
+**Settings → Legal**). What remains is hosting + swapping placeholders.
 
-**Minimum Privacy Policy must cover:**
-- What data is collected (location, camera, email, cloud sighting photos)
-- Where it's stored (Supabase — disclose the region)
-- How to request deletion (in-app via Settings → Delete Account)
-- Contact email for privacy requests
-
-**Terms of Service must cover:**
-- User-generated content ownership
-- Your right to remove content that violates guidelines
-- Account termination conditions
-- Disclaimer of warranties
-
-Host them at a stable URL (e.g., Notion page with custom domain, or a simple static site). Then add the URL in App Store Connect and in-app (link it from Settings).
+1. Edit the contact email in both `docs/PrivacyPolicy.md` and
+   `docs/TermsOfService.md` (replace `hello@cloudoodle.app`).
+2. Fill in the governing-law jurisdiction in
+   `docs/TermsOfService.md` ("Governing law" section).
+3. Host both at a stable public URL (Notion + custom domain, Vercel
+   static site, GitHub Pages — all fine).
+4. Edit `ios/Cloudoodle/Features/Settings/LegalLinks.swift` and fill in
+   `privacyURL` and `termsURL`. With both set, the in-app Settings rows
+   open Safari to the hosted version; the bundled markdown stays as a
+   fallback that nobody normally hits.
+5. Paste the privacy URL into App Store Connect → App Privacy.
 
 ---
 
