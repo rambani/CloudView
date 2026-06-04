@@ -20,7 +20,8 @@ struct CameraPermissionPage: View {
             primaryTitle: "Allow camera",
             primaryAction: {
                 Task {
-                    _ = await AVCaptureDevice.requestAccess(for: .video)
+                    let granted = await AVCaptureDevice.requestAccess(for: .video)
+                    Telemetry.cameraGranted(granted)
                     onAdvance()
                 }
             },

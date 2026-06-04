@@ -53,6 +53,28 @@ actor GeminiService {
             throw GeminiError.imageEncodingFailed
         }
 
+        // One quiet auto-retry on transient categories — the common
+        // rate-limit and 5xx hiccups usually clear after a second. Any
+        // more than one retry would erode the snappy "scan now" feel
+        // of the capture flow; users would rather see the error and
+        // tap again than wait 5+ seconds for repeated attempts.
+        do {
+            return try await callGemini(imageData: imageData)
+        } catch let error as GeminiError where Self.isTransient(error) {
+            try? await Task.sleep(for: .seconds(1))
+            return try await callGemini(imageData: imageData)
+        }
+    }
+
+    private static func isTransient(_ error: GeminiError) -> Bool {
+        if case .invalidResponse(let code, _) = error {
+            return code == 429 || (500...599).contains(code)
+        }
+        if case .networkError = error { return true }
+        return false
+    }
+
+    private func callGemini(imageData: Data) async throws -> GeminiCloudAnalysis {
         let urlString = "\(baseURL)/\(model):generateContent"
         guard let url = URL(string: urlString) else { throw GeminiError.missingAPIKey }
 
@@ -80,7 +102,12 @@ actor GeminiService {
         request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch {
+            throw GeminiError.networkError(error)
+        }
 
         guard let http = response as? HTTPURLResponse else {
             throw GeminiError.networkError(URLError(.badServerResponse))

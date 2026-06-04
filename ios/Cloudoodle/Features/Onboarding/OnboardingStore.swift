@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import Observation
 
 /// First-run flow state. Owns the step machine, the in-progress username
@@ -19,6 +20,11 @@ final class OnboardingStore {
     var isCheckingUsername = false
     /// nil = unchecked, true = available, false = taken
     var usernameAvailable: Bool? = nil
+
+    /// In-flight availability check, retained so successive keystrokes
+    /// can cancel each other and we only hit Supabase once the user
+    /// has paused typing.
+    private var pendingCheck: Task<Void, Never>?
 
     init() {
         let suggestions = Self.makeSuggestions()
@@ -56,11 +62,22 @@ final class OnboardingStore {
     func advance() {
         guard let i = Step.allCases.firstIndex(of: step), i + 1 < Step.allCases.count else { return }
         step = Step.allCases[i + 1]
+        Self.tap()
     }
 
     func goBack() {
         guard let i = Step.allCases.firstIndex(of: step), i > 0 else { return }
         step = Step.allCases[i - 1]
+        Self.tap()
+    }
+
+    /// Soft selection-style haptic on page transitions — feels tactile
+    /// without competing with the system permission sheets that fire
+    /// their own feedback. Generated once and discarded; cheap.
+    private static func tap() {
+        let gen = UIImpactFeedbackGenerator(style: .light)
+        gen.prepare()
+        gen.impactOccurred()
     }
 
     func pick(_ suggestion: String) {
@@ -90,6 +107,20 @@ final class OnboardingStore {
         defer { isCheckingUsername = false }
         let taken = await SupabaseService.shared.isUsernameTaken(cleaned)
         usernameAvailable = !taken
+    }
+
+    /// Debounced variant — call this from the text-field onChange handler.
+    /// Cancels any in-flight check, waits `delayMS` ms, then runs the
+    /// real check. If the user keeps typing, the cancellation cascades
+    /// before any Supabase call goes out, so we don't spam the API once
+    /// per keystroke.
+    func scheduleAvailabilityCheck(delayMS: UInt64 = 350) {
+        pendingCheck?.cancel()
+        pendingCheck = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: delayMS * 1_000_000)
+            if Task.isCancelled { return }
+            await self?.checkAvailability()
+        }
     }
 
     /// Pool we draw from for the @sky.name chips. Keep it small enough that

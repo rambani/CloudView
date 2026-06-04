@@ -81,7 +81,10 @@ struct PermissionPageLayout: View {
 }
 
 /// Pill chips that wrap to multiple lines. The first chip gets the
-/// accent fill to mirror the "selected" state in the mocks.
+/// accent fill to mirror the "selected" state in the mocks. The full
+/// chip row is collapsed into a single VoiceOver utterance — reading
+/// each chip individually is repetitive and obscures that they're
+/// feature *highlights*, not interactive controls.
 struct FlowingChips: View {
     let items: [String]
 
@@ -108,6 +111,9 @@ struct FlowingChips: View {
                     )
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Highlights")
+        .accessibilityValue(items.joined(separator: ", "))
     }
 }
 

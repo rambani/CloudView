@@ -248,6 +248,7 @@ struct CaptureFlowView: View {
     }
 
     private func scan(image: UIImage) async {
+        Telemetry.scanAttempt()
         // Capture location before going async (LocationService is @MainActor-bound)
         let captureLocation = location.currentLocation
 
@@ -325,6 +326,7 @@ struct CaptureFlowView: View {
 
             // Success haptic — "found something"
             UINotificationFeedbackGenerator().notificationOccurred(.success)
+            Telemetry.scanSuccess(shapeName: geminiResult.shapeName)
 
             // Transition to hand-drawing phase — drawer peeks immediately
             withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
@@ -332,6 +334,7 @@ struct CaptureFlowView: View {
                 phase = .revealing(sighting)
             }
         } catch {
+            Telemetry.scanFailure(error: error)
             scanError = Self.scanErrorMessage(for: error)
             withAnimation { phase = .viewfinder }
             try? await camera.requestPermissionAndSetup()
@@ -592,6 +595,12 @@ private struct DrawerBody: View {
                 DrawerDivider()
                 sunBar(w)
                 DrawerDivider()
+            } else {
+                // WeatherKit returned nil — usually missing location
+                // permission or a transient outage. Inline indicator so
+                // the user understands the missing cards aren't a bug.
+                weatherUnavailableNotice
+                DrawerDivider()
             }
 
             aiDetectionCard
@@ -612,6 +621,31 @@ private struct DrawerBody: View {
     }
 
     // MARK: - Conditions overview
+
+    /// Inline notice shown in place of the full weather stack when
+    /// `WeatherService.fetch` returned nil. Usually means no location
+    /// permission or a WeatherKit hiccup; either way we tell the user
+    /// rather than silently showing fewer cards.
+    private var weatherUnavailableNotice: some View {
+        DrawerCard {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "cloud.slash")
+                    .font(.system(size: 14))
+                    .foregroundStyle(CV.Color.textTertiary)
+                    .padding(.top, 2)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Weather unavailable")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(CV.Color.textPrimary)
+                    Text("Check your connection or grant location access to see the forecast next time.")
+                        .font(CV.Font.caption)
+                        .foregroundStyle(CV.Color.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+        }
+    }
 
     private func conditionsCard(_ w: WeatherSnapshot) -> some View {
         let cloudDesc: String
@@ -956,6 +990,12 @@ private struct DrawerBody: View {
     // MARK: - Data
 
     private func save() async {
+        // Re-entrancy guard for the narrow window between a tap firing
+        // a new Task and `isSaving = true` running on the main actor.
+        // `.disabled(isSaving)` covers the dominant case once the
+        // flag flips, but a fast double-tap could otherwise queue
+        // two uploads against the same sighting ID.
+        guard !isSaving, !isSaved else { return }
         isSaving = true
         defer { isSaving = false }
         guard let data = sighting.localImageData else {

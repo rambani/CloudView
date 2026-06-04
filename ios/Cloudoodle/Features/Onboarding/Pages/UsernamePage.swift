@@ -85,7 +85,12 @@ struct UsernamePage: View {
                     .autocorrectionDisabled(true)
                     .submitLabel(.done)
                     .onChange(of: store.usernameDraft) { _, _ in
+                        // Clear stale state immediately, then schedule a
+                        // debounced check — successive keystrokes cancel
+                        // each other so we only hit Supabase once the
+                        // user has paused typing.
                         store.usernameAvailable = nil
+                        store.scheduleAvailabilityCheck()
                     }
                     .onSubmit { Task { await store.checkAvailability() } }
             }
