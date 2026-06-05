@@ -13,28 +13,26 @@ forget them and so the reasoning lives next to the decision.
 ## Code polish — would land before TestFlight in an ideal world
 
 ### Onboarding refinements (item E — partial)
-- Explicit "Skip onboarding" button for QA — useful when running the
-  app from Xcode and you don't want to walk through 8 pages on every
-  launch. Today the only way is to clear `UserDefaults` for the
-  `hasOnboarded` key OR hit the DEBUG "Restart onboarding" button
-  inside Settings (which goes the other direction).
 - Smoother slide transitions — current `.move(edge:)` snap looks fine
   but could use a custom `AnyTransition` for the demo→finished swap.
 
 ### Accessibility (item D — partial)
 - Dynamic-type audit — the editorial design hardcodes sizes; should
-  scale gracefully under the larger accessibility sizes.
+  scale gracefully under the larger accessibility sizes. Likely
+  requires switching body text to `.font(.body)` style families while
+  keeping the serif headlines at fixed sizes (intentional editorial
+  choice). Significant rework — not landing in this cycle.
 - Contrast: the warm-gold `CV.Color.accent` on `Color.black` passes
   WCAG AA at body sizes but should be spot-checked for the smaller
   mono labels.
-- Additional VoiceOver labels beyond `FlowingChips` — buttons and
-  custom controls in CaptureFlowView, MapView, ProfileView still rely
-  on default accessibility inference.
+- VoiceOver sweep extended to: FeedView gear, ContentView notification
+  toast dismiss, CaptureFlowView close + share + shutter, DemoPage
+  sky panel. Profile/Map/Settings still rely on default inference
+  beyond what AppKit gives us via labels on the inner views.
 
-### Demo content variety (Onboarding page 7)
-- The hard-coded Whale doodle is one of one. Could rotate among 3-4
-  demo sightings (whale, dragon, bunny, sleeping cat) so users
-  reinstalling the app see something new.
+### Demo content variety
+*(shipped — Whale / Dragon / Bunny / Sailboat rotate; tap to swap to
+a different one each time. Adding more shapes is a copy-paste away.)*
 
 ---
 
@@ -96,3 +94,7 @@ swap them out, not to add new functionality.
   availability debounce (350 ms), Gemini retry-with-backoff on 429 /
   5xx / network, "Weather unavailable" drawer notice, save-flow
   re-entrancy guard, FlowingChips VoiceOver collapse.
+- 2026-06: Demo content variety (4-shape rotation on Onboarding
+  page 7), skip-onboarding affordance in chrome, VoiceOver labels on
+  icon-only buttons (FeedView gear, capture close, capture shutter,
+  share, notification dismiss), DemoPage A11y as a tappable element.

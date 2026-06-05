@@ -130,6 +130,7 @@ struct CaptureFlowView: View {
                         .frame(width: 44, height: 44)
                         .background(Circle().fill(.black.opacity(0.35)))
                 }
+                .accessibilityLabel("Close camera")
                 Spacer()
                 ShareButton(sighting: sighting)
             }
@@ -1129,6 +1130,7 @@ private struct ShareButton: View {
                         .foregroundStyle(.white)
                 }
             }
+            .accessibilityLabel(isRendering ? "Preparing share image" : "Share sighting")
         }
         .sheet(isPresented: $showSheet) {
             if let img = artworkImage {
@@ -1183,6 +1185,8 @@ private struct ShutterButton: View {
         .scaleEffect(pressed ? 0.95 : 1.0)
         .animation(.spring(response: 0.2, dampingFraction: 0.65), value: pressed)
         .buttonStyle(.plain)
+        .accessibilityLabel("Capture sky")
+        .accessibilityHint("Take a photo of the clouds overhead so Cloudoodle can find a shape")
         .simultaneousGesture(DragGesture(minimumDistance: 0)
             .onChanged { _ in pressed = true }
             .onEnded { _ in pressed = false }

@@ -23,7 +23,7 @@ struct OnboardingFlowView: View {
 
             if store.step.showsProgressBar {
                 VStack {
-                    OnboardingChrome(store: store)
+                    OnboardingChrome(store: store, onSkip: onComplete)
                     Spacer()
                 }
             }

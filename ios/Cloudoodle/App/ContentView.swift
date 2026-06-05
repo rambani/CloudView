@@ -97,6 +97,7 @@ private struct NotificationToast: View {
                     .frame(width: 24, height: 24)
                     .background(Circle().fill(Color.white.opacity(0.08)))
             }
+            .accessibilityLabel("Dismiss notification")
         }
         .padding(14)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))

@@ -79,6 +79,7 @@ struct FeedView: View {
                 Image(systemName: "gearshape.fill")
                     .font(.system(size: 20))
                     .foregroundStyle(CV.Color.textTertiary)
+                    .accessibilityLabel("Settings")
             }
         }
         .padding(.horizontal, 20)
