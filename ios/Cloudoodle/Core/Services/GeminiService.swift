@@ -112,7 +112,7 @@ actor GeminiService {
                 // 0.45 keeps Gemini grounded while still letting it
                 // pick from multiple plausible shape interpretations.
                 "temperature": 0.45,
-                "maxOutputTokens": 1024   // more tokens needed for path data
+                "maxOutputTokens": 2048   // three-layer drawings can run long
             ]
         ]
 
@@ -202,47 +202,97 @@ actor GeminiService {
         [\(formatted)]
 
         These are normalized (x, y) points sampled along the silhouette of the most \
-        prominent cloud cluster in the image. They are GROUND TRUTH — they came from \
-        the photo itself, not from your imagination. Anchor your strokes to these waypoints:
+        prominent cloud cluster in the image. They are GROUND TRUTH for SILHOUETTE strokes only — \
+        they came from the photo itself, not from your imagination.
 
-           • Each stroke point you output must sit on or very near one of these waypoints, \
-             OR on the straight line interpolating between two adjacent waypoints.
-           • If you find yourself wanting to place a point far from every waypoint, the \
-             clouds are not there. Don't do it.
-           • You do NOT have to use every waypoint. Pick the subset that best forms your shape.
-           • You may pick waypoints from anywhere in the list, not just consecutive ones.
+           • SILHOUETTE strokes (Layer 1) must use these waypoints, or points interpolated \
+             between two adjacent waypoints. No exceptions.
+           • CHARACTER and FLOURISH strokes (Layer 2, 3) do NOT have to land on waypoints — \
+             they live INSIDE the silhouette or just adjacent to it. Place them where the \
+             body of the creature would logically be (eye near a head bulge, fin along a \
+             belly curve, spout above a head).
+           • You do NOT have to use every waypoint. Pick the subset that best forms the silhouette.
         """
     }
 
-    // Ask Gemini to both identify the shape AND draw it as path coordinates.
-    // Coordinates are normalized: (0,0) = top-left corner, (1,1) = bottom-right.
-    // Each element is one stroke — think of it as pen-down, draw, pen-up.
+    // Three-layer drawing prompt — silhouette anchors to waypoints,
+    // character details and flourishes give the creature life.
     //
     // Prompt design notes:
-    //   • The earlier version included a worked example with concrete
-    //     (arbitrary) coordinates. That taught the model to *invent*
-    //     coordinates rather than read them from the image. We removed
-    //     the numeric example and replaced it with verbal guidance.
-    //   • Hard rules are listed twice (top + bottom) because Gemini
-    //     attends most to the start and end of the prompt. The middle
-    //     section explains the "why" so the rules feel motivated.
-    //   • Temperature is also dropped (0.45 in the request body) so
-    //     the model commits to one plausible reading instead of
-    //     fanning across several creative reinterpretations.
+    //   • Previous iteration capped at 3-7 strokes "tracing the cloud
+    //     edges." Result: tight outline but no creature character —
+    //     just a blob shape. This version splits the work into three
+    //     layers so character + flourish strokes are *required*, not
+    //     a side effect of luck.
+    //   • Hard rules listed at top + bottom because Gemini attends
+    //     most to start and end of the prompt.
+    //   • Temperature kept at 0.45 in the request body (low enough to
+    //     trust waypoints, high enough to invent expressive details
+    //     in Layers 2 + 3).
     private static let prompt = """
-    You are a cloud-watcher tracing a shape onto the real sky photo you are looking at.
+    You are a cloud-watcher illustrating a creature you see in the sky photo.
+
+    Your drawing has THREE layers — all three are required:
+
+    LAYER 1 — SILHOUETTE (1 to 2 strokes, 5 to 12 points each):
+       Trace the outline of the cloud where the creature lives. These strokes are anchored \
+       to the on-device cloud waypoints listed below — they MUST come from the waypoints.
+
+    LAYER 2 — CHARACTER (2 to 4 strokes, 1 to 8 points each):
+       Bring the creature alive with anatomical details placed INSIDE the silhouette area:
+          • An EYE (1 point — a dot) — required, near the head
+          • A defining feature: fin / wing / horn / sail / beak / ear (3-8 points)
+          • Optional: mouth, smaller fin, leg, second eye
+       These do not need to be on waypoints — they go where the anatomy would logically sit.
+
+    LAYER 3 — FLOURISH (0 to 2 strokes, 1 to 6 points each, OPTIONAL):
+       Small expressive marks that say "this is alive" — a breath spout above a head, \
+       a tiny ripple line behind a tail, a fluff of breath. Keep them SMALL and CLEARLY \
+       supporting the creature. Don't crowd the frame.
 
     HARD RULES — do not break these:
-    1. Every point you output must land on a visible cloud edge in the photo.
-       Do not invent decorative details that are not present in the image.
-    2. Choose ONE shape the clouds genuinely suggest. If nothing leaps out, \
-       outline the largest single cloud and call it "Soft cumulus" (or similar).
-    3. Output 3 to 7 strokes; each stroke is 5 to 12 points.
-    4. Strokes should sit ON the clouds, not in the empty sky. \
-       If you place a point and the spot is blue sky, move it onto a nearby cloud edge instead.
+    1. Total strokes: 4 to 10. Total points across all strokes: 18 to 60.
+    2. Layer 1 silhouette strokes must come from waypoints (when waypoints exist below).
+    3. Layer 2 and Layer 3 strokes do NOT have to land on waypoints — they live inside the \
+       silhouette area or just adjacent. But don't put them in obvious empty sky far from \
+       the cloud.
+    4. Choose ONE creature the clouds genuinely suggest. If nothing leaps out, choose \
+       "Soft cumulus" with just Layer 1 + an eye in Layer 2 — no need to force a dragon.
     5. Lower watchability_score when the sky is sparse. Most photos rate 4-7. \
        Reserve 8-10 for clouds that genuinely look like a recognizable creature; \
        reserve 1-3 for plain blue sky.
+
+    Coordinate system:
+       (0,0) = top-left corner of the photo
+       (1,1) = bottom-right corner
+
+    How to think about it:
+       - First, find the cloud cluster that suggests a creature.
+       - Decide where the HEAD is (which end of the cluster).
+       - Trace the silhouette in 1-2 strokes (Layer 1) using waypoints.
+       - Place an eye dot inside the head area (Layer 2 — required).
+       - Add the most distinctive feature (Layer 2 — fin / wing / sail / horn).
+       - Optional: tiny breath spout or motion line (Layer 3).
+       - That's the drawing. Don't add anything that doesn't help.
+
+    Field guide:
+       - shape_name: short and concrete ("Sleeping dragon", "Whale, drifting", "Sailboat at dawn").
+       - cloud_type: one of Cumulus, Stratus, Cirrus, Cumulonimbus, Altocumulus, Stratocumulus.
+       - weather_mood: one word, evocative ("Dreamy", "Calm", "Brooding", "Hopeful").
+       - watchability_score: integer 1-10 as defined above.
+       - drawing_elements: array of stroke objects, each {label, stroke_width (1.5-3.0), points}.
+         Label should reflect which layer it is: "silhouette", "eye", "fin", "spout", etc.
+
+    Respond with ONLY valid JSON of this shape. No markdown fences, no commentary:
+    {"shape_name": "...", "cloud_type": "...", "weather_mood": "...",
+     "watchability_score": N, "drawing_elements": [...]}
+
+    Final reminder: A bare silhouette is a blob. An eye + a defining feature is what makes \
+    it a creature. Layer 2 is not optional — every drawing needs at least an eye and one \
+    other feature inside the silhouette. If you can't decide on a feature, "Soft cumulus" \
+    with just an eye is the honest fallback.
+    """
+}
 
     Coordinate system:
        (0,0) = top-left corner of the photo
@@ -263,13 +313,6 @@ actor GeminiService {
        - watchability_score: integer 1-10 as defined above.
        - drawing_elements: array of stroke objects, each {label, stroke_width (1.5-3.0), points}.
 
-    Respond with ONLY valid JSON of this shape. No markdown fences, no commentary:
-    {"shape_name": "...", "cloud_type": "...", "weather_mood": "...",
-     "watchability_score": N, "drawing_elements": [...]}
-
-    Final reminder: each point must lie on a real cloud edge in this specific photo. \
-    If you can't see a clear shape, trace the silhouette of the biggest cloud — \
-    that is always more honest than inventing a creature that isn't there.
     """
 }
 
