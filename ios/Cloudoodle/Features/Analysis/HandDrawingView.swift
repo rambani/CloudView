@@ -204,20 +204,43 @@ private struct StrokePath: View {
     let size: CGSize
     let progress: Double
 
+    // Ink + halo color tuned for legibility against *any* photo
+    // backdrop. White-on-cumulus disappears; pure-black against
+    // dark sky reads as menacing rather than playful. A deep
+    // navy-ink that almost reads as black, wrapped in a soft white
+    // halo, lands the "marker on glass / pencil over a picture"
+    // feel that works on bright cumulus AND blue sky.
+    private static let ink  = Color(red: 0.11, green: 0.15, blue: 0.24)
+    private static let halo = Color.white.opacity(0.85)
+
     var body: some View {
-        path
-            .trim(from: 0, to: progress)
-            .stroke(
-                Color.white,
-                style: StrokeStyle(
-                    lineWidth: strokeWidth,
-                    lineCap: .round,
-                    lineJoin: .round
+        ZStack {
+            // White halo underneath — thicker, slightly blurred —
+            // makes the ink stroke read against any backdrop.
+            path
+                .trim(from: 0, to: progress)
+                .stroke(
+                    Self.halo,
+                    style: StrokeStyle(
+                        lineWidth: strokeWidth + max(6, strokeWidth * 1.2),
+                        lineCap: .round,
+                        lineJoin: .round
+                    )
                 )
-            )
-            // Double shadow: outer diffuse glow + tight inner glow
-            .shadow(color: .cyan.opacity(0.35), radius: 8)
-            .shadow(color: .white.opacity(0.55), radius: 2)
+                .blur(radius: 1.5)
+
+            // Ink stroke on top — the actual drawing
+            path
+                .trim(from: 0, to: progress)
+                .stroke(
+                    Self.ink,
+                    style: StrokeStyle(
+                        lineWidth: strokeWidth,
+                        lineCap: .round,
+                        lineJoin: .round
+                    )
+                )
+        }
     }
 
     private var strokeWidth: CGFloat {
@@ -248,22 +271,18 @@ private struct PenTip: View {
 
     var body: some View {
         ZStack {
-            // Soft outer halo
+            // White halo so the tip reads on any backdrop
             Circle()
-                .fill(.white.opacity(0.08))
-                .frame(width: 32, height: 32)
-                .blur(radius: 6)
+                .fill(.white.opacity(0.55))
+                .frame(width: 22, height: 22)
+                .blur(radius: 5)
 
-            // Mid glow ring
+            // Ink dot — matches the stroke ink color, slightly
+            // softer so the tip glows like a wet pen rather than
+            // a hard black point.
             Circle()
-                .fill(.cyan.opacity(0.25))
-                .frame(width: 14, height: 14)
-                .blur(radius: 3)
-
-            // Bright inner dot
-            Circle()
-                .fill(.white.opacity(0.9))
-                .frame(width: 5, height: 5)
+                .fill(Color(red: 0.11, green: 0.15, blue: 0.24))
+                .frame(width: 7, height: 7)
         }
         .position(position)
         .allowsHitTesting(false)
