@@ -87,7 +87,14 @@ actor GeminiService {
             ]],
             "generationConfig": [
                 "responseMimeType": "application/json",
-                "temperature": 1.0,
+                // Temperature is intentionally low. We want the model to
+                // ground its strokes in the actual cloud silhouettes
+                // visible in the photo — not invent shapes that don't
+                // match what's there. Earlier prompts ran at 1.0 and
+                // produced decorative outlines drifting in the sky;
+                // 0.45 keeps Gemini grounded while still letting it
+                // pick from multiple plausible shape interpretations.
+                "temperature": 0.45,
                 "maxOutputTokens": 1024   // more tokens needed for path data
             ]
         ]
@@ -163,33 +170,59 @@ actor GeminiService {
     // Ask Gemini to both identify the shape AND draw it as path coordinates.
     // Coordinates are normalized: (0,0) = top-left corner, (1,1) = bottom-right.
     // Each element is one stroke — think of it as pen-down, draw, pen-up.
+    //
+    // Prompt design notes:
+    //   • The earlier version included a worked example with concrete
+    //     (arbitrary) coordinates. That taught the model to *invent*
+    //     coordinates rather than read them from the image. We removed
+    //     the numeric example and replaced it with verbal guidance.
+    //   • Hard rules are listed twice (top + bottom) because Gemini
+    //     attends most to the start and end of the prompt. The middle
+    //     section explains the "why" so the rules feel motivated.
+    //   • Temperature is also dropped (0.45 in the request body) so
+    //     the model commits to one plausible reading instead of
+    //     fanning across several creative reinterpretations.
     private static let prompt = """
-    You are an artist who finds shapes hidden in clouds.
+    You are a cloud-watcher tracing a shape onto the real sky photo you are looking at.
 
-    Look at this sky photo. Find the most interesting shape formed by the clouds, \
-    then sketch it as simple line strokes directly on the image.
+    HARD RULES — do not break these:
+    1. Every point you output must land on a visible cloud edge in the photo.
+       Do not invent decorative details that are not present in the image.
+    2. Choose ONE shape the clouds genuinely suggest. If nothing leaps out, \
+       outline the largest single cloud and call it "Soft cumulus" (or similar).
+    3. Output 3 to 7 strokes; each stroke is 5 to 12 points.
+    4. Strokes should sit ON the clouds, not in the empty sky. \
+       If you place a point and the spot is blue sky, move it onto a nearby cloud edge instead.
+    5. Lower watchability_score when the sky is sparse. Most photos rate 4-7. \
+       Reserve 8-10 for clouds that genuinely look like a recognizable creature; \
+       reserve 1-3 for plain blue sky.
 
-    Use normalized coordinates where (0,0) is the top-left corner and (1,1) is the bottom-right. \
-    Draw 3 to 7 strokes. Each stroke traces a part of the shape you actually see in the clouds — \
-    follow the real cloud edges. Keep each stroke to 5–12 points.
+    Coordinate system:
+       (0,0) = top-left corner of the photo
+       (1,1) = bottom-right corner
 
-    Example — a dragon seen in clouds:
-    {
-      "shape_name": "Sleeping Dragon",
-      "cloud_type": "Cumulus",
-      "weather_mood": "Dreamy",
-      "watchability_score": 8,
-      "drawing_elements": [
-        {"label": "body", "stroke_width": 2.5, "points": [[0.28,0.48],[0.38,0.42],[0.50,0.40],[0.62,0.43],[0.70,0.50]]},
-        {"label": "neck", "stroke_width": 2.2, "points": [[0.70,0.50],[0.76,0.43],[0.80,0.38]]},
-        {"label": "head", "stroke_width": 2.0, "points": [[0.80,0.38],[0.84,0.35],[0.87,0.37],[0.85,0.41]]},
-        {"label": "tail", "stroke_width": 1.8, "points": [[0.28,0.48],[0.18,0.54],[0.12,0.60],[0.10,0.68]]},
-        {"label": "wing", "stroke_width": 1.6, "points": [[0.50,0.40],[0.48,0.30],[0.56,0.26],[0.60,0.32]]}
-      ]
-    }
+    How to draw:
+       - First, find the cloud (or cloud cluster) in the photo that most clearly suggests a shape.
+       - Note where its bright edges are in normalized coordinates.
+       - Start with the LONGEST anatomical feature (the body / spine / main mass).
+       - Add supporting strokes that hug the actual cloud silhouette \
+         (a wing along an actual bulge, a tail tracing an actual wisp).
+       - Each stroke point should lie on the bright cloud / dim sky boundary you can see.
 
-    Now analyze this photo. Respond with ONLY valid JSON matching that structure. \
-    watchability_score: 1 (plain blue sky) to 10 (dramatic shapes).
+    Field guide:
+       - shape_name: short and concrete ("Sleeping dragon", "Whale, drifting", "Sailboat at dawn").
+       - cloud_type: one of Cumulus, Stratus, Cirrus, Cumulonimbus, Altocumulus, Stratocumulus.
+       - weather_mood: one word, evocative ("Dreamy", "Calm", "Brooding", "Hopeful").
+       - watchability_score: integer 1-10 as defined above.
+       - drawing_elements: array of stroke objects, each {label, stroke_width (1.5-3.0), points}.
+
+    Respond with ONLY valid JSON of this shape. No markdown fences, no commentary:
+    {"shape_name": "...", "cloud_type": "...", "weather_mood": "...",
+     "watchability_score": N, "drawing_elements": [...]}
+
+    Final reminder: each point must lie on a real cloud edge in this specific photo. \
+    If you can't see a clear shape, trace the silhouette of the biggest cloud — \
+    that is always more honest than inventing a creature that isn't there.
     """
 }
 

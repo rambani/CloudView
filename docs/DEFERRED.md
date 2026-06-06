@@ -12,9 +12,19 @@ forget them and so the reasoning lives next to the decision.
 
 ## Code polish — would land before TestFlight in an ideal world
 
-### Onboarding refinements (item E — partial)
-- Smoother slide transitions — current `.move(edge:)` snap looks fine
-  but could use a custom `AnyTransition` for the demo→finished swap.
+### Cloud doodle realism (follow-up B)
+The prompt rewrite + temperature drop are landed. If users still
+report doodles that drift away from the actual cloud:
+- Add `VNDetectContoursRequest` (already an option on `CloudVisionService`)
+  to extract the largest cloud silhouette as 12-24 normalized
+  waypoints. Pass them to Gemini as context ("here are the visible
+  cloud edges; place your strokes ON these points"). That grounds
+  the model in the actual photo rather than asking it to look at the
+  image attachment in isolation.
+- Stretch: a verifier pass that renders the proposed drawing on the
+  photo, sends both to Gemini with "did your strokes follow the
+  cloud?" and regenerates on a low score. Doubles API cost; only
+  worth it if A+B don't get us there.
 
 ### Accessibility (item D — partial)
 - Dynamic-type audit — the editorial design hardcodes sizes; should
@@ -98,3 +108,11 @@ swap them out, not to add new functionality.
   page 7), skip-onboarding affordance in chrome, VoiceOver labels on
   icon-only buttons (FeedView gear, capture close, capture shutter,
   share, notification dismiss), DemoPage A11y as a tappable element.
+- 2026-06: Cloud doodle realism pass (follow-up A) — rewrote the
+  Gemini prompt to forbid invented coordinates, mandate that every
+  point lies on a visible cloud edge, and force fallback to
+  "outline the largest cloud" on low-shape skies. Temperature
+  dropped from 1.0 → 0.45 so the model commits to one plausible
+  reading instead of free-associating. Smoother onboarding
+  transitions (opacity + tiny scale instead of edge slide; longer
+  spring for the sunset reveal).

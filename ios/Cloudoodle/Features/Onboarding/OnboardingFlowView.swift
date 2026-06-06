@@ -14,12 +14,18 @@ struct OnboardingFlowView: View {
             Color.black.ignoresSafeArea()
 
             currentPage
+                // Soft cross-fade with a barely-visible zoom-in instead
+                // of a hard edge-slide. The directional slide felt good
+                // for a 3-step wizard but at 8 steps it gets repetitive,
+                // and the welcome→howItWorks and demo→finished bookends
+                // (which cross palette boundaries) read better as a
+                // dissolve than a swipe.
                 .transition(.asymmetric(
-                    insertion: .move(edge: .trailing).combined(with: .opacity),
-                    removal: .move(edge: .leading).combined(with: .opacity)
+                    insertion: .opacity.combined(with: .scale(scale: 0.98, anchor: .center)),
+                    removal: .opacity.combined(with: .scale(scale: 1.02, anchor: .center))
                 ))
                 .id(store.step)
-                .animation(.spring(response: 0.45, dampingFraction: 0.85), value: store.step)
+                .animation(transitionSpring, value: store.step)
 
             if store.step.showsProgressBar {
                 VStack {
@@ -29,6 +35,16 @@ struct OnboardingFlowView: View {
             }
         }
         .preferredColorScheme(.dark)
+    }
+
+    /// Per-transition spring tuning. Finished page reveals a sunset
+    /// gradient — give it a slightly longer dissolve so the palette
+    /// shift feels like a sunrise instead of a jump-cut.
+    private var transitionSpring: Animation {
+        if store.step == .finished {
+            return .spring(response: 0.65, dampingFraction: 0.9)
+        }
+        return .spring(response: 0.45, dampingFraction: 0.85)
     }
 
     @ViewBuilder
