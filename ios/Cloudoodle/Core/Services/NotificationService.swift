@@ -32,8 +32,10 @@ final class NotificationService: ObservableObject {
             if granted {
                 UIApplication.shared.registerForRemoteNotifications()
             }
+            Telemetry.notificationsGranted(granted)
             return granted
         } catch {
+            Telemetry.notificationsGranted(false)
             return false
         }
     }

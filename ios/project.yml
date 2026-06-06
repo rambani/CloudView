@@ -21,6 +21,15 @@ targets:
     platform: iOS
     sources:
       - path: Cloudoodle
+        excludes:
+          # Legal markdown is added explicitly below with buildPhase
+          # resources so xcodegen doesn't classify them as "text" and
+          # drop them from the bundle.
+          - "Resources/Legal/*.md"
+      - path: Cloudoodle/Resources/Legal/PrivacyPolicy.md
+        buildPhase: resources
+      - path: Cloudoodle/Resources/Legal/TermsOfService.md
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.cloudoodle.app

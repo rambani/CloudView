@@ -91,20 +91,70 @@ Deno.serve(async (req) => {
   const apnsToken = await buildApnsJwt();
   const city = sighting.city ?? "your area";
 
-  // Send one APNs request per user
-  const sends = nearbyUsers.map((user: { username: string; device_token: string }) =>
-    sendApnsNotification({
+  // Send one APNs request per user. Pick a random title + body
+  // template so users seeing multiple pushes in a week don't see the
+  // same phrasing every time. Variants are deterministic per sighting
+  // (seeded by id hash) so the same sighting reads identically to
+  // everyone who gets the push.
+  const sends = nearbyUsers.map((user: { username: string; device_token: string }) => {
+    const variant = pickVariant(sighting.id, sighting.shape_name, city, user.username.split(" ")[0]);
+    return sendApnsNotification({
       deviceToken: user.device_token,
       apnsToken,
-      title: `Look up, ${user.username.split(" ")[0]}`,
-      body: `'${sighting.shape_name}' spotted near ${city} just now`,
+      title: variant.title,
+      body: variant.body,
       data: { sighting_id: sighting.id, latitude: sighting.latitude, longitude: sighting.longitude },
-    })
-  );
+    });
+  });
 
   await Promise.allSettled(sends);
   return new Response("Notifications sent", { status: 200 });
 });
+
+// MARK: - Push copy variants
+
+interface PushVariant { title: string; body: string }
+
+/**
+ * Build a randomized title + body for a sighting push. Selection is
+ * deterministic per sighting (FNV-1a hash of the id) so all recipients
+ * of the same push see identical phrasing — important so two users
+ * comparing screenshots don't think their copies came from different
+ * apps. Rotation gives the in-product feel some variety without
+ * shipping a build for each new template.
+ */
+function pickVariant(
+  sightingId: string,
+  shapeName: string,
+  city: string,
+  firstName: string,
+): PushVariant {
+  const variants: PushVariant[] = [
+    { title: `Look up, ${firstName}`,
+      body: `'${shapeName}' spotted near ${city} just now` },
+    { title: `Something in the sky over ${city}`,
+      body: `Someone just found a ${shapeName.toLowerCase()} overhead — yours might still be drifting` },
+    { title: `Skies over ${city} are putting on a show`,
+      body: `A ${shapeName.toLowerCase()} just floated by. Worth a look up.` },
+    { title: `Heads up, ${firstName}`,
+      body: `A ${shapeName.toLowerCase()} is overhead near you right now` },
+  ];
+  const idx = fnv1a(sightingId) % variants.length;
+  return variants[idx];
+}
+
+/**
+ * Tiny non-cryptographic hash. We only need a stable integer modulo
+ * variant count; reaching for crypto.subtle here would be overkill.
+ */
+function fnv1a(input: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+  }
+  return h;
+}
 
 // MARK: - APNs helpers
 

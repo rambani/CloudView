@@ -1,47 +1,42 @@
 import Foundation
 
+#if canImport(FoundationModels)
+import FoundationModels
+#endif
+
 // Generates witty cloud quips entirely on-device using Apple Foundation Models (iOS 26+).
 // Falls back to curated templates on older OS versions — no API call either way.
+//
+// Two-layer guard for SDK availability:
+//   1. `#if canImport(FoundationModels)` — only compiles the FoundationModels
+//      path when the SDK is present (Xcode 26+). Older Xcode still builds.
+//   2. `if #available(iOS 26.0, *)` — only runs the path when the device's
+//      iOS is new enough to actually have the framework loaded.
 actor QuipGenerationService {
     static let shared = QuipGenerationService()
 
     func generateQuip(shapeName: String, cloudType: String) async -> String {
-        if #available(iOS 26.0, *) {
-            return await generateWithFoundationModels(shapeName: shapeName, cloudType: cloudType)
+        if let onDevice = await foundationModelsQuip(shapeName: shapeName, cloudType: cloudType) {
+            return onDevice
         }
         return templateQuip(shapeName: shapeName, cloudType: cloudType)
     }
 
     // MARK: - On-device generation (iOS 26+)
 
-    @available(iOS 26.0, *)
-    private func generateWithFoundationModels(shapeName: String, cloudType: String) async -> String {
-        // Import is conditional — only compiled on iOS 26+
-        // Using dynamic lookup to avoid compile errors on earlier SDKs
-        guard let quip = await foundationModelsQuip(shapeName: shapeName, cloudType: cloudType) else {
-            return templateQuip(shapeName: shapeName, cloudType: cloudType)
-        }
-        return quip
-    }
-
-    @available(iOS 26.0, *)
     private func foundationModelsQuip(shapeName: String, cloudType: String) async -> String? {
-        // FoundationModels framework — available in iOS 26+ with Apple Intelligence
-        // Requires: iPhone 15 Pro+ (A17 Pro) or M-series iPad, device language set to English
-        //
-        // Note: If you're compiling with Xcode 26 SDK, uncomment the FoundationModels implementation below.
-        // The dynamic approach here avoids requiring the iOS 26 SDK to compile the project.
-
-        /*
-        import FoundationModels
-
+        #if canImport(FoundationModels)
+        guard #available(iOS 26.0, *) else { return nil }
         let model = SystemLanguageModel.default
         guard case .available = model.availability else { return nil }
 
         let session = LanguageModelSession(
             model: model,
-            instructions: "You write short, witty, poetic observations about clouds. " +
-                          "One sentence only. Playful but not cheesy. Never start with 'Look', 'This', 'A', or 'The'."
+            instructions: """
+            You write short, witty, poetic observations about clouds.
+            One sentence only. Playful but not cheesy.
+            Never start with 'Look', 'This', 'A', or 'The'.
+            """
         )
 
         let prompt = "Write one sentence about a \(cloudType) cloud that looks like a \(shapeName)."
@@ -54,10 +49,12 @@ actor QuipGenerationService {
         } catch {
             return nil
         }
-        */
-
-        // Until you update the project to Xcode 26, this path falls through to templates
+        #else
+        // Pre-iOS 26 SDK — FoundationModels isn't available to link against.
+        // Returning nil here makes the caller fall through to the template
+        // pool, which is the desired behavior on any non-Xcode-26 build.
         return nil
+        #endif
     }
 
     // MARK: - Template fallback (any iOS version)

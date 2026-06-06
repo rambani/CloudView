@@ -53,10 +53,22 @@ final class SupabaseService: ObservableObject {
 
     func signUp(email: String, password: String, username: String) async throws {
         guard let client else { throw SupabaseError.notConfigured }
-        let response = try await client.auth.signUp(email: email, password: password)
-        let userId = response.user.id
-        try await upsertProfile(id: userId, username: username)
-        await refreshSession()
+        do {
+            let response = try await client.auth.signUp(email: email, password: password)
+            let userId = response.user.id
+            // Prefer an explicitly-typed username from the AuthForm; fall
+            // back to the onboarding draft if the caller passed empty
+            // (e.g. a future no-username flow that defers to onboarding).
+            let chosen = username.isEmpty
+                ? (UserDefaults.standard.string(forKey: "onboarding_username") ?? "")
+                : username
+            try await upsertProfile(id: userId, username: chosen)
+            await refreshSession()
+            Telemetry.signUp(success: true, method: .email)
+        } catch {
+            Telemetry.signUp(success: false, method: .email, error: error)
+            throw error
+        }
     }
 
     /// Sign in with Apple — exchanges the identity token from
@@ -74,20 +86,36 @@ final class SupabaseService: ObservableObject {
         appleUserName: String?
     ) async throws {
         guard let client else { throw SupabaseError.notConfigured }
-        _ = try await client.auth.signInWithIdToken(
-            credentials: .init(
-                provider: .apple,
-                idToken: idToken,
-                nonce: nonce
+        do {
+            _ = try await client.auth.signInWithIdToken(
+                credentials: .init(
+                    provider: .apple,
+                    idToken: idToken,
+                    nonce: nonce
+                )
             )
-        )
+            Telemetry.signIn(success: true, method: .apple)
+        } catch {
+            Telemetry.signIn(success: false, method: .apple, error: error)
+            throw error
+        }
         // First-time signers don't have a profile row yet — the
         // handle_new_user trigger inserts one with a sensible default
-        // username (from the JWT's email). If Apple gave us a real
-        // name, prefer that.
-        if let name = appleUserName,
-           !name.isEmpty,
-           let userId = try await client.auth.session.user.id as UUID? {
+        // username (from the JWT's email). Prefer, in order:
+        //   1. The name Apple returned on FIRST sign-in (Apple omits
+        //      it on subsequent sign-ins by design).
+        //   2. The username the user drafted during onboarding and
+        //      stashed in @AppStorage. Letting that flow through here
+        //      means a brand-new account inherits the handle the user
+        //      already picked, instead of the default placeholder.
+        let onboardingDraft = UserDefaults.standard.string(forKey: "onboarding_username") ?? ""
+        let chosenUsername: String? = {
+            if let n = appleUserName, !n.isEmpty { return n }
+            if !onboardingDraft.isEmpty { return onboardingDraft }
+            return nil
+        }()
+        if let name = chosenUsername {
+            let userId = try await client.auth.session.user.id
             try? await upsertProfile(id: userId, username: name)
         }
         await refreshSession()
@@ -95,11 +123,18 @@ final class SupabaseService: ObservableObject {
 
     func signIn(email: String, password: String) async throws {
         guard let client else { throw SupabaseError.notConfigured }
-        try await client.auth.signIn(email: email, password: password)
-        await refreshSession()
+        do {
+            try await client.auth.signIn(email: email, password: password)
+            await refreshSession()
+            Telemetry.signIn(success: true, method: .email)
+        } catch {
+            Telemetry.signIn(success: false, method: .email, error: error)
+            throw error
+        }
     }
 
     func signOut() async throws {
+        Telemetry.signOut()
         guard let client else { return }
         // Clear the device token on the outgoing profile before signing
         // out so a subsequent user signing in on this same device won't
@@ -128,11 +163,17 @@ final class SupabaseService: ObservableObject {
     func deleteAccount() async throws {
         guard let client else { throw SupabaseError.notConfigured }
         guard currentUser != nil else { throw SupabaseError.notAuthenticated }
-        // Edge Function deletes data via delete_user_account() RPC then removes the auth user.
-        // We do not call the RPC directly — the Edge Function owns the whole sequence.
-        try await client.functions.invoke("delete-account", options: .init())
-        currentUser = nil
-        isAuthenticated = false
+        do {
+            // Edge Function deletes data via delete_user_account() RPC then removes the auth user.
+            // We do not call the RPC directly — the Edge Function owns the whole sequence.
+            try await client.functions.invoke("delete-account", options: .init())
+            currentUser = nil
+            isAuthenticated = false
+            Telemetry.deleteAccount(success: true)
+        } catch {
+            Telemetry.deleteAccount(success: false, error: error)
+            throw error
+        }
     }
 
     private func refreshSession() async {
@@ -155,6 +196,32 @@ final class SupabaseService: ObservableObject {
     }
 
     // MARK: - Profile
+
+    /// Best-effort availability check used during onboarding. Returns
+    /// `true` if the row exists, `false` if it doesn't, and `false`
+    /// (optimistic) on any network/auth error — better than blocking
+    /// onboarding behind a transient hiccup. The `username` column is
+    /// public-readable per migration 008.
+    func isUsernameTaken(_ username: String) async -> Bool {
+        guard let client else { return false }
+        do {
+            let rows: [TakenProbe] = try await client
+                .from("profiles")
+                .select("id")
+                .eq("username", value: username)
+                .limit(1)
+                .execute()
+                .value
+            return !rows.isEmpty
+        } catch {
+            return false
+        }
+    }
+
+    /// Tiny shape that matches the single `id` column we select in
+    /// `isUsernameTaken` — full AppUser would require all the columns
+    /// the public grant does NOT expose.
+    private struct TakenProbe: Decodable { let id: UUID }
 
     func updateDeviceToken(_ token: String) async {
         guard let client, let userId = currentUser?.id else { return }
@@ -194,6 +261,19 @@ final class SupabaseService: ObservableObject {
     // MARK: - Sightings
 
     func uploadSighting(
+        _ sighting: CloudSighting,
+        imageData: Data
+    ) async throws -> CloudSighting {
+        Telemetry.uploadStart()
+        do {
+            return try await uploadSightingCore(sighting, imageData: imageData)
+        } catch {
+            Telemetry.uploadFinish(success: false, error: error)
+            throw error
+        }
+    }
+
+    private func uploadSightingCore(
         _ sighting: CloudSighting,
         imageData: Data
     ) async throws -> CloudSighting {
@@ -266,7 +346,7 @@ final class SupabaseService: ObservableObject {
         // had it correctly. CaptureFlowView discards the return today, so
         // this is preventative; future callers that consume it (e.g. a
         // post-upload share/preview screen) will get the right values.
-        return CloudSighting(
+        let uploaded = CloudSighting(
             id: sighting.id,
             userId: userId,
             imageURL: imageURL,
@@ -283,6 +363,8 @@ final class SupabaseService: ObservableObject {
             isLikedByCurrentUser: false,
             createdAt: sighting.createdAt
         )
+        Telemetry.uploadFinish(success: true)
+        return uploaded
     }
 
     func fetchFeed(limit: Int = 30, offset: Int = 0) async throws -> [CloudSighting] {

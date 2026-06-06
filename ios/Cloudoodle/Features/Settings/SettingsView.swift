@@ -22,6 +22,21 @@ struct SettingsView: View {
     // UI
     @State private var showAnthropicKey = false
     @State private var showSupabaseKey = false
+    @State private var legalSheet: LegalSheet?
+
+    /// Driven by the rows under "Legal". One enum + identifier so
+    /// SwiftUI can present a single sheet with whichever doc was tapped.
+    enum LegalSheet: String, Identifiable {
+        case privacy, terms
+        var id: String { rawValue }
+    }
+
+    // Mirrors the gate in ContentView so the DEBUG "restart onboarding"
+    // button flips the same UserDefaults key. The default value here is
+    // never actually consulted — Settings is unreachable before the
+    // onboarding cover finishes — so it's kept as `true` for
+    // robustness if a future surface presents Settings on cold launch.
+    @AppStorage("hasOnboarded") private var hasOnboarded = true
 
     var body: some View {
         NavigationStack {
@@ -99,7 +114,50 @@ struct SettingsView: View {
                             }
                         }
 
-                        // About
+                        // Legal — Privacy Policy + Terms. If a hosted URL
+                        // is set in LegalLinks, opens Safari; otherwise
+                        // pops a sheet rendering the bundled markdown.
+                        SettingsSection(title: "Legal", icon: "doc.text") {
+                            VStack(spacing: 0) {
+                                LegalRow(
+                                    title: "Privacy Policy",
+                                    url: LegalLinks.privacyURL,
+                                    onFallback: { legalSheet = .privacy }
+                                )
+                                Divider().background(Color.white.opacity(0.06))
+                                LegalRow(
+                                    title: "Terms of Service",
+                                    url: LegalLinks.termsURL,
+                                    onFallback: { legalSheet = .terms }
+                                )
+                            }
+                        }
+
+                        #if DEBUG
+                        // Developer affordance — quick way to re-run the
+                        // onboarding flow without uninstalling. Not shown
+                        // in Release so real users can't accidentally
+                        // wipe their onboarding state.
+                        Button {
+                            hasOnboarded = false
+                            dismiss()
+                        } label: {
+                            Label("Restart onboarding (DEBUG)", systemImage: "arrow.counterclockwise")
+                                .font(CV.Font.caption)
+                                .foregroundStyle(CV.Color.textTertiary)
+                                .padding(.vertical, 8)
+                                .frame(maxWidth: .infinity)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        .fill(Color.white.opacity(0.05))
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        #endif
+
+                        // About — version + build for support / TestFlight
+                        // diagnostics. Reads from Info.plist so it stays in
+                        // sync with whatever the xcconfig is building.
                         VStack(spacing: 4) {
                             Text("Cloudoodle")
                                 .font(.system(size: 13, weight: .semibold))
@@ -107,6 +165,10 @@ struct SettingsView: View {
                             Text("Find shapes in the sky")
                                 .font(CV.Font.caption)
                                 .foregroundStyle(CV.Color.textTertiary.opacity(0.6))
+                            Text("v\(Self.appVersion) (\(Self.buildNumber))")
+                                .font(CV.Font.mono)
+                                .foregroundStyle(CV.Color.textTertiary.opacity(0.5))
+                                .padding(.top, 2)
                         }
                         .padding(.bottom, 40)
                     }
@@ -123,8 +185,22 @@ struct SettingsView: View {
                         .foregroundStyle(CV.Color.accentBlue)
                 }
             }
+            .sheet(item: $legalSheet) { sheet in
+                switch sheet {
+                case .privacy: LegalView(title: "Privacy Policy", resourceName: "PrivacyPolicy")
+                case .terms:   LegalView(title: "Terms of Service", resourceName: "TermsOfService")
+                }
+            }
         }
         .preferredColorScheme(.dark)
+    }
+
+    private static var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+    }
+
+    private static var buildNumber: String {
+        Bundle.main.infoDictionary?[kCFBundleVersionKey as String] as? String ?? "?"
     }
 
     private func authenticate() async {
@@ -172,6 +248,40 @@ struct SettingsView: View {
 }
 
 // MARK: - Supporting Views
+
+/// Privacy Policy / Terms of Service row. If a hosted URL is set in
+/// `LegalLinks`, the row renders as a `Link` (opens Safari). If not,
+/// the row is a button that calls back to present the in-app
+/// markdown viewer.
+private struct LegalRow: View {
+    let title: String
+    let url: URL?
+    let onFallback: () -> Void
+
+    var body: some View {
+        if let url {
+            Link(destination: url) { rowContent }
+                .buttonStyle(.plain)
+        } else {
+            Button(action: onFallback) { rowContent }
+                .buttonStyle(.plain)
+        }
+    }
+
+    private var rowContent: some View {
+        HStack(spacing: 8) {
+            Text(title)
+                .font(.system(size: 14))
+                .foregroundStyle(CV.Color.textPrimary)
+            Spacer()
+            Image(systemName: url == nil ? "doc.text" : "arrow.up.right")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(CV.Color.textTertiary)
+        }
+        .padding(.vertical, 12)
+        .contentShape(Rectangle())
+    }
+}
 
 private struct SettingsSection<Content: View>: View {
     let title: String

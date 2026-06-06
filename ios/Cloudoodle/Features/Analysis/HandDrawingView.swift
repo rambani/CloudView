@@ -11,6 +11,13 @@ struct HandDrawingView: View {
     @State private var drawProgress: Double = 0  // 0→1, single source of truth
     @State private var penVisible = false
 
+    /// Honor the system Reduce Motion setting — drop the pen-trace
+    /// animation in favor of an immediate full reveal so users who
+    /// requested calmer motion don't see strokes sweep across the
+    /// screen on every scan. The drawing still appears; it just
+    /// appears whole with the label.
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     // Precomputed at init — path ordering and segment timing
     private let orderedElements: [CloudAnalysis.DrawingElement]
     private let segments: [SegmentTiming]
@@ -107,6 +114,15 @@ struct HandDrawingView: View {
             }
         }
         .onAppear {
+            if reduceMotion {
+                // Skip the animated reveal — flip straight to final
+                // state so the drawing and label appear together with
+                // no motion. Pen tip never shows.
+                drawProgress = 1.0
+                penVisible = false
+                onComplete?()
+                return
+            }
             penVisible = true
             withAnimation(.timingCurve(0.25, 0.1, 0.65, 1.0, duration: totalDuration)) {
                 drawProgress = 1.0

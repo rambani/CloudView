@@ -47,26 +47,72 @@ actor GeminiService {
         return UserDefaults.standard.string(forKey: "gemini_api_key") ?? ""
     }
 
-    func analyzeCloud(image: UIImage) async throws -> GeminiCloudAnalysis {
+    /// Analyze a sky photo. Pass `cloudWaypoints` if you've already
+    /// run `CloudVisionService.extractCloudWaypoints` — they ground
+    /// the model in the actual cloud silhouettes. Without them, the
+    /// model still produces a drawing but is freer to drift away
+    /// from the real cloud edges.
+    func analyzeCloud(
+        image: UIImage,
+        cloudWaypoints: [[Double]] = []
+    ) async throws -> GeminiCloudAnalysis {
         guard !apiKey.isEmpty else { throw GeminiError.missingAPIKey }
         guard let imageData = image.preparedForAnalysis() else {
             throw GeminiError.imageEncodingFailed
         }
 
+        // One quiet auto-retry on transient categories — the common
+        // rate-limit and 5xx hiccups usually clear after a second. Any
+        // more than one retry would erode the snappy "scan now" feel
+        // of the capture flow; users would rather see the error and
+        // tap again than wait 5+ seconds for repeated attempts.
+        do {
+            return try await callGemini(imageData: imageData, cloudWaypoints: cloudWaypoints)
+        } catch let error as GeminiError where Self.isTransient(error) {
+            try? await Task.sleep(for: .seconds(1))
+            return try await callGemini(imageData: imageData, cloudWaypoints: cloudWaypoints)
+        }
+    }
+
+    private static func isTransient(_ error: GeminiError) -> Bool {
+        if case .invalidResponse(let code, _) = error {
+            return code == 429 || (500...599).contains(code)
+        }
+        if case .networkError = error { return true }
+        return false
+    }
+
+    private func callGemini(
+        imageData: Data,
+        cloudWaypoints: [[Double]]
+    ) async throws -> GeminiCloudAnalysis {
         let urlString = "\(baseURL)/\(model):generateContent"
         guard let url = URL(string: urlString) else { throw GeminiError.missingAPIKey }
+
+        // Inject the on-device waypoints into the prompt as a
+        // dedicated "anchor points" section. With them present, the
+        // model can't honestly place a stroke that isn't near a real
+        // cloud edge — the waypoints ARE the visible cloud edges.
+        let prompt = Self.prompt + Self.waypointsSection(cloudWaypoints)
 
         let body: [String: Any] = [
             "contents": [[
                 "parts": [
                     ["inlineData": ["mimeType": "image/jpeg", "data": imageData.base64EncodedString()]],
-                    ["text": Self.prompt]
+                    ["text": prompt]
                 ]
             ]],
             "generationConfig": [
                 "responseMimeType": "application/json",
-                "temperature": 1.0,
-                "maxOutputTokens": 1024   // more tokens needed for path data
+                // Temperature is intentionally low. We want the model to
+                // ground its strokes in the actual cloud silhouettes
+                // visible in the photo — not invent shapes that don't
+                // match what's there. Earlier prompts ran at 1.0 and
+                // produced decorative outlines drifting in the sky;
+                // 0.45 keeps Gemini grounded while still letting it
+                // pick from multiple plausible shape interpretations.
+                "temperature": 0.45,
+                "maxOutputTokens": 2048   // three-layer drawings can run long
             ]
         ]
 
@@ -80,7 +126,12 @@ actor GeminiService {
         request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch {
+            throw GeminiError.networkError(error)
+        }
 
         guard let http = response as? HTTPURLResponse else {
             throw GeminiError.networkError(URLError(.badServerResponse))
@@ -133,36 +184,113 @@ actor GeminiService {
         return s
     }
 
-    // Ask Gemini to both identify the shape AND draw it as path coordinates.
-    // Coordinates are normalized: (0,0) = top-left corner, (1,1) = bottom-right.
-    // Each element is one stroke — think of it as pen-down, draw, pen-up.
-    private static let prompt = """
-    You are an artist who finds shapes hidden in clouds.
+    /// Build the cloud-edge waypoint section that gets concatenated
+    /// onto the static prompt at request time. Empty when on-device
+    /// Vision didn't find a usable silhouette (very plain sky, broken
+    /// image), in which case the model falls back to image-only
+    /// grounding with the prompt's existing "every point must lie on
+    /// a visible cloud edge" rules.
+    private static func waypointsSection(_ waypoints: [[Double]]) -> String {
+        guard waypoints.count >= 6 else { return "" }
+        let formatted = waypoints
+            .map { String(format: "[%.3f, %.3f]", $0[0], $0[1]) }
+            .joined(separator: ", ")
+        return """
 
-    Look at this sky photo. Find the most interesting shape formed by the clouds, \
-    then sketch it as simple line strokes directly on the image.
 
-    Use normalized coordinates where (0,0) is the top-left corner and (1,1) is the bottom-right. \
-    Draw 3 to 7 strokes. Each stroke traces a part of the shape you actually see in the clouds — \
-    follow the real cloud edges. Keep each stroke to 5–12 points.
+        CLOUD EDGE WAYPOINTS (extracted from this exact photo by on-device Vision):
+        [\(formatted)]
 
-    Example — a dragon seen in clouds:
-    {
-      "shape_name": "Sleeping Dragon",
-      "cloud_type": "Cumulus",
-      "weather_mood": "Dreamy",
-      "watchability_score": 8,
-      "drawing_elements": [
-        {"label": "body", "stroke_width": 2.5, "points": [[0.28,0.48],[0.38,0.42],[0.50,0.40],[0.62,0.43],[0.70,0.50]]},
-        {"label": "neck", "stroke_width": 2.2, "points": [[0.70,0.50],[0.76,0.43],[0.80,0.38]]},
-        {"label": "head", "stroke_width": 2.0, "points": [[0.80,0.38],[0.84,0.35],[0.87,0.37],[0.85,0.41]]},
-        {"label": "tail", "stroke_width": 1.8, "points": [[0.28,0.48],[0.18,0.54],[0.12,0.60],[0.10,0.68]]},
-        {"label": "wing", "stroke_width": 1.6, "points": [[0.50,0.40],[0.48,0.30],[0.56,0.26],[0.60,0.32]]}
-      ]
+        These are normalized (x, y) points sampled along the silhouette of the most \
+        prominent cloud cluster in the image. They are GROUND TRUTH for SILHOUETTE strokes only — \
+        they came from the photo itself, not from your imagination.
+
+           • SILHOUETTE strokes (Layer 1) must use these waypoints, or points interpolated \
+             between two adjacent waypoints. No exceptions.
+           • CHARACTER and FLOURISH strokes (Layer 2, 3) do NOT have to land on waypoints — \
+             they live INSIDE the silhouette or just adjacent to it. Place them where the \
+             body of the creature would logically be (eye near a head bulge, fin along a \
+             belly curve, spout above a head).
+           • You do NOT have to use every waypoint. Pick the subset that best forms the silhouette.
+        """
     }
 
-    Now analyze this photo. Respond with ONLY valid JSON matching that structure. \
-    watchability_score: 1 (plain blue sky) to 10 (dramatic shapes).
+    // Three-layer drawing prompt — silhouette anchors to waypoints,
+    // character details and flourishes give the creature life.
+    //
+    // Prompt design notes:
+    //   • Previous iteration capped at 3-7 strokes "tracing the cloud
+    //     edges." Result: tight outline but no creature character —
+    //     just a blob shape. This version splits the work into three
+    //     layers so character + flourish strokes are *required*, not
+    //     a side effect of luck.
+    //   • Hard rules listed at top + bottom because Gemini attends
+    //     most to start and end of the prompt.
+    //   • Temperature kept at 0.45 in the request body (low enough to
+    //     trust waypoints, high enough to invent expressive details
+    //     in Layers 2 + 3).
+    private static let prompt = """
+    You are a cloud-watcher illustrating a creature you see in the sky photo.
+
+    Your drawing has THREE layers — all three are required:
+
+    LAYER 1 — SILHOUETTE (1 to 2 strokes, 5 to 12 points each):
+       Trace the outline of the cloud where the creature lives. These strokes are anchored \
+       to the on-device cloud waypoints listed below — they MUST come from the waypoints.
+
+    LAYER 2 — CHARACTER (2 to 4 strokes, 1 to 8 points each):
+       Bring the creature alive with anatomical details placed INSIDE the silhouette area:
+          • An EYE (1 point — a dot) — required, near the head
+          • A defining feature: fin / wing / horn / sail / beak / ear (3-8 points)
+          • Optional: mouth, smaller fin, leg, second eye
+       These do not need to be on waypoints — they go where the anatomy would logically sit.
+
+    LAYER 3 — FLOURISH (0 to 2 strokes, 1 to 6 points each, OPTIONAL):
+       Small expressive marks that say "this is alive" — a breath spout above a head, \
+       a tiny ripple line behind a tail, a fluff of breath. Keep them SMALL and CLEARLY \
+       supporting the creature. Don't crowd the frame.
+
+    HARD RULES — do not break these:
+    1. Total strokes: 4 to 10. Total points across all strokes: 18 to 60.
+    2. Layer 1 silhouette strokes must come from waypoints (when waypoints exist below).
+    3. Layer 2 and Layer 3 strokes do NOT have to land on waypoints — they live inside the \
+       silhouette area or just adjacent. But don't put them in obvious empty sky far from \
+       the cloud.
+    4. Choose ONE creature the clouds genuinely suggest. If nothing leaps out, choose \
+       "Soft cumulus" with just Layer 1 + an eye in Layer 2 — no need to force a dragon.
+    5. Lower watchability_score when the sky is sparse. Most photos rate 4-7. \
+       Reserve 8-10 for clouds that genuinely look like a recognizable creature; \
+       reserve 1-3 for plain blue sky.
+
+    Coordinate system:
+       (0,0) = top-left corner of the photo
+       (1,1) = bottom-right corner
+
+    How to think about it:
+       - First, find the cloud cluster that suggests a creature.
+       - Decide where the HEAD is (which end of the cluster).
+       - Trace the silhouette in 1-2 strokes (Layer 1) using waypoints.
+       - Place an eye dot inside the head area (Layer 2 — required).
+       - Add the most distinctive feature (Layer 2 — fin / wing / sail / horn).
+       - Optional: tiny breath spout or motion line (Layer 3).
+       - That's the drawing. Don't add anything that doesn't help.
+
+    Field guide:
+       - shape_name: short and concrete ("Sleeping dragon", "Whale, drifting", "Sailboat at dawn").
+       - cloud_type: one of Cumulus, Stratus, Cirrus, Cumulonimbus, Altocumulus, Stratocumulus.
+       - weather_mood: one word, evocative ("Dreamy", "Calm", "Brooding", "Hopeful").
+       - watchability_score: integer 1-10 as defined above.
+       - drawing_elements: array of stroke objects, each {label, stroke_width (1.5-3.0), points}.
+         Label should reflect which layer it is: "silhouette", "eye", "fin", "spout", etc.
+
+    Respond with ONLY valid JSON of this shape. No markdown fences, no commentary:
+    {"shape_name": "...", "cloud_type": "...", "weather_mood": "...",
+     "watchability_score": N, "drawing_elements": [...]}
+
+    Final reminder: A bare silhouette is a blob. An eye + a defining feature is what makes \
+    it a creature. Layer 2 is not optional — every drawing needs at least an eye and one \
+    other feature inside the silhouette. If you can't decide on a feature, "Soft cumulus" \
+    with just an eye is the honest fallback.
     """
 }
 

@@ -130,6 +130,7 @@ struct CaptureFlowView: View {
                         .frame(width: 44, height: 44)
                         .background(Circle().fill(.black.opacity(0.35)))
                 }
+                .accessibilityLabel("Close camera")
                 Spacer()
                 ShareButton(sighting: sighting)
             }
@@ -248,13 +249,28 @@ struct CaptureFlowView: View {
     }
 
     private func scan(image: UIImage) async {
+        Telemetry.scanAttempt()
         // Capture location before going async (LocationService is @MainActor-bound)
         let captureLocation = location.currentLocation
 
-        // All three run in parallel during the 2s scan animation
-        async let visionTask = CloudVisionService.shared.analyzeCloudImage(image)
-        async let geminiTask = GeminiService.shared.analyzeCloud(image: image)
+        // Weather runs fully in parallel — it doesn't depend on
+        // anything from Vision or Gemini.
         async let weatherTask = WeatherService.shared.fetch(for: captureLocation)
+
+        // Vision now extracts cloud-edge waypoints in addition to the
+        // salient region — Gemini takes those as anchor points for its
+        // strokes. Vision is on-device (~150 ms); Gemini waits for it
+        // so the prompt includes the grounded waypoints. The 2 s scan
+        // animation hides the small serial gap. `try?` falls back to
+        // an empty Vision result on failure so Gemini still gets
+        // called (prompt-only grounding) instead of the scan stalling.
+        let visionResultEarly: CloudVisionService.Result =
+            (try? await CloudVisionService.shared.analyzeCloudImage(image))
+            ?? CloudVisionService.Result(salientRegion: .null, waypoints: [], drawingElements: [])
+        async let geminiTask = GeminiService.shared.analyzeCloud(
+            image: image,
+            cloudWaypoints: visionResultEarly.waypoints
+        )
 
         // Scan sweeps the screen
         let scanDuration: Double = 2.0
@@ -271,7 +287,10 @@ struct CaptureFlowView: View {
         // Collect results (almost certainly ready since scan took 2s)
         capturedWeather = await weatherTask
         do {
-            let (visionResult, geminiResult) = try await (visionTask, geminiTask)
+            // Vision already resolved above to feed waypoints into the
+            // Gemini call; reuse that result rather than re-running it.
+            let visionResult = visionResultEarly
+            let geminiResult = try await geminiTask
             let quip = await QuipGenerationService.shared.generateQuip(
                 shapeName: geminiResult.shapeName,
                 cloudType: geminiResult.cloudType
@@ -325,6 +344,7 @@ struct CaptureFlowView: View {
 
             // Success haptic — "found something"
             UINotificationFeedbackGenerator().notificationOccurred(.success)
+            Telemetry.scanSuccess(shapeName: geminiResult.shapeName)
 
             // Transition to hand-drawing phase — drawer peeks immediately
             withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
@@ -332,10 +352,42 @@ struct CaptureFlowView: View {
                 phase = .revealing(sighting)
             }
         } catch {
-            scanError = "AI couldn't identify a shape this time. Try an area of sky with more distinct cloud formations."
+            Telemetry.scanFailure(error: error)
+            scanError = Self.scanErrorMessage(for: error)
             withAnimation { phase = .viewfinder }
             try? await camera.requestPermissionAndSetup()
         }
+    }
+
+    /// Translate the raw error into something a user can act on. The
+    /// generic "couldn't identify a shape" fallback is the last resort
+    /// — usually we can be much more specific (missing API key, rate
+    /// limit, network down, server hiccup).
+    private static func scanErrorMessage(for error: Error) -> String {
+        if let gemini = error as? GeminiError {
+            switch gemini {
+            case .missingAPIKey:
+                return "Add your Gemini API key in Settings to scan clouds. It's free at aistudio.google.com."
+            case .imageEncodingFailed:
+                return "Couldn't read that photo. Try capturing again."
+            case .networkError:
+                return "Network hiccup — check your connection and try again."
+            case .invalidResponse(let code, _):
+                switch code {
+                case 401, 403: return "Gemini rejected the request — your API key may be invalid."
+                case 429:      return "Too many scans this minute. Take a breath and try again."
+                case 500...599: return "Gemini is having a moment. Try again in a few seconds."
+                default:       return "Gemini returned an error (\(code)). Try again."
+                }
+            case .parseError:
+                return "AI couldn't identify a shape this time. Try an area of sky with more distinct cloud formations."
+            }
+        }
+        let ns = error as NSError
+        if ns.domain == NSURLErrorDomain {
+            return "Network hiccup — check your connection and try again."
+        }
+        return "AI couldn't identify a shape this time. Try an area of sky with more distinct cloud formations."
     }
 }
 
@@ -561,6 +613,12 @@ private struct DrawerBody: View {
                 DrawerDivider()
                 sunBar(w)
                 DrawerDivider()
+            } else {
+                // WeatherKit returned nil — usually missing location
+                // permission or a transient outage. Inline indicator so
+                // the user understands the missing cards aren't a bug.
+                weatherUnavailableNotice
+                DrawerDivider()
             }
 
             aiDetectionCard
@@ -581,6 +639,31 @@ private struct DrawerBody: View {
     }
 
     // MARK: - Conditions overview
+
+    /// Inline notice shown in place of the full weather stack when
+    /// `WeatherService.fetch` returned nil. Usually means no location
+    /// permission or a WeatherKit hiccup; either way we tell the user
+    /// rather than silently showing fewer cards.
+    private var weatherUnavailableNotice: some View {
+        DrawerCard {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "cloud.slash")
+                    .font(.system(size: 14))
+                    .foregroundStyle(CV.Color.textTertiary)
+                    .padding(.top, 2)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Weather unavailable")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(CV.Color.textPrimary)
+                    Text("Check your connection or grant location access to see the forecast next time.")
+                        .font(CV.Font.caption)
+                        .foregroundStyle(CV.Color.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+        }
+    }
 
     private func conditionsCard(_ w: WeatherSnapshot) -> some View {
         let cloudDesc: String
@@ -925,6 +1008,12 @@ private struct DrawerBody: View {
     // MARK: - Data
 
     private func save() async {
+        // Re-entrancy guard for the narrow window between a tap firing
+        // a new Task and `isSaving = true` running on the main actor.
+        // `.disabled(isSaving)` covers the dominant case once the
+        // flag flips, but a fast double-tap could otherwise queue
+        // two uploads against the same sighting ID.
+        guard !isSaving, !isSaved else { return }
         isSaving = true
         defer { isSaving = false }
         guard let data = sighting.localImageData else {
@@ -1058,6 +1147,7 @@ private struct ShareButton: View {
                         .foregroundStyle(.white)
                 }
             }
+            .accessibilityLabel(isRendering ? "Preparing share image" : "Share sighting")
         }
         .sheet(isPresented: $showSheet) {
             if let img = artworkImage {
@@ -1112,6 +1202,8 @@ private struct ShutterButton: View {
         .scaleEffect(pressed ? 0.95 : 1.0)
         .animation(.spring(response: 0.2, dampingFraction: 0.65), value: pressed)
         .buttonStyle(.plain)
+        .accessibilityLabel("Capture sky")
+        .accessibilityHint("Take a photo of the clouds overhead so Cloudoodle can find a shape")
         .simultaneousGesture(DragGesture(minimumDistance: 0)
             .onChanged { _ in pressed = true }
             .onEnded { _ in pressed = false }

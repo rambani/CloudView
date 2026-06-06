@@ -91,9 +91,18 @@ extension LocationService: CLLocationManagerDelegate {
     }
 
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status = manager.authorizationStatus
         Task { @MainActor in
-            self.authorizationStatus = manager.authorizationStatus
-            if manager.authorizationStatus == .authorizedWhenInUse {
+            let previous = self.authorizationStatus
+            self.authorizationStatus = status
+            // Only crumb on actual transitions out of .notDetermined so
+            // we don't fire on every backgrounded relaunch.
+            if previous == .notDetermined && status != .notDetermined {
+                Telemetry.locationGranted(
+                    status == .authorizedWhenInUse || status == .authorizedAlways
+                )
+            }
+            if status == .authorizedWhenInUse {
                 manager.startUpdatingLocation()
             }
         }
