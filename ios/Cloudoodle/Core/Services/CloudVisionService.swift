@@ -126,8 +126,7 @@ actor CloudVisionService {
                 // points but a tiny footprint.
                 var biggest: VNContour?
                 var biggestArea: Float = 0
-                for i in 0..<obs.topLevelContourCount {
-                    guard let c = try? obs.topLevelContour(at: i) else { continue }
+                for c in obs.topLevelContours {
                     let pts = c.normalizedPoints
                     guard !pts.isEmpty else { continue }
                     var minX: Float = 1, minY: Float = 1, maxX: Float = 0, maxY: Float = 0
