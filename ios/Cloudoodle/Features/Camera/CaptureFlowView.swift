@@ -253,10 +253,24 @@ struct CaptureFlowView: View {
         // Capture location before going async (LocationService is @MainActor-bound)
         let captureLocation = location.currentLocation
 
-        // All three run in parallel during the 2s scan animation
-        async let visionTask = CloudVisionService.shared.analyzeCloudImage(image)
-        async let geminiTask = GeminiService.shared.analyzeCloud(image: image)
+        // Weather runs fully in parallel — it doesn't depend on
+        // anything from Vision or Gemini.
         async let weatherTask = WeatherService.shared.fetch(for: captureLocation)
+
+        // Vision now extracts cloud-edge waypoints in addition to the
+        // salient region — Gemini takes those as anchor points for its
+        // strokes. Vision is on-device (~150 ms); Gemini waits for it
+        // so the prompt includes the grounded waypoints. The 2 s scan
+        // animation hides the small serial gap. `try?` falls back to
+        // an empty Vision result on failure so Gemini still gets
+        // called (prompt-only grounding) instead of the scan stalling.
+        let visionResultEarly: CloudVisionService.Result =
+            (try? await CloudVisionService.shared.analyzeCloudImage(image))
+            ?? CloudVisionService.Result(salientRegion: .null, waypoints: [], drawingElements: [])
+        async let geminiTask = GeminiService.shared.analyzeCloud(
+            image: image,
+            cloudWaypoints: visionResultEarly.waypoints
+        )
 
         // Scan sweeps the screen
         let scanDuration: Double = 2.0
@@ -273,7 +287,10 @@ struct CaptureFlowView: View {
         // Collect results (almost certainly ready since scan took 2s)
         capturedWeather = await weatherTask
         do {
-            let (visionResult, geminiResult) = try await (visionTask, geminiTask)
+            // Vision already resolved above to feed waypoints into the
+            // Gemini call; reuse that result rather than re-running it.
+            let visionResult = visionResultEarly
+            let geminiResult = try await geminiTask
             let quip = await QuipGenerationService.shared.generateQuip(
                 shapeName: geminiResult.shapeName,
                 cloudType: geminiResult.cloudType

@@ -47,7 +47,15 @@ actor GeminiService {
         return UserDefaults.standard.string(forKey: "gemini_api_key") ?? ""
     }
 
-    func analyzeCloud(image: UIImage) async throws -> GeminiCloudAnalysis {
+    /// Analyze a sky photo. Pass `cloudWaypoints` if you've already
+    /// run `CloudVisionService.extractCloudWaypoints` — they ground
+    /// the model in the actual cloud silhouettes. Without them, the
+    /// model still produces a drawing but is freer to drift away
+    /// from the real cloud edges.
+    func analyzeCloud(
+        image: UIImage,
+        cloudWaypoints: [[Double]] = []
+    ) async throws -> GeminiCloudAnalysis {
         guard !apiKey.isEmpty else { throw GeminiError.missingAPIKey }
         guard let imageData = image.preparedForAnalysis() else {
             throw GeminiError.imageEncodingFailed
@@ -59,10 +67,10 @@ actor GeminiService {
         // of the capture flow; users would rather see the error and
         // tap again than wait 5+ seconds for repeated attempts.
         do {
-            return try await callGemini(imageData: imageData)
+            return try await callGemini(imageData: imageData, cloudWaypoints: cloudWaypoints)
         } catch let error as GeminiError where Self.isTransient(error) {
             try? await Task.sleep(for: .seconds(1))
-            return try await callGemini(imageData: imageData)
+            return try await callGemini(imageData: imageData, cloudWaypoints: cloudWaypoints)
         }
     }
 
@@ -74,15 +82,24 @@ actor GeminiService {
         return false
     }
 
-    private func callGemini(imageData: Data) async throws -> GeminiCloudAnalysis {
+    private func callGemini(
+        imageData: Data,
+        cloudWaypoints: [[Double]]
+    ) async throws -> GeminiCloudAnalysis {
         let urlString = "\(baseURL)/\(model):generateContent"
         guard let url = URL(string: urlString) else { throw GeminiError.missingAPIKey }
+
+        // Inject the on-device waypoints into the prompt as a
+        // dedicated "anchor points" section. With them present, the
+        // model can't honestly place a stroke that isn't near a real
+        // cloud edge — the waypoints ARE the visible cloud edges.
+        let prompt = Self.prompt + Self.waypointsSection(cloudWaypoints)
 
         let body: [String: Any] = [
             "contents": [[
                 "parts": [
                     ["inlineData": ["mimeType": "image/jpeg", "data": imageData.base64EncodedString()]],
-                    ["text": Self.prompt]
+                    ["text": prompt]
                 ]
             ]],
             "generationConfig": [
@@ -165,6 +182,36 @@ actor GeminiService {
             return String(s[start...end])
         }
         return s
+    }
+
+    /// Build the cloud-edge waypoint section that gets concatenated
+    /// onto the static prompt at request time. Empty when on-device
+    /// Vision didn't find a usable silhouette (very plain sky, broken
+    /// image), in which case the model falls back to image-only
+    /// grounding with the prompt's existing "every point must lie on
+    /// a visible cloud edge" rules.
+    private static func waypointsSection(_ waypoints: [[Double]]) -> String {
+        guard waypoints.count >= 6 else { return "" }
+        let formatted = waypoints
+            .map { String(format: "[%.3f, %.3f]", $0[0], $0[1]) }
+            .joined(separator: ", ")
+        return """
+
+
+        CLOUD EDGE WAYPOINTS (extracted from this exact photo by on-device Vision):
+        [\(formatted)]
+
+        These are normalized (x, y) points sampled along the silhouette of the most \
+        prominent cloud cluster in the image. They are GROUND TRUTH — they came from \
+        the photo itself, not from your imagination. Anchor your strokes to these waypoints:
+
+           • Each stroke point you output must sit on or very near one of these waypoints, \
+             OR on the straight line interpolating between two adjacent waypoints.
+           • If you find yourself wanting to place a point far from every waypoint, the \
+             clouds are not there. Don't do it.
+           • You do NOT have to use every waypoint. Pick the subset that best forms your shape.
+           • You may pick waypoints from anywhere in the list, not just consecutive ones.
+        """
     }
 
     // Ask Gemini to both identify the shape AND draw it as path coordinates.

@@ -12,19 +12,17 @@ forget them and so the reasoning lives next to the decision.
 
 ## Code polish — would land before TestFlight in an ideal world
 
-### Cloud doodle realism (follow-up B)
-The prompt rewrite + temperature drop are landed. If users still
-report doodles that drift away from the actual cloud:
-- Add `VNDetectContoursRequest` (already an option on `CloudVisionService`)
-  to extract the largest cloud silhouette as 12-24 normalized
-  waypoints. Pass them to Gemini as context ("here are the visible
-  cloud edges; place your strokes ON these points"). That grounds
-  the model in the actual photo rather than asking it to look at the
-  image attachment in isolation.
-- Stretch: a verifier pass that renders the proposed drawing on the
-  photo, sends both to Gemini with "did your strokes follow the
-  cloud?" and regenerates on a low score. Doubles API cost; only
-  worth it if A+B don't get us there.
+### Cloud doodle realism — verifier pass (follow-up C, future)
+A + B both landed. Real-world testing on a device may show this is
+enough. If drift persists despite the waypoint grounding, the
+next step would be:
+- A verifier pass: render the proposed drawing on the photo, send
+  both back to Gemini with "did your strokes follow the cloud?" and
+  regenerate on a low score. Doubles API cost and adds ~1 s of
+  latency per scan, so only worth it if A+B aren't enough.
+- Stretch: a small on-device model (CoreML) that scores how well
+  strokes match cloud edges before we even render — quicker than
+  another Gemini round-trip but requires training data.
 
 ### Accessibility (item D — partial)
 - Dynamic-type audit — the editorial design hardcodes sizes; should
@@ -116,3 +114,12 @@ swap them out, not to add new functionality.
   reading instead of free-associating. Smoother onboarding
   transitions (opacity + tiny scale instead of edge slide; longer
   spring for the sunset reveal).
+- 2026-06: Cloud doodle realism pass (follow-up B) — on-device
+  VNDetectContoursRequest extracts ~18 waypoints along the largest
+  cloud silhouette (CIColorClamp preprocessing → contour detection →
+  largest by bounding-box area → uniform sampling → Y-flip to
+  SwiftUI origin). Waypoints are injected into the Gemini prompt as
+  an explicit "anchor points your strokes must follow" section; the
+  model literally can't place a stroke far from a real cloud edge.
+  Vision runs serial-before-Gemini (~150 ms) and falls back to
+  empty waypoints on failure so the scan never stalls.
