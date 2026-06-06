@@ -257,16 +257,21 @@ struct CaptureFlowView: View {
         // anything from Vision or Gemini.
         async let weatherTask = WeatherService.shared.fetch(for: captureLocation)
 
-        // Vision now extracts cloud-edge waypoints in addition to the
-        // salient region — Gemini takes those as anchor points for its
-        // strokes. Vision is on-device (~150 ms); Gemini waits for it
-        // so the prompt includes the grounded waypoints. The 2 s scan
-        // animation hides the small serial gap. `try?` falls back to
-        // an empty Vision result on failure so Gemini still gets
-        // called (prompt-only grounding) instead of the scan stalling.
+        // Vision extracts cloud-edge waypoints + salient region. We
+        // also pull the multi-candidate list so the mark path can use
+        // the best-scoring small cloud rather than the whole sky.
+        // `try?` falls back gracefully so the scan never stalls.
         let visionResultEarly: CloudVisionService.Result =
             (try? await CloudVisionService.shared.analyzeCloudImage(image))
             ?? CloudVisionService.Result(salientRegion: .null, waypoints: [], drawingElements: [])
+        async let candidatesTask = CloudVisionService.shared.findCandidateRegions(in: image, topK: 3)
+
+        // The mark-vocabulary path is preferred when a usable
+        // candidate silhouette is available — Gemini returns
+        // semantic placements (eye, ear, mouth) instead of stroke
+        // coordinates, and MarkRenderer paints them with a
+        // consistent visual style. Falls back to the old freeform
+        // analyzeCloud if Vision didn't find a good silhouette.
         async let geminiTask = GeminiService.shared.analyzeCloud(
             image: image,
             cloudWaypoints: visionResultEarly.waypoints
@@ -290,35 +295,63 @@ struct CaptureFlowView: View {
             // Vision already resolved above to feed waypoints into the
             // Gemini call; reuse that result rather than re-running it.
             let visionResult = visionResultEarly
-            let geminiResult = try await geminiTask
+            let candidates = await candidatesTask
+
+            // Prefer the mark-vocabulary path when Vision found a
+            // usable small candidate silhouette. Falls back to the
+            // legacy freeform stroke generation if either Vision or
+            // the mark call fails — both paths produce drawing
+            // elements that the same HandDrawingView animates.
+            let analysisOutcome: ScanOutcome
+            if let bestCandidate = candidates.first,
+               bestCandidate.waypoints.count >= 6,
+               let marksResult = try? await GeminiService.shared.analyzeWithMarks(
+                   image: image,
+                   silhouette: bestCandidate.waypoints
+               ) {
+                analysisOutcome = .marks(marksResult, silhouette: bestCandidate.waypoints)
+            } else {
+                let legacy = try await geminiTask
+                analysisOutcome = .legacy(legacy)
+            }
+
+            let quipShapeName  = analysisOutcome.shapeName
+            let quipCloudType  = analysisOutcome.cloudType
             let quip = await QuipGenerationService.shared.generateQuip(
-                shapeName: geminiResult.shapeName,
-                cloudType: geminiResult.cloudType
+                shapeName: quipShapeName,
+                cloudType: quipCloudType
             )
 
             let analysis = CloudAnalysis(
-                shapeName: geminiResult.shapeName,
+                shapeName: quipShapeName,
                 quip: quip,
-                cloudType: geminiResult.cloudType,
-                weatherMood: geminiResult.weatherMood,
-                watchabilityScore: geminiResult.watchabilityScore
+                cloudType: quipCloudType,
+                weatherMood: analysisOutcome.weatherMood,
+                watchabilityScore: analysisOutcome.watchabilityScore
             )
 
+            // Drawing elements: mark path uses MarkRenderer; legacy
+            // path uses Gemini's stroke coordinates directly.
+            let drawingElements: [CloudAnalysis.DrawingElement]
+            switch analysisOutcome {
+            case .marks(let marks, let silhouette):
+                drawingElements = MarkRenderer.render(silhouette: silhouette, marks: marks.marks)
+            case .legacy(let legacy):
+                drawingElements = legacy.drawingElements.map { $0.toDrawingElement() }
+            }
+
             // Label sits just above the visually interesting region (from saliency),
-            // or above the centroid of Gemini's drawing if Vision found nothing.
+            // or above the centroid of the drawing if Vision found nothing.
             let labelX: Double
             let labelY: Double
             if !visionResult.salientRegion.isNull {
                 labelX = visionResult.salientRegion.midX
                 labelY = max(0.06, visionResult.salientRegion.minY - 0.07)
             } else {
-                let pts = geminiResult.drawingElements.flatMap { $0.points }
+                let pts = drawingElements.flatMap { $0.points }
                 labelX = pts.isEmpty ? 0.5 : pts.map { $0[0] }.reduce(0, +) / Double(pts.count)
                 labelY = max(0.06, (pts.isEmpty ? 0.22 : pts.map { $0[1] }.min() ?? 0.22) - 0.07)
             }
-
-            // Gemini draws the shape it identified — not cloud-edge tracing, but artistic interpretation
-            let drawingElements = geminiResult.drawingElements.map { $0.toDrawingElement() }
 
             let loc = location.currentLocation
             // Argument order matches the CloudSighting initializer declaration —
@@ -344,7 +377,7 @@ struct CaptureFlowView: View {
 
             // Success haptic — "found something"
             UINotificationFeedbackGenerator().notificationOccurred(.success)
-            Telemetry.scanSuccess(shapeName: geminiResult.shapeName)
+            Telemetry.scanSuccess(shapeName: analysisOutcome.shapeName)
 
             // Transition to hand-drawing phase — drawer peeks immediately
             withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
@@ -388,6 +421,42 @@ struct CaptureFlowView: View {
             return "Network hiccup — check your connection and try again."
         }
         return "AI couldn't identify a shape this time. Try an area of sky with more distinct cloud formations."
+    }
+}
+
+// MARK: - Scan outcome
+
+/// Wraps the two Gemini code paths so the downstream logic doesn't
+/// branch on type for every field access. Mark path produces a clean
+/// silhouette + character marks; legacy path produces freeform stroke
+/// elements directly from Gemini.
+private enum ScanOutcome {
+    case marks(GeminiMarkAnalysis, silhouette: [[Double]])
+    case legacy(GeminiCloudAnalysis)
+
+    var shapeName: String {
+        switch self {
+        case .marks(let m, _):  return m.shapeName
+        case .legacy(let l):    return l.shapeName
+        }
+    }
+    var cloudType: String {
+        switch self {
+        case .marks(let m, _):  return m.cloudType
+        case .legacy(let l):    return l.cloudType
+        }
+    }
+    var weatherMood: String {
+        switch self {
+        case .marks(let m, _):  return m.weatherMood
+        case .legacy(let l):    return l.weatherMood
+        }
+    }
+    var watchabilityScore: Int {
+        switch self {
+        case .marks(let m, _):  return m.watchabilityScore
+        case .legacy(let l):    return l.watchabilityScore
+        }
     }
 }
 
