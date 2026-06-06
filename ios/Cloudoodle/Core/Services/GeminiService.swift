@@ -294,28 +294,6 @@ actor GeminiService {
     """
 }
 
-    Coordinate system:
-       (0,0) = top-left corner of the photo
-       (1,1) = bottom-right corner
-
-    How to draw:
-       - First, find the cloud (or cloud cluster) in the photo that most clearly suggests a shape.
-       - Note where its bright edges are in normalized coordinates.
-       - Start with the LONGEST anatomical feature (the body / spine / main mass).
-       - Add supporting strokes that hug the actual cloud silhouette \
-         (a wing along an actual bulge, a tail tracing an actual wisp).
-       - Each stroke point should lie on the bright cloud / dim sky boundary you can see.
-
-    Field guide:
-       - shape_name: short and concrete ("Sleeping dragon", "Whale, drifting", "Sailboat at dawn").
-       - cloud_type: one of Cumulus, Stratus, Cirrus, Cumulonimbus, Altocumulus, Stratocumulus.
-       - weather_mood: one word, evocative ("Dreamy", "Calm", "Brooding", "Hopeful").
-       - watchability_score: integer 1-10 as defined above.
-       - drawing_elements: array of stroke objects, each {label, stroke_width (1.5-3.0), points}.
-
-    """
-}
-
 // What Gemini returns — shape identity + the drawing itself
 struct GeminiCloudAnalysis: Codable {
     let shapeName: String
