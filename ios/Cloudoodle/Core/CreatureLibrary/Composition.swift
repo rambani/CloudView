@@ -7,10 +7,167 @@ import CoreGraphics
 /// came from a template library instead of a generative model.
 enum Composition {
 
-    /// Build a drawing from the chosen template ids fit to the
-    /// cloud's bounding box. `cloudBox` is in normalized photo-space
-    /// (0–1 on each axis) so the strokes land where the cloud is.
+    /// Strokes whose label contains any of these substrings are
+    /// considered the template's body outline / silhouette. When real
+    /// cloud waypoints are available they replace these strokes, so
+    /// the drawing's outline IS the cloud rather than floating on top.
+    private static let silhouetteTags: Set<String> = [
+        "body", "outline", "silhouette", "head", "hull", "back", "belly"
+    ]
+
+    /// Shape-conforming compose. If `cloudWaypoints` is non-empty, the
+    /// cloud silhouette becomes the body outline and the template only
+    /// provides character details (eyes, beak, mouth, fins, etc.).
+    /// When no waypoints are available, falls back to bounding-box fit.
     static func compose(
+        subjectId: String,
+        propId: String?,
+        in cloudBox: CGRect,
+        cloudWaypoints: [[Double]] = []
+    ) -> [CloudAnalysis.DrawingElement] {
+        if cloudWaypoints.count >= 6 {
+            return composeShapeAware(
+                subjectId: subjectId,
+                propId: propId,
+                cloudWaypoints: cloudWaypoints
+            )
+        }
+        return composeBoundingBoxFit(
+            subjectId: subjectId,
+            propId: propId,
+            in: cloudBox
+        )
+    }
+
+    // MARK: - Shape-conforming composition (cloud waypoints available)
+
+    private static func composeShapeAware(
+        subjectId: String,
+        propId: String?,
+        cloudWaypoints: [[Double]]
+    ) -> [CloudAnalysis.DrawingElement] {
+        let lib = TemplateLibrary.shared
+        guard let subject = lib.subjects[subjectId] else { return [] }
+
+        let cloudBox = boundingBox(of: cloudWaypoints)
+        let templateBox = templateBoundingBox(subject)
+
+        var elements: [CloudAnalysis.DrawingElement] = []
+
+        // 1. Body outline = cloud silhouette itself, closed loop.
+        var closed = cloudWaypoints
+        if let first = closed.first { closed.append(first) }
+        elements.append(CloudAnalysis.DrawingElement(
+            points: closed,
+            smooth: true,
+            strokeWidth: 2.4,
+            label: "cloud-silhouette"
+        ))
+
+        // 2. Detail strokes from the template, mapped from template
+        // local bbox into cloud bbox.
+        for stroke in subject.strokes {
+            guard !isSilhouette(stroke.label) else { continue }
+            let mapped = stroke.points.map { mapPoint($0,
+                                                     from: templateBox,
+                                                     to: cloudBox) }
+            elements.append(CloudAnalysis.DrawingElement(
+                points: mapped,
+                smooth: stroke.points.count >= 3,
+                strokeWidth: stroke.width,
+                label: stroke.label
+            ))
+        }
+
+        // 3. Prop strokes, hooked via the subject anchor mapped into cloud space.
+        if let propId,
+           let prop = lib.props[propId],
+           let anchorName = prop.attachesTo,
+           let subjectAnchor = subject.anchors?[anchorName],
+           subjectAnchor.count >= 2 {
+            let anchorPoint = mapPoint(subjectAnchor, from: templateBox, to: cloudBox)
+            let scale = prop.sizeRelativeToSubject ?? 1.0
+            let propWidth = cloudBox.width * scale
+            let propBBox = templateBoundingBox(prop)
+            let propAspect = max(0.001, propBBox.width / max(propBBox.height, 0.001))
+            let propHeight = propWidth / propAspect
+            let selfAnchor = prop.anchorOnSelf ?? [0.5, 0.5]
+            let propBoxX = anchorPoint.x - selfAnchor[0] * propWidth
+            let propBoxY = anchorPoint.y - selfAnchor[1] * propHeight
+            let propTarget = CGRect(x: propBoxX, y: propBoxY, width: propWidth, height: propHeight)
+            for stroke in prop.strokes {
+                let mapped = stroke.points.map { mapPoint($0,
+                                                          from: propBBox,
+                                                          to: propTarget) }
+                elements.append(CloudAnalysis.DrawingElement(
+                    points: mapped,
+                    smooth: stroke.points.count >= 3,
+                    strokeWidth: stroke.width,
+                    label: stroke.label
+                ))
+            }
+        }
+
+        return elements
+    }
+
+    /// True when a stroke label identifies it as a body outline that
+    /// should be replaced by the cloud silhouette.
+    private static func isSilhouette(_ label: String) -> Bool {
+        let lower = label.lowercased()
+        return silhouetteTags.contains(where: { lower.contains($0) })
+    }
+
+    /// Affine map: a normalized 0-1 point inside the template's bbox
+    /// is rewritten to the corresponding point inside the cloud bbox.
+    private static func mapPoint(
+        _ p: [Double],
+        from src: CGRect,
+        to dst: CGRect
+    ) -> [Double] {
+        guard p.count >= 2 else { return [Double(dst.midX), Double(dst.midY)] }
+        let xLocal = (p[0] - Double(src.minX)) / max(Double(src.width), 0.001)
+        let yLocal = (p[1] - Double(src.minY)) / max(Double(src.height), 0.001)
+        return [
+            Double(dst.minX) + xLocal * Double(dst.width),
+            Double(dst.minY) + yLocal * Double(dst.height)
+        ]
+    }
+
+    /// Helper to overload mapPoint with target rect.
+    private static func mapPoint(
+        _ p: [Double],
+        from src: CGRect,
+        to dst: CGRect
+    ) -> CGPoint {
+        let out: [Double] = mapPoint(p, from: src, to: dst)
+        return CGPoint(x: out[0], y: out[1])
+    }
+
+    /// Bounding box (in normalized 0-1 photo-space) of a list of waypoints.
+    private static func boundingBox(of points: [[Double]]) -> CGRect {
+        var minX = 1.0, minY = 1.0, maxX = 0.0, maxY = 0.0
+        for p in points {
+            if let x = p.first { minX = min(minX, x); maxX = max(maxX, x) }
+            if let y = p.dropFirst().first { minY = min(minY, y); maxY = max(maxY, y) }
+        }
+        return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+    }
+
+    private static func templateBoundingBox(_ template: CreatureTemplate) -> CGRect {
+        var minX = 1.0, minY = 1.0, maxX = 0.0, maxY = 0.0
+        for stroke in template.strokes {
+            for p in stroke.points {
+                if let x = p.first { minX = min(minX, x); maxX = max(maxX, x) }
+                if let y = p.dropFirst().first { minY = min(minY, y); maxY = max(maxY, y) }
+            }
+        }
+        return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+    }
+
+    // MARK: - Bounding-box-fit composition (no cloud waypoints)
+
+    private static func composeBoundingBoxFit(
         subjectId: String,
         propId: String?,
         in cloudBox: CGRect
