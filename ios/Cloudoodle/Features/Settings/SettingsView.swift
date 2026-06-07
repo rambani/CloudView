@@ -17,6 +17,12 @@ struct SettingsView: View {
     @State private var subscriptions = SubscriptionService.shared
     @State private var showUpgrade = false
 
+    // Daily reminder
+    @State private var reminder = DailyReminderService.shared
+    @State private var reminderEnabled = DailyReminderService.shared.enabled
+    @State private var reminderTime = DailyReminderService.shared.reminderTime
+    @State private var reminderPermissionDenied = false
+
     // Auth form
     @State private var email = ""
     @State private var password = ""
@@ -73,6 +79,11 @@ struct SettingsView: View {
                                 }
                             }
                             .tint(CV.Color.accent)
+                        }
+
+                        // Daily reminder
+                        SettingsSection(title: "Daily Reminder", icon: "bell") {
+                            reminderSection
                         }
 
                         // Gemini section
@@ -253,6 +264,87 @@ struct SettingsView: View {
         }
         .preferredColorScheme(.dark)
         .task { await subscriptions.refreshEntitlements() }
+    }
+
+    /// Daily reminder section. Toggle + time picker. When the user
+    /// enables it for the first time we walk through requesting
+    /// notification permission; if denied, we surface a small hint
+    /// pointing them at the system Settings.
+    @ViewBuilder
+    private var reminderSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Toggle(isOn: $reminderEnabled) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Remind me daily")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(CV.Color.textPrimary)
+                    Text("A quiet nudge to look up — only on days you haven't scanned.")
+                        .font(CV.Font.caption)
+                        .foregroundStyle(CV.Color.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .tint(CV.Color.accent)
+            .onChange(of: reminderEnabled) { _, newValue in
+                Task { await handleReminderToggle(newValue) }
+            }
+
+            if reminderEnabled {
+                DatePicker(
+                    "Time",
+                    selection: $reminderTime,
+                    displayedComponents: .hourAndMinute
+                )
+                .font(.system(size: 14))
+                .foregroundStyle(CV.Color.textPrimary)
+                .tint(CV.Color.accent)
+                .onChange(of: reminderTime) { _, newValue in
+                    let comps = Calendar.current.dateComponents([.hour, .minute], from: newValue)
+                    reminder.hour = comps.hour ?? 11
+                    reminder.minute = comps.minute ?? 0
+                }
+            }
+
+            if reminderPermissionDenied {
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: "exclamationmark.circle")
+                        .foregroundStyle(.orange)
+                    Text("Notifications are off for Cloudoodle. Enable them in the system Settings app to receive the reminder.")
+                        .font(CV.Font.caption)
+                        .foregroundStyle(CV.Color.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            // Forward-looking hint — sets expectations now while the
+            // backend aggregation isn't wired yet.
+            Text("Coming soon: when enough people near you spot the same shape, the reminder will say so.")
+                .font(.system(size: 11, design: .serif))
+                .italic()
+                .foregroundStyle(CV.Color.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 2)
+        }
+    }
+
+    private func handleReminderToggle(_ newValue: Bool) async {
+        if newValue {
+            // First-time enable: make sure we have notification
+            // permission before we promise the user we'll fire.
+            let svc = NotificationService.shared
+            await svc.checkAuthorizationStatus()
+            if !svc.isAuthorized {
+                let granted = await svc.requestPermission()
+                if !granted {
+                    reminderPermissionDenied = true
+                    reminderEnabled = false
+                    reminder.enabled = false
+                    return
+                }
+            }
+            reminderPermissionDenied = false
+        }
+        reminder.enabled = newValue
     }
 
     /// Subscription status row inside the "Cloudoodle Unlimited"

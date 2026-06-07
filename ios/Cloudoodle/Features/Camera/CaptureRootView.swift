@@ -34,6 +34,7 @@ struct CaptureRootView: View {
                 CaptureFlowView(
                     onCompleted: {
                         subscriptions.recordScan()
+                        Task { await DailyReminderService.shared.notifyDidScan() }
                         mode = .today
                     },
                     onCancel: store.todaysEntry != nil ? { mode = .today } : nil

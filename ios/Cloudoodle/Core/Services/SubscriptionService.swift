@@ -65,6 +65,13 @@ final class SubscriptionService {
         return lastScanDate.map { !Calendar.current.isDateInToday($0) } ?? true
     }
 
+    /// True only when a scan actually happened today, regardless of
+    /// subscription status. Used by DailyReminderService to decide
+    /// whether the user still needs nudging.
+    var scannedToday: Bool {
+        lastScanDate.map { Calendar.current.isDateInToday($0) } ?? false
+    }
+
     /// Mark today's quota as spent. Called after a successful develop
     /// commit (independent of JournalStore so deleting the entry
     /// doesn't refund the quota — that'd be an obvious gaming vector).
