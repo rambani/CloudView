@@ -69,21 +69,53 @@ def make_vertical_gradient(size, top_rgb, bottom_rgb):
 
 
 def draw_cloud(draw, cx, cy):
-    """A stylized cumulus — the classic "sky shape" the app's whole
-    premise pivots on. Pure white so it pops against the sunset
-    gradient behind. Built from overlapping ellipses arranged to
-    read as one continuous silhouette (no notches) at 60pt
-    home-screen scale, where individual lobes can't be resolved."""
+    """A cumulus that ALSO reads as a rabbit — the second-most-classic
+    "I see a ___ in the clouds" example (after the whale, but the
+    long ears make the silhouette unambiguous at small sizes).
+
+    Two upright ear-lobes are the recognition trick: they're long
+    enough to escape the rest of the body's "just a cloud" reading,
+    and a single eye dot anchors the head. The body keeps the
+    organic puffy edges of a real cumulus so the icon still reads
+    as a cloud first, animal second.
+
+    Bounding box roughly [-180, -200] to [+180, +120] — fits inside
+    the 560px photo area with breathing room on all sides."""
     cloud = (252, 250, 245, 255)
-    # Wide flat base — single ellipse so there's no center notch
-    draw.ellipse((cx - 230, cy + 0, cx + 250, cy + 140), fill=cloud)
-    # Mid-row lobes (fluffy middle)
-    draw.ellipse((cx - 200, cy - 50, cx - 30, cy + 110), fill=cloud)
-    draw.ellipse((cx + 30, cy - 50, cx + 220, cy + 110), fill=cloud)
-    # Upper lobes (tall fluffy top)
-    draw.ellipse((cx - 140, cy - 140, cx + 40, cy + 50), fill=cloud)
-    draw.ellipse((cx - 20, cy - 170, cx + 170, cy + 50), fill=cloud)
-    draw.ellipse((cx + 50, cy - 120, cx + 200, cy + 30), fill=cloud)
+    eye = (38, 32, 42, 235)
+
+    # --- Ears (drawn first so the head lobes can overlap their base) ------
+    # Long upright lobes, slightly angled outward from vertical so
+    # they read as alert ears rather than parallel sticks.
+    draw.ellipse((cx - 100, cy - 230, cx - 30, cy - 50), fill=cloud)
+    draw.ellipse((cx + 30, cy - 230, cx + 100, cy - 50), fill=cloud)
+
+    # --- Head --------------------------------------------------------------
+    # Round head: a single dominant lobe in the upper-center.
+    draw.ellipse((cx - 90, cy - 110, cx + 90, cy + 60), fill=cloud)
+    # Cheek puffs on the sides so the head has the soft jaw shape
+    # of a rabbit rather than a perfect ball.
+    draw.ellipse((cx - 130, cy - 70, cx - 30, cy + 60), fill=cloud)
+    draw.ellipse((cx + 30, cy - 70, cx + 130, cy + 60), fill=cloud)
+
+    # --- Body --------------------------------------------------------------
+    # Crouched body: single dominant lobe that overlaps the head's
+    # lower edge so the silhouette flows from head to body without a
+    # visible waist or skirt seam. Wider than tall to suggest a
+    # sitting rabbit's profile.
+    draw.ellipse((cx - 160, cy + 10, cx + 160, cy + 150), fill=cloud)
+    # A second slightly lower lobe gives the bottom edge a soft
+    # cloud-puff curve rather than a flat oval underside.
+    draw.ellipse((cx - 110, cy + 60, cx + 110, cy + 160), fill=cloud)
+
+    # --- Eye dot -----------------------------------------------------------
+    eye_cx = cx - 30
+    eye_cy = cy - 10
+    eye_r = 12
+    draw.ellipse(
+        (eye_cx - eye_r, eye_cy - eye_r, eye_cx + eye_r, eye_cy + eye_r),
+        fill=eye,
+    )
 
 
 def build_polaroid():
