@@ -13,20 +13,27 @@ import AVFoundation
 /// Quota gating happens one level up in CaptureRootView; if we're
 /// presented here, the user is allowed to scan.
 struct CaptureFlowView: View {
-    @Environment(AppState.self) private var appState
     @EnvironmentObject private var location: LocationService
-    @Environment(\.dismiss) private var dismiss
 
     /// Fires once after the develop completes AND its JournalEntry is
     /// persisted AND the user has tapped through the develop view.
     /// CaptureRootView uses this to swap to TodaysPolaroidView.
     var onCompleted: () -> Void = {}
+    /// Optional cancel handler. Only set when the user is a subscriber
+    /// who reached the camera via "Capture another sky" — they need a
+    /// way back to today's view if they decide not to capture. When
+    /// nil, the viewfinder doesn't show a cancel button (first-of-day
+    /// capture has nowhere to cancel to).
+    var onCancel: (() -> Void)? = nil
 
     @StateObject private var camera = CameraService()
     @State private var phase: CapturePhase = .viewfinder
     @State private var capturedWeather: WeatherSnapshot?
     @State private var capturedSighting: CloudSighting?
     @State private var scanError: String?
+    @State private var viewfinderWeather: WeatherSnapshot?
+    @State private var showSettings = false
+    @State private var viewfinderDrawerPosition: GlassDrawer<WeatherDrawerContent<EmptyView>>.DrawerPosition = .peek
 
     // Polaroid develop state
     @State private var showPolaroid = false
@@ -42,13 +49,17 @@ struct CaptureFlowView: View {
             phaseContent
         }
         .ignoresSafeArea()
-        .task { try? await camera.requestPermissionAndSetup() }
+        .task {
+            try? await camera.requestPermissionAndSetup()
+            await loadViewfinderWeather()
+        }
+        .sheet(isPresented: $showSettings) { SettingsView() }
         .alert("Couldn't read that sky", isPresented: Binding(
             get: { scanError != nil },
             set: { if !$0 { scanError = nil } }
         )) {
             Button("Try Again") { scanError = nil }
-            Button("Cancel", role: .cancel) { dismiss() }
+            Button("Cancel", role: .cancel) { onCancel?() }
         } message: {
             Text(scanError ?? "")
         }
@@ -194,8 +205,22 @@ struct CaptureFlowView: View {
     private var phaseContent: some View {
         switch phase {
         case .viewfinder:
-            ViewfinderLayer(camera: camera, onClose: { dismiss() }) {
-                Task { await capture() }
+            ZStack {
+                ViewfinderLayer(
+                    camera: camera,
+                    onSettings: { showSettings = true },
+                    onCancel: onCancel,
+                    onCapture: { Task { await capture() } }
+                )
+                GlassDrawer(
+                    position: $viewfinderDrawerPosition,
+                    peekHeight: 160,
+                    halfFraction: 0.55
+                ) {
+                    WeatherDrawerContent(weather: viewfinderWeather) {
+                        EmptyView()
+                    }
+                }
             }
 
         case .captured(let image):
@@ -208,6 +233,15 @@ struct CaptureFlowView: View {
                 scanningOverlay(progress: progress)
             }
         }
+    }
+
+    /// Pulls weather for the viewfinder drawer. Separate from
+    /// `capturedWeather` (which is the snapshot frozen at capture
+    /// time and persisted on the JournalEntry) — this one is just
+    /// for the "should I scan now?" decision support.
+    private func loadViewfinderWeather() async {
+        guard viewfinderWeather == nil else { return }
+        viewfinderWeather = await WeatherService.shared.fetch(for: location.currentLocation)
     }
 
     @ViewBuilder
@@ -323,7 +357,6 @@ struct CaptureFlowView: View {
                 country: location.currentCountry
             )
             capturedSighting = sighting
-            appState.pendingSighting = sighting
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             Telemetry.scanSuccess(shapeName: geminiResult.shapeName)
 
@@ -377,7 +410,10 @@ private enum CapturePhase {
 
 private struct ViewfinderLayer: View {
     let camera: CameraService
-    let onClose: () -> Void
+    let onSettings: () -> Void
+    /// nil when the user has no fallback — first-of-day capture.
+    /// Set only when they came from "Capture another" on today's view.
+    let onCancel: (() -> Void)?
     let onCapture: () -> Void
     @EnvironmentObject private var location: LocationService
 
@@ -386,29 +422,41 @@ private struct ViewfinderLayer: View {
             CameraPreviewLayer(session: camera.session)
                 .ignoresSafeArea()
 
-            // Bottom fade so shutter sits on something
+            // Bottom fade so shutter sits on something — and the
+            // peek of the weather drawer reads as a separate layer.
             VStack {
                 Spacer()
                 LinearGradient(colors: [.clear, .black.opacity(0.5)],
                                startPoint: .top, endPoint: .bottom)
-                    .frame(height: 200)
+                    .frame(height: 240)
             }
             .ignoresSafeArea()
             .allowsHitTesting(false)
 
             VStack {
                 HStack {
-                    Button(action: onClose) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .semibold))
+                    Button(action: onSettings) {
+                        Image(systemName: "gearshape")
+                            .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(.white)
                             .frame(width: 36, height: 36)
                             .background(Circle().fill(.black.opacity(0.35)))
                     }
-                    .accessibilityLabel("Close camera")
+                    .accessibilityLabel("Settings")
                     Spacer()
                     if let city = location.currentCity {
                         LocationChip(city: city)
+                    }
+                    if let onCancel {
+                        Button(action: onCancel) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 36, height: 36)
+                                .background(Circle().fill(.black.opacity(0.35)))
+                        }
+                        .accessibilityLabel("Back to today's Polaroid")
+                        .padding(.leading, 8)
                     }
                 }
                 .padding(.horizontal, 20)
@@ -419,10 +467,10 @@ private struct ViewfinderLayer: View {
                 Text("Point at the sky")
                     .font(.system(size: 13, weight: .regular, design: .rounded))
                     .foregroundStyle(.white.opacity(0.5))
-                    .padding(.bottom, 24)
+                    .padding(.bottom, 18)
 
                 ShutterButton(action: onCapture)
-                    .padding(.bottom, 52)
+                    .padding(.bottom, 180)   // clear of the drawer peek
             }
         }
     }

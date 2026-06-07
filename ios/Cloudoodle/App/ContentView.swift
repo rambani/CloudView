@@ -1,11 +1,16 @@
 import SwiftUI
 
+/// Root view. Cloudoodle is a single-surface app — no tabs, no
+/// chrome. Opening the app drops you straight at the camera (or
+/// today's developed Polaroid if you've already captured). Swipe
+/// right inside that surface reaches the gallery; swipe up reaches
+/// the weather drawer; a gear icon opens Settings.
+///
+/// The only things rendered above the home surface are the
+/// onboarding flow on first launch, and a brief toast banner when
+/// the user opens the app from a notification.
 struct ContentView: View {
     @Environment(AppState.self) private var appState
-    @EnvironmentObject private var supabase: SupabaseService
-
-    /// First-launch onboarding gate. Persisted across launches by iOS.
-    /// Reset on reinstall — TestFlight builds always get the flow.
     @AppStorage("hasOnboarded") private var hasOnboarded = false
 
     /// Lives at ContentView scope so a user backing through pages keeps
@@ -13,7 +18,20 @@ struct ContentView: View {
     @State private var onboardingStore = OnboardingStore()
 
     var body: some View {
-        mainContent
+        CaptureRootView()
+            .overlay(alignment: .top) {
+                if let alert = appState.incomingNotification {
+                    NotificationToast(alert: alert) {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                            appState.incomingNotification = nil
+                        }
+                    }
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .zIndex(100)
+                }
+            }
+            .animation(.spring(response: 0.4, dampingFraction: 0.85),
+                       value: appState.incomingNotification != nil)
             .fullScreenCover(isPresented: Binding(
                 get: { !hasOnboarded },
                 set: { newValue in if newValue == false { hasOnboarded = true } }
@@ -23,52 +41,7 @@ struct ContentView: View {
                 }
             }
     }
-
-    private var mainContent: some View {
-        ZStack(alignment: .bottom) {
-            TabView(selection: Binding(
-                get: { appState.selectedTab },
-                set: { appState.selectedTab = $0 }
-            )) {
-                FeedView()
-                    .tag(AppState.Tab.feed)
-
-                Color.clear
-                    .tag(AppState.Tab.capture)
-
-                CityMapView()
-                    .tag(AppState.Tab.map)
-
-                ProfileView()
-                    .tag(AppState.Tab.profile)
-            }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-
-            CustomTabBar()
-        }
-        .ignoresSafeArea()
-        .fullScreenCover(isPresented: Binding(
-            get: { appState.selectedTab == .capture },
-            set: { if !$0 { appState.selectedTab = .feed } }
-        )) {
-            CaptureRootView()
-        }
-        .overlay(alignment: .top) {
-            if let alert = appState.incomingNotification {
-                NotificationToast(alert: alert) {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                        appState.incomingNotification = nil
-                    }
-                }
-                .transition(.move(edge: .top).combined(with: .opacity))
-                .zIndex(100)
-            }
-        }
-        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: appState.incomingNotification != nil)
-    }
 }
-
-// MARK: - Notification toast
 
 private struct NotificationToast: View {
     let alert: AppState.NotificationAlert
@@ -76,17 +49,24 @@ private struct NotificationToast: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: "eye.fill")
+            Image(systemName: "cloud.fill")
                 .font(.system(size: 15))
                 .foregroundStyle(CV.Color.accent)
                 .frame(width: 32, height: 32)
                 .background(Circle().fill(CV.Color.accent.opacity(0.15)))
 
-            Text(alert.body)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(CV.Color.textPrimary)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 2) {
+                if !alert.title.isEmpty {
+                    Text(alert.title)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(CV.Color.textPrimary)
+                }
+                Text(alert.body)
+                    .font(.system(size: 12))
+                    .foregroundStyle(CV.Color.textSecondary)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
 
             Spacer(minLength: 0)
 

@@ -15,7 +15,6 @@ struct CaptureRootView: View {
     @State private var subscriptions = SubscriptionService.shared
     @State private var mode: Mode = .resolving
     @State private var showUpgrade = false
-    @Environment(\.dismiss) private var dismiss
 
     enum Mode {
         case resolving        // initial state until JournalStore loads
@@ -29,29 +28,34 @@ struct CaptureRootView: View {
             case .resolving:
                 resolvingView
             case .camera:
-                CaptureFlowView(onCompleted: {
-                    // Develop finished + entry saved. Quota recorded
-                    // here (not in the develop call) so a deletion of
-                    // the entry doesn't refund the daily quota.
-                    subscriptions.recordScan()
-                    mode = .today
-                })
+                // Only offer a cancel path when there's something to
+                // cancel back to (i.e., a subscriber who already has
+                // today's Polaroid and tapped "Capture another").
+                CaptureFlowView(
+                    onCompleted: {
+                        subscriptions.recordScan()
+                        mode = .today
+                    },
+                    onCancel: store.todaysEntry != nil ? { mode = .today } : nil
+                )
             case .today:
                 if let today = store.todaysEntry {
                     TodaysPolaroidView(
                         entry: today,
-                        onCaptureRequested: handleCaptureRequest,
-                        onDismiss: { dismiss() }
+                        onCaptureRequested: handleCaptureRequest
                     )
                 } else if subscriptions.hasQuotaToday {
                     // No today's entry, but quota is available — either
                     // a fresh day rolled in while the view was alive,
                     // or the user deleted today's entry. Either way,
                     // back to the camera.
-                    CaptureFlowView(onCompleted: {
-                        subscriptions.recordScan()
-                        mode = .today
-                    })
+                    CaptureFlowView(
+                        onCompleted: {
+                            subscriptions.recordScan()
+                            mode = .today
+                        },
+                        onCancel: nil
+                    )
                 } else {
                     // No quota, no today's entry — usually a free user
                     // who deleted their Polaroid from the gallery.
@@ -114,10 +118,6 @@ struct CaptureRootView: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 8)
-                Button("Close") { dismiss() }
-                    .font(.system(size: 13))
-                    .foregroundStyle(.white.opacity(0.55))
-                    .padding(.top, 4)
             }
             .padding(.horizontal, 36)
         }

@@ -9,20 +9,22 @@ import SwiftUI
 ///   • Tap the Polaroid → open the note editor sheet
 ///   • Swipe right       → open the gallery of past Polaroids
 ///   • Swipe up (drawer) → today's weather details
-///   • Subscribers see a "Capture another sky" button
-///   • Free users see "Tomorrow's sky awaits" and a soft upsell
+///   • Gear icon         → Settings
+///   • Stack icon        → gallery (mirror of the swipe-right gesture)
+///   • Subscribers see a "Capture another sky" button in the drawer
+///   • Free users see "Tomorrow's sky awaits" + a soft upsell
 struct TodaysPolaroidView: View {
     let entry: JournalEntry
     /// Called when the user wants to go back to the camera. Only the
     /// caller knows whether to honor it (subscriber) or present the
     /// upgrade sheet (free user) — we just forward intent.
     var onCaptureRequested: () -> Void = {}
-    var onDismiss: () -> Void = {}
 
     @State private var subscriptions = SubscriptionService.shared
     @State private var showGallery = false
     @State private var showNoteEditor = false
     @State private var showUpgrade = false
+    @State private var showSettings = false
     @State private var dragOffset: CGFloat = 0
     @State private var weather: WeatherSnapshot?
 
@@ -30,7 +32,7 @@ struct TodaysPolaroidView: View {
 
     @AppStorage("polaroid_show_shape_caption") private var showShapeCaption = true
 
-    @State private var drawerPosition: GlassDrawer<TodaysWeatherPanel>.DrawerPosition = .peek
+    @State private var drawerPosition: GlassDrawer<WeatherDrawerContent<AnyView>>.DrawerPosition = .peek
 
     var body: some View {
         ZStack {
@@ -50,28 +52,19 @@ struct TodaysPolaroidView: View {
             }
 
             GlassDrawer(position: $drawerPosition, peekHeight: 200, halfFraction: 0.55) {
-                TodaysWeatherPanel(
-                    entry: entry,
-                    weather: weather,
-                    isSubscribed: subscriptions.isSubscribed,
-                    onCaptureAnother: handleCaptureRequest,
-                    onUpgrade: { showUpgrade = true }
-                )
+                WeatherDrawerContent(weather: weather) {
+                    AnyView(drawerActionRow)
+                }
             }
         }
         .preferredColorScheme(.dark)
-        .task {
-            await loadWeather()
-        }
+        .task { await loadWeather() }
         .fullScreenCover(isPresented: $showGallery) {
             JournalGalleryView(focusEntryId: entry.id)
         }
-        .sheet(isPresented: $showNoteEditor) {
-            noteEditorSheet
-        }
-        .sheet(isPresented: $showUpgrade) {
-            UpgradeSheetView()
-        }
+        .sheet(isPresented: $showNoteEditor) { noteEditorSheet }
+        .sheet(isPresented: $showUpgrade) { UpgradeSheetView() }
+        .sheet(isPresented: $showSettings) { SettingsView() }
     }
 
     // MARK: - Sections
@@ -88,15 +81,16 @@ struct TodaysPolaroidView: View {
     private var topBar: some View {
         HStack {
             Button {
-                onDismiss()
+                showSettings = true
             } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .semibold))
+                Image(systemName: "gearshape")
+                    .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.85))
                     .frame(width: 36, height: 36)
                     .background(Circle().fill(.white.opacity(0.10)))
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Settings")
             Spacer()
             VStack(spacing: 2) {
                 Text("TODAY")
@@ -126,6 +120,49 @@ struct TodaysPolaroidView: View {
 
     private var polaroid: some View {
         PolaroidCard(entry: entry, showShapeCaption: showShapeCaption, tilt: -1.2)
+    }
+
+    /// The action row that sits at the top of the weather drawer.
+    /// Subscribers get a primary CTA to capture another sky; free
+    /// users get the gentle "tomorrow" framing with a quiet upsell.
+    @ViewBuilder
+    private var drawerActionRow: some View {
+        if subscriptions.isSubscribed {
+            Button(action: handleCaptureRequest) {
+                HStack(spacing: 8) {
+                    Image(systemName: "camera.fill")
+                    Text("Capture another sky")
+                        .font(.system(size: 15, weight: .semibold))
+                }
+                .foregroundStyle(.black)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(RoundedRectangle(cornerRadius: CV.Radius.md).fill(CV.Color.accent))
+            }
+            .buttonStyle(.plain)
+        } else {
+            VStack(alignment: .center, spacing: 6) {
+                Text("Tomorrow's sky awaits ☁︎")
+                    .font(.system(size: 14, weight: .regular, design: .serif))
+                    .italic()
+                    .foregroundStyle(.white.opacity(0.75))
+                Button { showUpgrade = true } label: {
+                    Text("Or unlock unlimited Polaroids")
+                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                        .tracking(0.5)
+                        .foregroundStyle(CV.Color.accent)
+                }
+                .buttonStyle(.plain)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: CV.Radius.md)
+                    .fill(Color.white.opacity(0.04))
+                    .overlay(RoundedRectangle(cornerRadius: CV.Radius.md)
+                        .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5))
+            )
+        }
     }
 
     // MARK: - Note editor sheet
@@ -196,193 +233,5 @@ struct TodaysPolaroidView: View {
                     }
                 }
             }
-    }
-}
-
-// MARK: - Weather panel (drawer content)
-
-/// Slim weather drawer for the daily home view. Reads as a peek
-/// (action row + a couple of stats) and expands to show the
-/// hourly watchability chart + sun arc when pulled higher.
-struct TodaysWeatherPanel: View {
-    let entry: JournalEntry
-    let weather: WeatherSnapshot?
-    let isSubscribed: Bool
-    let onCaptureAnother: () -> Void
-    let onUpgrade: () -> Void
-
-    var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 18) {
-                actionRow
-                if let w = weather {
-                    conditionsRow(w)
-                    watchabilityChart(w)
-                    sunBar(w)
-                } else {
-                    weatherUnavailable
-                }
-                Color.clear.frame(height: 24)
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 4)
-        }
-    }
-
-    private var actionRow: some View {
-        VStack(spacing: 10) {
-            if isSubscribed {
-                Button(action: onCaptureAnother) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "camera.fill")
-                        Text("Capture another sky")
-                            .font(.system(size: 15, weight: .semibold))
-                    }
-                    .foregroundStyle(.black)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(RoundedRectangle(cornerRadius: CV.Radius.md).fill(CV.Color.accent))
-                }
-                .buttonStyle(.plain)
-            } else {
-                VStack(alignment: .center, spacing: 6) {
-                    Text("Tomorrow's sky awaits ☁︎")
-                        .font(.system(size: 14, weight: .regular, design: .serif))
-                        .italic()
-                        .foregroundStyle(.white.opacity(0.75))
-                    Button(action: onUpgrade) {
-                        Text("Or unlock unlimited Polaroids")
-                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                            .tracking(0.5)
-                            .foregroundStyle(CV.Color.accent)
-                    }
-                    .buttonStyle(.plain)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: CV.Radius.md)
-                        .fill(Color.white.opacity(0.04))
-                        .overlay(RoundedRectangle(cornerRadius: CV.Radius.md)
-                            .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5))
-                )
-            }
-        }
-    }
-
-    private func conditionsRow(_ w: WeatherSnapshot) -> some View {
-        let cloudDesc: String
-        let cloudQual: String
-        switch w.cloudCoverPct {
-        case ..<20:  cloudDesc = "Clear sky";         cloudQual = "few shapes to find"
-        case ..<50:  cloudDesc = "Scattered cumulus"; cloudQual = "ideal for shapes"
-        case ..<80:  cloudDesc = "Broken cloud";      cloudQual = "good canvas overhead"
-        default:     cloudDesc = "Overcast";          cloudQual = "catch it quick"
-        }
-
-        return VStack(alignment: .leading, spacing: 10) {
-            Text("Right now".uppercased())
-                .font(.system(size: 10.5, weight: .medium, design: .monospaced))
-                .foregroundStyle(CV.Color.textTertiary)
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text("\(w.temperature)°")
-                    .font(.system(size: 38, weight: .regular, design: .serif))
-                    .foregroundStyle(CV.Color.textPrimary)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(cloudDesc)
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(CV.Color.textPrimary)
-                    Text("\(w.cloudCoverPct)% cover · \(cloudQual)")
-                        .font(CV.Font.caption)
-                        .foregroundStyle(CV.Color.textSecondary)
-                }
-                Spacer()
-            }
-        }
-    }
-
-    private func watchabilityChart(_ w: WeatherSnapshot) -> some View {
-        let hours = w.hourlyWatchability
-        let peak = hours.max(by: { $0.score < $1.score })
-
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("Watchability · next 8h".uppercased())
-                    .font(.system(size: 10.5, weight: .medium, design: .monospaced))
-                    .foregroundStyle(CV.Color.textTertiary)
-                Spacer()
-                if let p = peak {
-                    Text("peak \(p.label)")
-                        .font(CV.Font.caption)
-                        .foregroundStyle(CV.Color.textSecondary)
-                }
-            }
-            HStack(alignment: .bottom, spacing: 6) {
-                ForEach(Array(hours.enumerated()), id: \.0) { _, h in
-                    let isPeak = h.label == peak?.label
-                    VStack(spacing: 6) {
-                        ZStack(alignment: .bottom) {
-                            RoundedRectangle(cornerRadius: 5)
-                                .fill(Color.white.opacity(0.07))
-                                .frame(height: 52)
-                            RoundedRectangle(cornerRadius: 5)
-                                .fill(isPeak ? CV.Color.accent : Color.white.opacity(0.3))
-                                .frame(height: max(4, 52 * h.score))
-                        }
-                        Text(h.label)
-                            .font(.system(size: 10, weight: isPeak ? .semibold : .regular, design: .monospaced))
-                            .foregroundStyle(isPeak ? CV.Color.textPrimary : CV.Color.textTertiary)
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-            }
-        }
-    }
-
-    private func sunBar(_ w: WeatherSnapshot) -> some View {
-        let now = Date()
-        let total = max(1, w.sunset.timeIntervalSince(w.sunrise))
-        let elapsed = now.timeIntervalSince(w.sunrise)
-        let progress = max(0, min(1, elapsed / total))
-
-        let fmt = DateFormatter()
-        fmt.dateFormat = "h:mma"
-
-        return VStack(alignment: .leading, spacing: 10) {
-            Text("Light today".uppercased())
-                .font(.system(size: 10.5, weight: .medium, design: .monospaced))
-                .foregroundStyle(CV.Color.textTertiary)
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.white.opacity(0.07))
-                        .frame(height: 8)
-                    Circle()
-                        .fill(.white)
-                        .frame(width: 16, height: 16)
-                        .shadow(color: CV.Color.accent.opacity(0.6), radius: 6)
-                        .offset(x: geo.size.width * progress - 8)
-                }
-            }
-            .frame(height: 18)
-            HStack {
-                Text(fmt.string(from: w.sunrise).lowercased())
-                Spacer()
-                Text(fmt.string(from: w.sunset).lowercased())
-            }
-            .font(.system(size: 11, design: .monospaced))
-            .foregroundStyle(CV.Color.textTertiary)
-        }
-    }
-
-    private var weatherUnavailable: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "cloud.slash")
-                .foregroundStyle(CV.Color.textTertiary)
-            Text("Weather unavailable — check location access.")
-                .font(CV.Font.caption)
-                .foregroundStyle(CV.Color.textSecondary)
-        }
-        .padding(.vertical, 6)
     }
 }
