@@ -29,6 +29,29 @@ struct PolaroidCard: View {
         .shadow(color: .black.opacity(0.55), radius: 30, y: 18)
         .shadow(color: .black.opacity(0.30), radius: 8, y: 4)
         .rotationEffect(.degrees(tilt))
+        // VoiceOver: collapse the whole card into a single sentence
+        // a screen reader can speak. Individual text labels would
+        // otherwise speak in geometry order (date, day, time, temp,
+        // conditions) which scans badly.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityDescription)
+    }
+
+    private var accessibilityDescription: String {
+        var parts: [String] = ["Polaroid"]
+        if !entry.shapeName.isEmpty {
+            parts.append("of \(entry.shapeName.lowercased())")
+        }
+        parts.append("captured \(dateStamp.lowercased()) at \(timeStamp)")
+        if let temp = entry.temperatureF {
+            parts.append("\(temp) degrees, \(entry.conditionsSummary)")
+        } else {
+            parts.append(entry.conditionsSummary)
+        }
+        if let city = entry.city, !city.isEmpty {
+            parts.append("in \(city)")
+        }
+        return parts.joined(separator: ", ") + "."
     }
 
     // MARK: - Top border: date + time, old-timey stamp
