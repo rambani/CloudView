@@ -33,31 +33,57 @@ CLOUD = (247, 244, 235, 255)
 GLOW = (255, 255, 255, 30)
 
 
-def draw_cloud(draw, cx, cy, scale=1.0):
-    """Same 5-cloud-puff bird arrangement as the app icon (see
-    generate_appicon.py for design rationale). Keeping both in
-    sync so the icon you tapped and the brief launch flash read as
-    one continuous moment."""
-    ink = (38, 40, 56, 220)
-
-    def e(x1, y1, x2, y2):
+def _puff(draw, cx, cy, w, h, scale):
+    """Organic cumulus puff — same recipe as the app icon's
+    `_puff()`: center oval + asymmetric edge bumps so the
+    silhouette reads as a real cloud, not a circle."""
+    def el(x1, y1, x2, y2):
         return (cx + int(x1 * scale), cy + int(y1 * scale),
                 cx + int(x2 * scale), cy + int(y2 * scale))
+    draw.ellipse(el(-w * 0.42, -h * 0.38, w * 0.42, h * 0.38), fill=CLOUD)
+    base_r = min(w, h) * 0.24
+    bumps = [
+        (-0.86, -0.25, 0.95), (-0.62, -0.65, 0.85),
+        (-0.18, -0.82, 1.00), ( 0.22, -0.78, 0.92),
+        ( 0.58, -0.55, 0.80), ( 0.88, -0.18, 0.88),
+        ( 0.78,  0.30, 0.78), ( 0.40,  0.62, 0.86),
+        (-0.10,  0.72, 0.92), (-0.55,  0.58, 0.84),
+        (-0.85,  0.20, 0.80),
+    ]
+    for x_frac, y_frac, size_mult in bumps:
+        bx = x_frac * w * 0.5
+        by = y_frac * h * 0.5
+        br = base_r * size_mult
+        draw.ellipse(el(bx - br, by - br, bx + br, by + br), fill=CLOUD)
+
+
+def draw_cloud(draw, cx, cy, scale=1.0):
+    """Same organic-cloud bird arrangement as the app icon (see
+    generate_appicon.py for design rationale). Keeping both in
+    sync so the icon you tapped and the brief launch flash read as
+    one continuous moment.
+
+    No background wisps here — the launch flash is brief; the
+    viewer sees the silhouette for ~500ms and doesn't need a
+    full sky scene."""
+    ink = (38, 40, 56, 220)
 
     def p(x, y):
         return (cx + int(x * scale), cy + int(y * scale))
 
-    # Body
-    draw.ellipse(e(-75, -95, 75, 105), fill=CLOUD)
-    draw.ellipse(e(-95, -70, 95, 70), fill=CLOUD)
-    # Inner wing puffs
-    draw.ellipse(e(-200, -85, -70, 25), fill=CLOUD)
-    draw.ellipse(e(70, -85, 200, 25), fill=CLOUD)
-    # Wingtip puffs
-    draw.ellipse(e(-275, -105, -175, 0), fill=CLOUD)
-    draw.ellipse(e(175, -105, 275, 0), fill=CLOUD)
-    # Tail puff
-    draw.ellipse(e(-45, 130, 45, 180), fill=CLOUD)
+    # Bird arrangement — five organic puffs
+    _puff(draw, cx,        cy + int(5 * scale),   170, 200, scale)   # body
+    _puff(draw, cx + int(-135 * scale), cy + int(-30 * scale), 145, 125, scale)
+    _puff(draw, cx + int( 135 * scale), cy + int(-30 * scale), 145, 125, scale)
+    _puff(draw, cx + int(-225 * scale), cy + int(-55 * scale), 115, 110, scale)
+    _puff(draw, cx + int( 225 * scale), cy + int(-55 * scale), 115, 110, scale)
+
+    # Tail puff — small wispy streak
+    draw.ellipse(
+        (cx + int(-45 * scale), cy + int(140 * scale),
+         cx + int( 45 * scale), cy + int(175 * scale)),
+        fill=CLOUD,
+    )
 
     # Bird-in-flight trace
     path = [
