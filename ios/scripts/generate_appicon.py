@@ -69,53 +69,72 @@ def make_vertical_gradient(size, top_rgb, bottom_rgb):
 
 
 def draw_cloud(draw, cx, cy):
-    """A cumulus that ALSO reads as a rabbit — the second-most-classic
-    "I see a ___ in the clouds" example (after the whale, but the
-    long ears make the silhouette unambiguous at small sizes).
+    """A stylized cumulus with a delicate ink trace on top — mirrors
+    what the app actually outputs: an unmodified cloud photo with
+    AI-detected creature shapes pointed out in thin ink lines.
+    Cloud reads first; on a closer look the trace shows the AI
+    noticed a whale-shape inside it.
 
-    Two upright ear-lobes are the recognition trick: they're long
-    enough to escape the rest of the body's "just a cloud" reading,
-    and a single eye dot anchors the head. The body keeps the
-    organic puffy edges of a real cumulus so the icon still reads
-    as a cloud first, animal second.
-
-    Bounding box roughly [-180, -200] to [+180, +120] — fits inside
-    the 560px photo area with breathing room on all sides."""
+    Cloud silhouette built from overlapping ellipses arranged to
+    read as one continuous shape (no notches) even at 60pt
+    home-screen scale. Ink trace sized to survive shrinking."""
     cloud = (252, 250, 245, 255)
-    eye = (38, 32, 42, 235)
+    # Wide flat base — single ellipse so there's no center notch
+    draw.ellipse((cx - 230, cy + 0, cx + 250, cy + 140), fill=cloud)
+    # Mid-row lobes (fluffy middle)
+    draw.ellipse((cx - 200, cy - 50, cx - 30, cy + 110), fill=cloud)
+    draw.ellipse((cx + 30, cy - 50, cx + 220, cy + 110), fill=cloud)
+    # Upper lobes (tall fluffy top)
+    draw.ellipse((cx - 140, cy - 140, cx + 40, cy + 50), fill=cloud)
+    draw.ellipse((cx - 20, cy - 170, cx + 170, cy + 50), fill=cloud)
+    draw.ellipse((cx + 50, cy - 120, cx + 200, cy + 30), fill=cloud)
 
-    # --- Ears (drawn first so the head lobes can overlap their base) ------
-    # Long upright lobes, slightly angled outward from vertical so
-    # they read as alert ears rather than parallel sticks.
-    draw.ellipse((cx - 100, cy - 230, cx - 30, cy - 50), fill=cloud)
-    draw.ellipse((cx + 30, cy - 230, cx + 100, cy - 50), fill=cloud)
+    _draw_ink_trace(draw, cx, cy)
 
-    # --- Head --------------------------------------------------------------
-    # Round head: a single dominant lobe in the upper-center.
-    draw.ellipse((cx - 90, cy - 110, cx + 90, cy + 60), fill=cloud)
-    # Cheek puffs on the sides so the head has the soft jaw shape
-    # of a rabbit rather than a perfect ball.
-    draw.ellipse((cx - 130, cy - 70, cx - 30, cy + 60), fill=cloud)
-    draw.ellipse((cx + 30, cy - 70, cx + 130, cy + 60), fill=cloud)
 
-    # --- Body --------------------------------------------------------------
-    # Crouched body: single dominant lobe that overlaps the head's
-    # lower edge so the silhouette flows from head to body without a
-    # visible waist or skirt seam. Wider than tall to suggest a
-    # sitting rabbit's profile.
-    draw.ellipse((cx - 160, cy + 10, cx + 160, cy + 150), fill=cloud)
-    # A second slightly lower lobe gives the bottom edge a soft
-    # cloud-puff curve rather than a flat oval underside.
-    draw.ellipse((cx - 110, cy + 60, cx + 110, cy + 160), fill=cloud)
+def _draw_ink_trace(draw, cx, cy):
+    """A delicate ink outline tracing a bird-in-flight shape inside
+    the cloud — what the AI 'found' in it. A bird silhouette reads
+    cleanly at small scale (the two extended wings are unmistakable
+    in a way that a whale's outline isn't), and "I see a bird in
+    the sky" is as natural a cloud-watching read as any.
 
-    # --- Eye dot -----------------------------------------------------------
-    eye_cx = cx - 30
-    eye_cy = cy - 10
-    eye_r = 12
-    draw.ellipse(
-        (eye_cx - eye_r, eye_cy - eye_r, eye_cx + eye_r, eye_cy + eye_r),
-        fill=eye,
-    )
+    Every waypoint sits well inside the cloud silhouette so the
+    trace never appears to leave the cloud."""
+    ink = (38, 40, 56, 220)
+
+    # Bird seen from below/behind, wings spread in a gentle V. Body
+    # at center, wings sweep up-and-outward to wingtips on either
+    # side. Closed loop so the silhouette reads as a single shape.
+    path = [
+        # Start at the back of the right wing root, tracing up + out
+        (cx + 30,  cy + 5),
+        (cx + 70,  cy - 10),    # along underside of right wing
+        (cx + 130, cy - 30),
+        (cx + 175, cy - 55),    # right wingtip
+        (cx + 145, cy - 45),    # back across top of right wing
+        (cx + 90,  cy - 35),
+        (cx + 35,  cy - 35),    # right wing meets shoulder
+        # Head (small forward bump between the shoulders)
+        (cx + 10,  cy - 50),
+        (cx - 10,  cy - 50),
+        # Left shoulder
+        (cx - 35,  cy - 35),
+        (cx - 90,  cy - 35),    # across top of left wing
+        (cx - 145, cy - 45),
+        (cx - 175, cy - 55),    # left wingtip
+        (cx - 130, cy - 30),    # back along underside of left wing
+        (cx - 70,  cy - 10),
+        (cx - 30,  cy + 5),
+        # Body / tail (small triangle hanging down)
+        (cx - 15,  cy + 30),
+        (cx,       cy + 55),    # tail tip
+        (cx + 15,  cy + 30),
+        # Close back to start
+        (cx + 30,  cy + 5),
+    ]
+
+    draw.line(path, fill=ink, width=9, joint='curve')
 
 
 def build_polaroid():
