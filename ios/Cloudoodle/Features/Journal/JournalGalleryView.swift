@@ -16,6 +16,8 @@ struct JournalGalleryView: View {
     @State private var store = JournalStore.shared
     @State private var currentIndex: Int = 0
     @State private var editingNoteFor: UUID?
+    @State private var deleteConfirmFor: JournalEntry?
+    @State private var shareImage: UIImage?
     @Environment(\.dismiss) private var dismiss
     @AppStorage("polaroid_show_shape_caption") private var showShapeCaption = true
 
@@ -49,6 +51,72 @@ struct JournalGalleryView: View {
                 currentIndex = idx
             }
         }
+        .confirmationDialog(
+            "Delete this Polaroid?",
+            isPresented: Binding(
+                get: { deleteConfirmFor != nil },
+                set: { if !$0 { deleteConfirmFor = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: deleteConfirmFor
+        ) { entry in
+            Button("Delete", role: .destructive) {
+                Task { await deleteEntry(entry) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { entry in
+            // Honesty about quota — free users sometimes try to
+            // delete and re-scan. Set the expectation.
+            if Calendar.current.isDateInToday(entry.createdAt),
+               !SubscriptionService.shared.isSubscribed {
+                Text("This is today's Polaroid. Deleting it won't give you another scan until tomorrow.")
+            } else {
+                Text("The note and the photo go with it. This can't be undone.")
+            }
+        }
+        .sheet(item: Binding(
+            get: { shareImage.map { SharePayload(image: $0) } },
+            set: { if $0 == nil { shareImage = nil } }
+        )) { payload in
+            ActivityViewSheet(items: [payload.image])
+        }
+    }
+
+    // MARK: - Share + delete handlers
+
+    private func deleteEntry(_ entry: JournalEntry) async {
+        // Step out of the page that's about to vanish so SwiftUI
+        // doesn't fight a vanishing TabView selection.
+        if store.entries.count <= 1 {
+            await store.delete(entry.id)
+            dismiss()
+            return
+        }
+        let nextIndex = max(0, currentIndex - 1)
+        await store.delete(entry.id)
+        currentIndex = nextIndex
+    }
+
+    /// Renders the Polaroid card to a UIImage for the iOS share sheet.
+    /// ImageRenderer needs the actual SwiftUI view — we instantiate a
+    /// fresh, untilted copy at a fixed size so the shared image looks
+    /// printable rather than stack-tilted.
+    @MainActor
+    private func shareEntry(_ entry: JournalEntry) async {
+        let card = PolaroidCard(
+            entry: entry,
+            showShapeCaption: showShapeCaption,
+            tilt: 0
+        )
+        .frame(width: 720)
+        .padding(28)
+        .background(Color(red: 0.10, green: 0.07, blue: 0.09))
+
+        let renderer = ImageRenderer(content: card)
+        renderer.scale = 3.0
+        if let image = renderer.uiImage {
+            shareImage = image
+        }
     }
 
     private var backdrop: some View {
@@ -65,13 +133,18 @@ struct JournalGalleryView: View {
             Button {
                 dismiss()
             } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.85))
-                    .frame(width: 36, height: 36)
-                    .background(Circle().fill(.white.opacity(0.10)))
+                HStack(spacing: 4) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text("Today")
+                        .font(.system(size: 13, weight: .medium))
+                }
+                .foregroundStyle(.white.opacity(0.85))
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .background(Capsule().fill(.white.opacity(0.10)))
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Back to today's Polaroid")
             Spacer()
             VStack(spacing: 2) {
                 Text("YOUR CLOUDS")
@@ -85,7 +158,9 @@ struct JournalGalleryView: View {
                 }
             }
             Spacer()
-            Color.clear.frame(width: 36, height: 36)
+            // Balance the back chip on the right so the title stays
+            // centered. Same dimensions, invisible.
+            Color.clear.frame(width: 80, height: 32)
         }
         .padding(.horizontal, 20)
         .padding(.top, 60)
@@ -112,6 +187,20 @@ struct JournalGalleryView: View {
             )
             .padding(.horizontal, 36)
             .onTapGesture { editingNoteFor = entry.id }
+            .contextMenu {
+                // Long-press menu — discoverable via the iOS-standard
+                // gesture, invisible chrome otherwise.
+                Button {
+                    Task { await shareEntry(entry) }
+                } label: {
+                    Label("Share Polaroid", systemImage: "square.and.arrow.up")
+                }
+                Button(role: .destructive) {
+                    deleteConfirmFor = entry
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
             noteRow(for: entry)
                 .padding(.horizontal, 28)
             Spacer()
@@ -217,4 +306,25 @@ struct JournalGalleryView: View {
         let amplitudes: [Double] = [-1.4, -0.6, -2.0, 0.8, -1.0, 1.6]
         return amplitudes[idx % amplitudes.count]
     }
+}
+
+/// Identifiable wrapper so the share sheet can present from a
+/// nil-able binding without re-presenting whenever currentIndex
+/// flips. The id encodes the image itself by reference.
+private struct SharePayload: Identifiable {
+    let image: UIImage
+    var id: ObjectIdentifier { ObjectIdentifier(image) }
+}
+
+/// UIKit bridge for `UIActivityViewController`. SwiftUI's `ShareLink`
+/// is fine for text/URLs, but image sharing from arbitrary callsites
+/// is more reliable through the activity controller — it correctly
+/// previews the image and supports Messages/Mail/Instagram/etc.
+private struct ActivityViewSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }
