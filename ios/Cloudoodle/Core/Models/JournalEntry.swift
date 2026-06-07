@@ -30,6 +30,11 @@ struct JournalEntry: Identifiable, Codable, Sendable {
     let city: String?
     let country: String?
     let temperatureF: Int?
+    /// Cloud cover percentage at capture time. Drives the short
+    /// conditions phrase on the Polaroid bottom border ("scattered
+    /// cumulus" / "broken cloud" / etc). Optional because WeatherKit
+    /// can fail (no permission, transient outage).
+    let cloudCoverPct: Int?
 
     /// The user's note — capped at 500 chars. nil = no note yet.
     var note: String?
@@ -49,6 +54,7 @@ struct JournalEntry: Identifiable, Codable, Sendable {
         city: String? = nil,
         country: String? = nil,
         temperatureF: Int? = nil,
+        cloudCoverPct: Int? = nil,
         note: String? = nil
     ) {
         self.id = id
@@ -62,6 +68,7 @@ struct JournalEntry: Identifiable, Codable, Sendable {
         self.city = city
         self.country = country
         self.temperatureF = temperatureF
+        self.cloudCoverPct = cloudCoverPct
         self.note = note
     }
 
@@ -74,5 +81,18 @@ struct JournalEntry: Identifiable, Codable, Sendable {
         f.dateFormat = "MMM d"
         parts.append(f.string(from: createdAt))
         return parts.joined(separator: " · ")
+    }
+
+    /// Short conditions phrase for the Polaroid bottom border —
+    /// derived from cloud cover so we don't store free text we'd need
+    /// to keep in sync with WeatherKit's vocabulary.
+    var conditionsSummary: String {
+        guard let pct = cloudCoverPct else { return cloudType.lowercased() }
+        switch pct {
+        case ..<20:  return "clear sky"
+        case ..<50:  return "scattered cumulus"
+        case ..<80:  return "broken cloud"
+        default:     return "overcast"
+        }
     }
 }

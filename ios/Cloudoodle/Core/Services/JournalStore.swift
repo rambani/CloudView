@@ -89,6 +89,15 @@ final class JournalStore {
         await persist()
     }
 
+    /// Most recent entry created today (local time), or nil if none.
+    /// Drives the "today's Polaroid is the home view" routing — the
+    /// app shows the camera when this is nil and TodaysPolaroidView
+    /// when it isn't.
+    var todaysEntry: JournalEntry? {
+        let cal = Calendar.current
+        return entries.first(where: { cal.isDateInToday($0.createdAt) })
+    }
+
     /// Write `entries` back to disk. Off-main since JSON encoding
     /// + file write is non-trivial for entries that carry images.
     private func persist() async {

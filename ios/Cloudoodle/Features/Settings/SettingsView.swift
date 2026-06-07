@@ -10,6 +10,13 @@ struct SettingsView: View {
     @AppStorage("supabase_url") private var supabaseURL = ""
     @AppStorage("supabase_anon_key") private var supabaseAnonKey = ""
 
+    // Display preferences
+    @AppStorage("polaroid_show_shape_caption") private var showShapeCaption = true
+
+    // Subscription
+    @State private var subscriptions = SubscriptionService.shared
+    @State private var showUpgrade = false
+
     // Auth form
     @State private var email = ""
     @State private var password = ""
@@ -46,6 +53,28 @@ struct SettingsView: View {
                 Color.black.ignoresSafeArea()
                 ScrollView {
                     VStack(spacing: 28) {
+                        // Cloudoodle Unlimited — surfaces subscription
+                        // status + the upgrade path. Subscribers see
+                        // their plan; free users see the pitch.
+                        SettingsSection(title: "Cloudoodle Unlimited", icon: "infinity") {
+                            subscriptionRow
+                        }
+
+                        // Polaroid display preferences
+                        SettingsSection(title: "Polaroid", icon: "photo.on.rectangle.angled") {
+                            Toggle(isOn: $showShapeCaption) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Show shape name on Polaroid")
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundStyle(CV.Color.textPrimary)
+                                    Text("Faint italic caption inside the photo.")
+                                        .font(CV.Font.caption)
+                                        .foregroundStyle(CV.Color.textTertiary)
+                                }
+                            }
+                            .tint(CV.Color.accent)
+                        }
+
                         // Gemini section
                         SettingsSection(title: "AI Analysis", icon: "brain") {
                             VStack(alignment: .leading, spacing: 8) {
@@ -218,8 +247,62 @@ struct SettingsView: View {
                 case .terms:   LegalView(title: "Terms of Service", resourceName: "TermsOfService")
                 }
             }
+            .sheet(isPresented: $showUpgrade) {
+                UpgradeSheetView()
+            }
         }
         .preferredColorScheme(.dark)
+        .task { await subscriptions.refreshEntitlements() }
+    }
+
+    /// Subscription status row inside the "Cloudoodle Unlimited"
+    /// section. Subscribers see active state + a link to manage in
+    /// the system Subscriptions page; free users see the pitch +
+    /// upgrade button.
+    @ViewBuilder
+    private var subscriptionRow: some View {
+        if subscriptions.isSubscribed {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.seal.fill")
+                        .foregroundStyle(CV.Color.accent)
+                    Text("Unlimited active")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(CV.Color.textPrimary)
+                    Spacer()
+                }
+                Text("Capture as many Polaroids as you'd like, every day. Thank you for supporting Cloudoodle.")
+                    .font(CV.Font.caption)
+                    .foregroundStyle(CV.Color.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
+                    Link("Manage subscription", destination: url)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(CV.Color.accentBlue)
+                        .padding(.top, 4)
+                }
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("One free Polaroid per day. Upgrade for unlimited captures and to support a tiny indie app.")
+                    .font(.system(size: 13, design: .serif))
+                    .foregroundStyle(CV.Color.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button {
+                    showUpgrade = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "sparkles")
+                        Text("See plans")
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 14).padding(.vertical, 9)
+                    .background(Capsule().fill(CV.Color.accent))
+                }
+                .buttonStyle(.plain)
+            }
+        }
     }
 
     private static var appVersion: String {

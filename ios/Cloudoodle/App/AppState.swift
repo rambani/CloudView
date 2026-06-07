@@ -4,7 +4,10 @@ import SwiftUI
 final class AppState {
     static let shared = AppState()
 
-    var selectedTab: Tab = .feed
+    /// Opens to the capture tab — Cloudoodle's daily ritual starts at
+    /// the camera (or today's developed Polaroid if you've already
+    /// captured). The other tabs are secondary destinations.
+    var selectedTab: Tab = .capture
     var pendingSighting: CloudSighting?
     var analysisError: Error?
     var incomingNotification: NotificationAlert?

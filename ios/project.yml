@@ -31,6 +31,11 @@ targets:
           # only matches files copied via a folder reference, which
           # explicit buildPhase: resources entries produce.
           - "Resources/Library/**"
+          # StoreKit configuration files are referenced from the Run
+          # scheme (Edit Scheme → Options → StoreKit Configuration),
+          # not the app bundle. xcodegen would otherwise add them to
+          # Copy Bundle Resources where they'd ship dead weight.
+          - "Resources/StoreKit/**"
       - path: Cloudoodle/Resources/Legal/PrivacyPolicy.md
         buildPhase: resources
       - path: Cloudoodle/Resources/Legal/TermsOfService.md

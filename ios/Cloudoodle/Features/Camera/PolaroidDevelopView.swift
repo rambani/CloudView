@@ -33,19 +33,17 @@ struct PolaroidDevelopView: View {
     /// response time, then snaps to 1.0 on completion).
     let progress: Double
     /// Caller fires this when the user taps the developed Polaroid
-    /// to either save / keep / take another.
+    /// to dismiss the reveal and land in today's home view.
     var onTap: () -> Void = {}
-    /// Journal entry created when develop succeeded. Drives the
-    /// swipe-right-to-gallery affordance — once present, the user can
-    /// drag the Polaroid leftward to slide into their stack.
+    /// Journal entry created when develop succeeded. Currently unused
+    /// inside the view (the parent uses it for routing) but kept as
+    /// the explicit signal that develop is done + saved.
     var journalEntryId: UUID? = nil
 
     @State private var tiltSettled = false
     @State private var shakeOffset: CGFloat = 0
     @State private var hasShaken = false
     @State private var hasSettled = false
-    @State private var dragOffset: CGFloat = 0
-    @State private var showGallery = false
 
     var body: some View {
         ZStack {
@@ -62,15 +60,8 @@ struct PolaroidDevelopView: View {
             VStack(spacing: 22) {
                 polaroidCard
                 developingCaption
-                if journalEntryId != nil, hasSettled {
-                    swipeHint
-                }
             }
             .padding(.horizontal, 28)
-        }
-        .gesture(swipeToGallery)
-        .fullScreenCover(isPresented: $showGallery) {
-            JournalGalleryView(focusEntryId: journalEntryId)
         }
         .onAppear {
             // Tilt settles in
@@ -161,64 +152,12 @@ struct PolaroidDevelopView: View {
         .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
         .shadow(color: .black.opacity(0.55), radius: 30, y: 18)
         .shadow(color: .black.opacity(0.35), radius: 8, y: 4)
-        .rotationEffect(.degrees(tiltSettled ? -1.5 + dragOffset / 60 : -12))
-        .offset(x: shakeOffset + dragOffset, y: tiltSettled ? 0 : -200)
+        .rotationEffect(.degrees(tiltSettled ? -1.5 : -12))
+        .offset(x: shakeOffset, y: tiltSettled ? 0 : -200)
         .scaleEffect(tiltSettled ? 1 : 0.85)
         .onTapGesture {
             if developed != nil { onTap() }
         }
-    }
-
-    /// Faint "← swipe to your stack" cue that fades in once the
-    /// Polaroid has settled. The arrow points the way and the wording
-    /// frames the gallery as a personal collection, not a feature.
-    private var swipeHint: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "arrow.left")
-                .font(.system(size: 11, weight: .semibold))
-            Text("swipe to your stack")
-                .font(.system(size: 11, weight: .regular, design: .monospaced))
-                .tracking(1.2)
-        }
-        .foregroundStyle(.white.opacity(0.45))
-        .transition(.opacity)
-    }
-
-    /// Left-swipe drag → present the JournalGalleryView. Only active
-    /// once the photo has developed (otherwise we'd be revealing a
-    /// stack while the current frame is still cooking). The card
-    /// follows the finger up to a small commit threshold, then snaps
-    /// open or settles back.
-    private var swipeToGallery: some Gesture {
-        DragGesture(minimumDistance: 14)
-            .onChanged { value in
-                guard journalEntryId != nil, developed != nil else { return }
-                // Only track leftward drags; right pulls feel like a
-                // stretch but don't open anything yet (could become
-                // delete in a future iteration).
-                let dx = min(0, value.translation.width)
-                dragOffset = dx * 0.7   // resist a little so it feels physical
-            }
-            .onEnded { value in
-                guard journalEntryId != nil, developed != nil else { return }
-                let commit = value.translation.width < -80
-                    || value.predictedEndTranslation.width < -180
-                if commit {
-                    withAnimation(.easeIn(duration: 0.18)) {
-                        dragOffset = -UIScreen.main.bounds.width
-                    }
-                    Task {
-                        try? await Task.sleep(for: .milliseconds(160))
-                        showGallery = true
-                        try? await Task.sleep(for: .milliseconds(50))
-                        dragOffset = 0
-                    }
-                } else {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
-                        dragOffset = 0
-                    }
-                }
-            }
     }
 
     private var photoStage: some View {

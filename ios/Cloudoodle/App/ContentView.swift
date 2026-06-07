@@ -51,7 +51,7 @@ struct ContentView: View {
             get: { appState.selectedTab == .capture },
             set: { if !$0 { appState.selectedTab = .feed } }
         )) {
-            CaptureFlowView()
+            CaptureRootView()
         }
         .overlay(alignment: .top) {
             if let alert = appState.incomingNotification {

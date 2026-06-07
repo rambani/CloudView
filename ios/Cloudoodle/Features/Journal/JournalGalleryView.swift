@@ -2,25 +2,25 @@ import SwiftUI
 
 /// The user's Polaroid stack — horizontal swipe-through of past
 /// developed cloud sightings, each with its caption and (optional)
-/// note about the day. Reached by swiping right from the
-/// PolaroidDevelopView or via a tab elsewhere in the app.
+/// note about the day. Reached by swiping right from today's
+/// Polaroid view, or from the Profile tab.
 ///
 /// Design notes:
 ///   • Same darkroom-red ambient backdrop as the develop view so
 ///     the swipe transition feels continuous, not a context switch.
 ///   • Each page is one Polaroid centered with a peek of the next
 ///     and previous cards on either side (so the "stack" reads).
-///   • Tap a card to expand into the note editor. Swipe up to
-///     delete (long-press menu).
+///   • Tap a card to open the note editor.
 ///   • Empty state explains the ritual: scan → develop → note.
 struct JournalGalleryView: View {
     @State private var store = JournalStore.shared
     @State private var currentIndex: Int = 0
     @State private var editingNoteFor: UUID?
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("polaroid_show_shape_caption") private var showShapeCaption = true
 
-    /// When presented from PolaroidDevelopView, the entry that was
-    /// just developed — gallery focuses on it on appear.
+    /// When presented from today's Polaroid view or the develop
+    /// reveal, the entry that should be focused on appear.
     var focusEntryId: UUID? = nil
 
     var body: some View {
@@ -36,7 +36,6 @@ struct JournalGalleryView: View {
                 gallery
             }
 
-            // Top bar — close + title + count
             VStack {
                 topBar
                 Spacer()
@@ -86,7 +85,6 @@ struct JournalGalleryView: View {
                 }
             }
             Spacer()
-            // Mirror the close button for visual balance
             Color.clear.frame(width: 36, height: 36)
         }
         .padding(.horizontal, 20)
@@ -97,30 +95,23 @@ struct JournalGalleryView: View {
     private var gallery: some View {
         TabView(selection: $currentIndex) {
             ForEach(Array(store.entries.enumerated()), id: \.element.id) { i, entry in
-                page(for: entry).tag(i)
+                page(for: entry, index: i).tag(i)
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
         .ignoresSafeArea()
     }
 
-    private func page(for entry: JournalEntry) -> some View {
-        let original = UIImage(data: entry.originalImageData)
-        let developed = entry.developedImageData.flatMap(UIImage.init(data:))
-        return VStack(spacing: 18) {
+    private func page(for entry: JournalEntry, index: Int) -> some View {
+        VStack(spacing: 18) {
             Spacer()
-            if let original {
-                PolaroidCard(
-                    original: original,
-                    developed: developed,
-                    caption: entry.captionLine,
-                    subtitle: entry.quip,
-                    tilt: tilt(forIndex: store.entries.firstIndex(where: { $0.id == entry.id }) ?? 0)
-                )
-                .padding(.horizontal, 36)
-                .onTapGesture { editingNoteFor = entry.id }
-            }
-            // Note preview / call-to-action
+            PolaroidCard(
+                entry: entry,
+                showShapeCaption: showShapeCaption,
+                tilt: tilt(forIndex: index)
+            )
+            .padding(.horizontal, 36)
+            .onTapGesture { editingNoteFor = entry.id }
             noteRow(for: entry)
                 .padding(.horizontal, 28)
             Spacer()
@@ -133,8 +124,6 @@ struct JournalGalleryView: View {
         }
     }
 
-    /// Note preview under each Polaroid — shows truncated note +
-    /// "tap to add/edit" hint. Pressing the row opens the editor.
     @ViewBuilder
     private func noteRow(for entry: JournalEntry) -> some View {
         if let note = entry.note, !note.isEmpty {
@@ -188,9 +177,6 @@ struct JournalGalleryView: View {
         }
     }
 
-    /// Sheet that hosts the note editor. Presented modally so the
-    /// gallery stays visible behind it (with a subtle dim) — this
-    /// keeps the "looking through my journal" feel.
     private func noteEditorSheet(for entry: JournalEntry) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
