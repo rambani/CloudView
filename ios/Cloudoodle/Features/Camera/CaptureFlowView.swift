@@ -16,6 +16,14 @@ struct CaptureFlowView: View {
     @State private var showNotificationPrompt = false
     @State private var scanError: String?
 
+    // Polaroid develop state
+    @State private var showPolaroid = false
+    @State private var polaroidOriginal: UIImage?
+    @State private var polaroidDeveloped: UIImage?
+    @State private var polaroidProgress: Double = 0
+    @State private var polaroidError: String?
+    @State private var smartCropRect: CGRect = .zero
+
     @EnvironmentObject private var notifications: NotificationService
 
     var body: some View {
@@ -34,6 +42,121 @@ struct CaptureFlowView: View {
         } message: {
             Text(scanError ?? "")
         }
+        .fullScreenCover(isPresented: $showPolaroid) {
+            if let original = polaroidOriginal {
+                PolaroidDevelopView(
+                    original: original,
+                    developed: polaroidDeveloped,
+                    progress: polaroidProgress,
+                    onTap: { showPolaroid = false }
+                )
+                .onAppear { driveDevelopAnimation() }
+            }
+        }
+        .alert("Couldn't develop", isPresented: Binding(
+            get: { polaroidError != nil },
+            set: { if !$0 { polaroidError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(polaroidError ?? "")
+        }
+    }
+
+    // MARK: - Develop flow
+
+    /// Tap on "Develop with AI" — pulls the captured photo, smart-
+    /// crops it around the most interesting cloud, presents the
+    /// Polaroid view, and fires the OpenAI image-edit request in
+    /// parallel. Updates `polaroidDeveloped` when the API returns.
+    private func startDevelop() {
+        guard case .revealing(let sighting) = phase,
+              let data = sighting.localImageData,
+              let original = UIImage(data: data) else { return }
+        polaroidOriginal = original
+        polaroidDeveloped = nil
+        polaroidProgress = 0
+        showPolaroid = true
+
+        Task {
+            do {
+                // Smart-crop around the top Vision candidate. The
+                // crop is what we actually send to the API to save
+                // ~40% on the image-token cost.
+                let candidates = await CloudVisionService.shared.findCandidateRegions(in: original, topK: 1)
+                let crop = SmartCrop.crop(photo: original, around: candidates.first)
+                smartCropRect = crop.normalizedRect
+                let pngData = try await ImageGenerationService.shared.develop(crop: crop.cropped)
+                guard let img = UIImage(data: pngData) else {
+                    throw ImageGenerationError.parseError("Empty image bytes")
+                }
+                // Composite the developed crop back into the
+                // original frame so the surrounding photo stays
+                // intact. The viewer sees the full sky, with the
+                // ink overlays landing in the right region.
+                let composited = await Self.composite(
+                    base: original,
+                    overlay: img,
+                    in: crop.normalizedRect
+                )
+                await MainActor.run {
+                    polaroidDeveloped = composited
+                    polaroidProgress = 1.0
+                }
+            } catch {
+                await MainActor.run {
+                    polaroidError = (error as? LocalizedError)?.errorDescription
+                        ?? error.localizedDescription
+                    showPolaroid = false
+                }
+            }
+        }
+    }
+
+    /// While the API call is pending, march `polaroidProgress` up
+    /// toward 0.92 on a sigmoid curve so the photo "develops" in
+    /// step with user expectation. When the API actually returns,
+    /// `startDevelop` flips it to 1.0 with a hard cut.
+    private func driveDevelopAnimation() {
+        Task {
+            let totalSteps = 90
+            let stepDelay: Duration = .milliseconds(180)
+            for step in 0..<totalSteps {
+                if polaroidDeveloped != nil { break }
+                let x = Double(step) / Double(totalSteps)
+                // Smooth sigmoid that approaches 0.92 — last 8%
+                // reserved for the actual completion snap.
+                let curve = 0.92 / (1 + exp(-6 * (x - 0.45)))
+                await MainActor.run { polaroidProgress = curve }
+                try? await Task.sleep(for: stepDelay)
+            }
+        }
+    }
+
+    /// Composite the (square) developed crop back into the original
+    /// photo at its normalized position. CG context, simple draw,
+    /// returns the merged frame.
+    private static func composite(
+        base: UIImage,
+        overlay: UIImage,
+        in normalizedRect: CGRect
+    ) async -> UIImage {
+        await Task.detached(priority: .userInitiated) {
+            let size = base.size
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = base.scale
+            let renderer = UIGraphicsImageRenderer(size: size, format: format)
+            return renderer.image { _ in
+                base.draw(in: CGRect(origin: .zero, size: size))
+                let destRect = CGRect(
+                    x: normalizedRect.minX * size.width,
+                    y: normalizedRect.minY * size.height,
+                    width: normalizedRect.width * size.width,
+                    height: normalizedRect.height * size.height
+                )
+                overlay.draw(in: destRect)
+            }
+        }.value
     }
 
     // MARK: - Phase routing
@@ -224,7 +347,11 @@ struct CaptureFlowView: View {
 
     private func drawerLayer(sighting: CloudSighting) -> some View {
         GlassDrawer(position: $drawerPosition, peekHeight: 192, halfFraction: 0.56) {
-            DrawerBody(sighting: sighting, weather: capturedWeather)
+            DrawerBody(
+                sighting: sighting,
+                weather: capturedWeather,
+                onDevelopTapped: { startDevelop() }
+            )
         }
         .allowsHitTesting(drawerInteractive)
         .opacity(drawerInteractive ? 1.0 : 0.92)  // slightly muted during drawing
@@ -588,6 +715,10 @@ private struct ScanLayer: View {
 private struct DrawerBody: View {
     let sighting: CloudSighting
     let weather: WeatherSnapshot?
+    /// Caller fires when the user taps "Develop with AI" so the
+    /// capture flow can present the Polaroid view + drive the
+    /// OpenAI image-edit API call.
+    var onDevelopTapped: () -> Void = {}
 
     @State private var isSaving = false
     @State private var isSaved = false
@@ -669,6 +800,9 @@ private struct DrawerBody: View {
         VStack(alignment: .leading, spacing: 0) {
             DrawerDivider()
 
+            developCard
+            DrawerDivider()
+
             if let w = weather {
                 // Conditions overview bridges the drawing to the weather
                 conditionsCard(w)
@@ -713,6 +847,48 @@ private struct DrawerBody: View {
     /// `WeatherService.fetch` returned nil. Usually means no location
     /// permission or a WeatherKit hiccup; either way we tell the user
     /// rather than silently showing fewer cards.
+    /// "Develop with AI" tap-to-reveal card. Pre-tap it's a quiet
+    /// invitation with the Polaroid metaphor; post-tap (handled by
+    /// the parent CaptureFlowView) it triggers the OpenAI call and
+    /// the PolaroidDevelopView reveal.
+    private var developCard: some View {
+        DrawerCard {
+            Button {
+                let gen = UIImpactFeedbackGenerator(style: .medium)
+                gen.prepare(); gen.impactOccurred()
+                onDevelopTapped()
+            } label: {
+                HStack(spacing: 14) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(Color.white)
+                            .frame(width: 44, height: 48)
+                            .rotationEffect(.degrees(-6))
+                            .shadow(color: .black.opacity(0.25), radius: 4, y: 2)
+                        Image(systemName: "wand.and.sparkles")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(Color(red: 0.11, green: 0.15, blue: 0.24))
+                            .rotationEffect(.degrees(-6))
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Develop this Polaroid")
+                            .font(.system(size: 15, weight: .semibold, design: .serif))
+                            .foregroundStyle(CV.Color.textPrimary)
+                        Text("Let AI trace what the clouds are already showing")
+                            .font(CV.Font.caption)
+                            .foregroundStyle(CV.Color.textSecondary)
+                            .lineLimit(2)
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(CV.Color.textTertiary)
+                }
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
     private var weatherUnavailableNotice: some View {
         DrawerCard {
             HStack(alignment: .top, spacing: 10) {

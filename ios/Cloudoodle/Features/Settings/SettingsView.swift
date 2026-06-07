@@ -6,6 +6,7 @@ struct SettingsView: View {
 
     // API keys
     @AppStorage("gemini_api_key") private var geminiKey = ""
+    @AppStorage("openai_api_key") private var openaiKey = ""
     @AppStorage("supabase_url") private var supabaseURL = ""
     @AppStorage("supabase_anon_key") private var supabaseAnonKey = ""
 
@@ -21,6 +22,7 @@ struct SettingsView: View {
 
     // UI
     @State private var showAnthropicKey = false
+    @State private var showOpenAIKey = false
     @State private var showSupabaseKey = false
     @State private var legalSheet: LegalSheet?
 
@@ -61,6 +63,31 @@ struct SettingsView: View {
                                     Text(geminiKey.isEmpty
                                          ? "Free at aistudio.google.com — 1,500 scans/day"
                                          : "Gemini Flash active · quips generated on-device")
+                                        .foregroundStyle(CV.Color.textTertiary)
+                                }
+                                .font(CV.Font.caption)
+                            }
+                        }
+
+                        // OpenAI section — optional, powers the
+                        // "Develop with AI" Polaroid path. Without
+                        // it the rest of the app still works.
+                        SettingsSection(title: "Develop with AI", icon: "wand.and.sparkles") {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("OpenAI API Key")
+                                    .font(CV.Font.caption)
+                                    .foregroundStyle(CV.Color.textTertiary)
+                                SecureRevealField(
+                                    text: $openaiKey,
+                                    isRevealed: $showOpenAIKey,
+                                    placeholder: "sk-..."
+                                )
+                                HStack(spacing: 4) {
+                                    Image(systemName: openaiKey.isEmpty ? "wand.and.stars.inverse" : "wand.and.sparkles")
+                                        .foregroundStyle(openaiKey.isEmpty ? .orange : .green)
+                                    Text(openaiKey.isEmpty
+                                         ? "Optional · ~$0.04 per developed image"
+                                         : "Develop button unlocked · gpt-image-1 active")
                                         .foregroundStyle(CV.Color.textTertiary)
                                 }
                                 .font(CV.Font.caption)
