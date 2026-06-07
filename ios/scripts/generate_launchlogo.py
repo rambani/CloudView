@@ -20,36 +20,45 @@ OUT_DIR = os.path.join(
 )
 
 # Base size in points. iOS asset catalog will pick 1x/2x/3x at runtime.
-# Aspect tracks the bird-shaped cloud arrangement (~1.9:1 wider
-# than tall) so the silhouette fits with breathing room on every
-# edge at any size.
+# Aspect tracks the bird-shaped cloud arrangement (~2:1 wider than
+# tall) so the silhouette fits with breathing room on every edge.
 BASE_W = 320
 BASE_H = 180
 
 # Cloud color — soft warm white to feel like a Polaroid edge under
 # warm light, not a clinical UI white.
 CLOUD = (247, 244, 235, 255)
-# Faint glow color (subtle haze around the silhouette)
-GLOW = (255, 255, 255, 30)
+
+# Per-cloud bump recipes — kept in sync with generate_appicon.py
+# so the launch flash and the icon you tapped match exactly.
+_BODY_BUMPS = [
+    (-0.55, -0.70, 0.95), (-0.12, -0.85, 1.00),
+    ( 0.35, -0.75, 0.92), ( 0.70, -0.40, 0.78),
+    ( 0.88,  0.05, 0.62), ( 0.40,  0.45, 0.55),
+    (-0.30,  0.55, 0.60), (-0.72, -0.20, 0.80),
+]
+_LEFT_WING_BUMPS = [
+    (-0.92, -0.05, 0.65), (-0.55, -0.55, 0.85),
+    (-0.10, -0.80, 0.95), ( 0.45, -0.60, 0.85),
+    ( 0.85, -0.20, 0.75), ( 0.20,  0.35, 0.60),
+    (-0.50,  0.20, 0.55),
+]
+_RIGHT_WING_BUMPS = [
+    ( 0.90,  0.05, 0.70), ( 0.50, -0.50, 0.90),
+    ( 0.05, -0.78, 1.00), (-0.40, -0.65, 0.82),
+    (-0.82, -0.15, 0.78), (-0.20,  0.40, 0.55),
+    ( 0.55,  0.25, 0.62),
+]
 
 
-def _puff(draw, cx, cy, w, h, scale):
-    """Organic cumulus puff — same recipe as the app icon's
-    `_puff()`: center oval + asymmetric edge bumps so the
-    silhouette reads as a real cloud, not a circle."""
+def _puff(draw, cx, cy, w, h, bumps, scale):
+    """Same as the app icon's `_puff()` — center oval + per-cloud
+    asymmetric bump list."""
     def el(x1, y1, x2, y2):
         return (cx + int(x1 * scale), cy + int(y1 * scale),
                 cx + int(x2 * scale), cy + int(y2 * scale))
     draw.ellipse(el(-w * 0.42, -h * 0.38, w * 0.42, h * 0.38), fill=CLOUD)
     base_r = min(w, h) * 0.24
-    bumps = [
-        (-0.86, -0.25, 0.95), (-0.62, -0.65, 0.85),
-        (-0.18, -0.82, 1.00), ( 0.22, -0.78, 0.92),
-        ( 0.58, -0.55, 0.80), ( 0.88, -0.18, 0.88),
-        ( 0.78,  0.30, 0.78), ( 0.40,  0.62, 0.86),
-        (-0.10,  0.72, 0.92), (-0.55,  0.58, 0.84),
-        (-0.85,  0.20, 0.80),
-    ]
     for x_frac, y_frac, size_mult in bumps:
         bx = x_frac * w * 0.5
         by = y_frac * h * 0.5
@@ -58,32 +67,21 @@ def _puff(draw, cx, cy, w, h, scale):
 
 
 def draw_cloud(draw, cx, cy, scale=1.0):
-    """Same organic-cloud bird arrangement as the app icon (see
-    generate_appicon.py for design rationale). Keeping both in
-    sync so the icon you tapped and the brief launch flash read as
-    one continuous moment.
-
-    No background wisps here — the launch flash is brief; the
-    viewer sees the silhouette for ~500ms and doesn't need a
-    full sky scene."""
+    """Same three-cloud bird arrangement as the app icon (see
+    generate_appicon.py for design rationale). No background
+    wisps — the launch flash is brief; the bird silhouette and
+    its host clouds are the whole job."""
     ink = (38, 40, 56, 220)
 
     def p(x, y):
         return (cx + int(x * scale), cy + int(y * scale))
 
-    # Bird arrangement — five organic puffs
-    _puff(draw, cx,        cy + int(5 * scale),   170, 200, scale)   # body
-    _puff(draw, cx + int(-135 * scale), cy + int(-30 * scale), 145, 125, scale)
-    _puff(draw, cx + int( 135 * scale), cy + int(-30 * scale), 145, 125, scale)
-    _puff(draw, cx + int(-225 * scale), cy + int(-55 * scale), 115, 110, scale)
-    _puff(draw, cx + int( 225 * scale), cy + int(-55 * scale), 115, 110, scale)
-
-    # Tail puff — small wispy streak
-    draw.ellipse(
-        (cx + int(-45 * scale), cy + int(140 * scale),
-         cx + int( 45 * scale), cy + int(175 * scale)),
-        fill=CLOUD,
-    )
+    # Bird arrangement — three irregular cumulus puffs
+    _puff(draw, cx, cy + int(-10 * scale), 165, 165, _BODY_BUMPS, scale)
+    _puff(draw, cx + int(-175 * scale), cy + int(-35 * scale),
+          225, 135, _LEFT_WING_BUMPS, scale)
+    _puff(draw, cx + int( 175 * scale), cy + int(-35 * scale),
+          225, 135, _RIGHT_WING_BUMPS, scale)
 
     # Seagull-in-flight trace (matches generate_appicon.py exactly)
     path = [
@@ -103,19 +101,13 @@ def draw_cloud(draw, cx, cy, scale=1.0):
 def render(width, height):
     img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     d = ImageDraw.Draw(img, "RGBA")
-    # Pick scale so the cloud arrangement (550w x 285h in design
-    # units) fits in the canvas with breathing room on every edge.
-    # Constrain by whichever dimension is tighter.
-    scale = min((width * 0.95) / 580.0, (height * 0.95) / 320.0)
-    # Vertical center: nudge up slightly so the bird body sits
-    # above the canvas center (the tail puff extends downward and
-    # would otherwise drag the visual weight).
-    draw_cloud(
-        d,
-        width // 2,
-        height // 2 - int(20 * scale),
-        scale=scale,
-    )
+    # Scale so the cloud arrangement (~550w x 240h in design units)
+    # fits with breathing room on every edge. Constrained by
+    # whichever dimension is tighter.
+    scale = min((width * 0.95) / 580.0, (height * 0.95) / 260.0)
+    # Vertical center — slightly above geometric center since the
+    # bird body sits above the trace's tail tip.
+    draw_cloud(d, width // 2, height // 2 - int(5 * scale), scale=scale)
     return img
 
 

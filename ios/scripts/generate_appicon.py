@@ -69,17 +69,18 @@ def make_vertical_gradient(size, top_rgb, bottom_rgb):
 
 
 CLOUD_WHITE = (252, 250, 245, 255)
-CLOUD_FADE = (250, 247, 240, 175)   # slightly translucent for background wisps
+CLOUD_FADE = (250, 247, 240, 165)   # slightly translucent for background wisps
 
 
-def _puff(draw, cx, cy, w, h, color=CLOUD_WHITE):
-    """Draws one organic cumulus puff at (cx, cy) within a (w, h)
-    envelope. Built from a central oval plus a ring of asymmetric
-    edge-lobes, so the silhouette has the irregular bumpy edges of
-    a real cumulus rather than reading as concentric ellipses.
+def _puff(draw, cx, cy, w, h, bumps, color=CLOUD_WHITE):
+    """Draws an organic cumulus puff at (cx, cy) within a (w, h)
+    envelope. Built from a central oval plus a list of edge-lobes
+    (the `bumps` parameter), so each call can produce a uniquely
+    irregular silhouette rather than a stamp-repeated shape.
 
-    Bump positions are hand-tuned (not random) so the icon renders
-    identically every time."""
+    bumps is a list of (x_frac, y_frac, size_mult) where the
+    fractions are positions relative to the envelope's half-extent
+    and size_mult scales a base lobe radius."""
     # Central body — slightly smaller than the envelope so the
     # edge bumps can extend the silhouette without growing past
     # the requested size.
@@ -87,25 +88,7 @@ def _puff(draw, cx, cy, w, h, color=CLOUD_WHITE):
         (cx - w * 0.42, cy - h * 0.38, cx + w * 0.42, cy + h * 0.38),
         fill=color,
     )
-
-    # Edge bumps. Each entry: (x_frac, y_frac, size_mult) — fraction
-    # of (w, h) from center, plus a multiplier on the base bump size.
-    # The set is deliberately asymmetric so left/right edges don't
-    # mirror perfectly (real clouds don't).
     base_r = min(w, h) * 0.24
-    bumps = [
-        (-0.86, -0.25, 0.95),    # left
-        (-0.62, -0.65, 0.85),    # upper-left
-        (-0.18, -0.82, 1.00),    # top-left of crown
-        ( 0.22, -0.78, 0.92),    # top-right of crown
-        ( 0.58, -0.55, 0.80),    # upper-right
-        ( 0.88, -0.18, 0.88),    # right
-        ( 0.78,  0.30, 0.78),    # lower-right
-        ( 0.40,  0.62, 0.86),    # bottom-right
-        (-0.10,  0.72, 0.92),    # bottom
-        (-0.55,  0.58, 0.84),    # bottom-left
-        (-0.85,  0.20, 0.80),    # lower-left
-    ]
     for x_frac, y_frac, size_mult in bumps:
         bx = cx + x_frac * w * 0.5
         by = cy + y_frac * h * 0.5
@@ -113,14 +96,54 @@ def _puff(draw, cx, cy, w, h, color=CLOUD_WHITE):
         draw.ellipse((bx - br, by - br, bx + br, by + br), fill=color)
 
 
+# Per-cloud bump recipes. Tuned by hand so each cloud has its own
+# personality — heavy on one side, taller on top, flatter on the
+# bottom — rather than three copies of the same circular shape.
+
+# BODY: tall central cumulus, broader on top with a flatter base
+# (the classic "cauliflower" cumulus profile).
+_BODY_BUMPS = [
+    (-0.55, -0.70, 0.95),    # upper-left lobe
+    (-0.12, -0.85, 1.00),    # crown
+    ( 0.35, -0.75, 0.92),    # upper-right lobe
+    ( 0.70, -0.40, 0.78),    # right shoulder
+    ( 0.88,  0.05, 0.62),    # right side
+    ( 0.40,  0.45, 0.55),    # lower-right (smaller, base is flatter)
+    (-0.30,  0.55, 0.60),    # lower-left
+    (-0.72, -0.20, 0.80),    # left shoulder
+]
+
+# LEFT WING: wider than tall, with a wispy outer edge.
+# Asymmetric — the puffs sit higher toward the inside, lower out.
+_LEFT_WING_BUMPS = [
+    (-0.92, -0.05, 0.65),    # outer wisp tip
+    (-0.55, -0.55, 0.85),
+    (-0.10, -0.80, 0.95),    # peak (near the body, where wing roots)
+    ( 0.45, -0.60, 0.85),    # inner-upper
+    ( 0.85, -0.20, 0.75),    # inner edge
+    ( 0.20,  0.35, 0.60),    # inner-lower
+    (-0.50,  0.20, 0.55),    # outer-lower wisp
+]
+
+# RIGHT WING: mirror in spirit but DIFFERENT in detail so it
+# doesn't look like a stamp. Peak shifted, lower bumps placed
+# asymmetrically relative to the left wing.
+_RIGHT_WING_BUMPS = [
+    ( 0.90,  0.05, 0.70),    # outer wisp tip (lower than left's)
+    ( 0.50, -0.50, 0.90),    # rising
+    ( 0.05, -0.78, 1.00),    # peak (shifted slightly left vs mirror)
+    (-0.40, -0.65, 0.82),
+    (-0.82, -0.15, 0.78),    # inner edge
+    (-0.20,  0.40, 0.55),
+    ( 0.55,  0.25, 0.62),
+]
+
+
 def _wisp(draw, cx, cy, w, h, color=CLOUD_FADE):
-    """A small, elongated background wisp — just two overlapping
+    """A small, elongated background wisp — two overlapping
     horizontal ellipses. Reads as a distant background cloud
-    without competing visually with the bird-arrangement clouds
-    in the foreground."""
+    without competing visually with the foreground arrangement."""
     draw.ellipse((cx - w * 0.5, cy - h * 0.5, cx + w * 0.5, cy + h * 0.5), fill=color)
-    # A second smaller lobe nudged off-center so the wisp isn't a
-    # bare ellipse.
     draw.ellipse(
         (cx - w * 0.15, cy - h * 0.8, cx + w * 0.35, cy + h * 0.2),
         fill=color,
@@ -128,42 +151,30 @@ def _wisp(draw, cx, cy, w, h, color=CLOUD_FADE):
 
 
 def draw_cloud(draw, cx, cy):
-    """A sky scene: a handful of cumulus clouds plus some smaller
-    background wisps, with the central five-puff arrangement
-    forming a bird-with-spread-wings the AI has noticed and traced.
+    """A simpler, more natural sky scene: three irregular cumulus
+    clouds (body + two wing clouds) whose arrangement suggests a
+    bird-with-spread-wings, plus a couple of distant background
+    wisps for atmosphere.
 
-    Each puff is built from a center oval + asymmetric edge bumps
-    so the silhouettes read as organic clouds rather than as
-    overlapping circles. The faded background wisps fill out the
-    sky so the bird-arrangement doesn't sit in an empty frame."""
+    Each cloud has its own hand-tuned bump recipe so the three
+    don't look like the same stamp repeated; the right wing is
+    deliberately not a perfect mirror of the left."""
 
-    # --- Background wisps ---------------------------------------------------
-    # Scattered in the corners + bottom edges so the bird-cluster
-    # is the visual subject but the sky around it isn't bare.
-    _wisp(draw, cx - 215, cy - 200, w=110, h=28)   # top-left, far
-    _wisp(draw, cx + 165, cy - 220, w=95,  h=24)   # top-right, far
-    _wisp(draw, cx - 180, cy + 90,  w=85,  h=22)   # mid-left, behind wing
-    _wisp(draw, cx + 195, cy + 100, w=95,  h=25)   # mid-right, behind wing
-    _wisp(draw, cx + 30,  cy + 220, w=110, h=28)   # bottom, distant
+    # --- Background wisps (just two, for atmosphere not detail) -----------
+    _wisp(draw, cx - 215, cy - 215, w=125, h=28)   # upper-left
+    _wisp(draw, cx + 195, cy + 180, w=110, h=26)   # lower-right
 
-    # --- Bird arrangement ---------------------------------------------------
-    # Five organic puffs that together suggest a bird-with-spread-
-    # wings shape. Sizes tuned so wingtips stay inside the photo
-    # edge and gaps between puffs are visible (sky shows through).
-
-    # Body — vertical-ish puff at center
-    _puff(draw, cx,        cy + 5,   w=170, h=200)
-
-    # Inner wing roots — horizontal puffs flanking the body
-    _puff(draw, cx - 135,  cy - 30,  w=145, h=125)
-    _puff(draw, cx + 135,  cy - 30,  w=145, h=125)
-
-    # Wingtip puffs — smaller and higher, out at the wingtips
-    _puff(draw, cx - 225,  cy - 55,  w=115, h=110)
-    _puff(draw, cx + 225,  cy - 55,  w=115, h=110)
-
-    # Tail puff — small wispy streak below the body
-    _wisp(draw, cx,        cy + 155, w=85,  h=32, color=CLOUD_WHITE)
+    # --- Bird arrangement (three irregular cumulus clouds) ----------------
+    # Body — central cumulus, not too tall (the previous version
+    # had a long stem hanging below the wings that read as a
+    # separate vertical cloud).
+    _puff(draw, cx, cy - 10, w=165, h=165, bumps=_BODY_BUMPS)
+    # Left wing — wider than tall, sized to slightly overlap the
+    # body so the bird trace flows through continuous cloud cover
+    # rather than threading bare sky between them.
+    _puff(draw, cx - 175, cy - 35, w=225, h=135, bumps=_LEFT_WING_BUMPS)
+    # Right wing — mirror placement, unique bump pattern.
+    _puff(draw, cx + 175, cy - 35, w=225, h=135, bumps=_RIGHT_WING_BUMPS)
 
     _draw_ink_trace(draw, cx, cy)
 
