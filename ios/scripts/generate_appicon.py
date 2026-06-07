@@ -69,25 +69,46 @@ def make_vertical_gradient(size, top_rgb, bottom_rgb):
 
 
 def draw_cloud(draw, cx, cy):
-    """A stylized cumulus with a delicate ink trace on top — mirrors
-    what the app actually outputs: an unmodified cloud photo with
-    AI-detected creature shapes pointed out in thin ink lines.
-    Cloud reads first; on a closer look the trace shows the AI
-    noticed a whale-shape inside it.
+    """Three distinct cumulus clusters whose ARRANGEMENT already
+    suggests a bird-with-spread-wings — left wing cloud, central
+    body cloud, right wing cloud (with a small tail puff below).
+    The ink trace then confirms what the eye is already starting
+    to see: the AI noticed the bird forming across these clouds.
 
-    Cloud silhouette built from overlapping ellipses arranged to
-    read as one continuous shape (no notches) even at 60pt
-    home-screen scale. Ink trace sized to survive shrinking."""
+    Sky shows through the gaps between clusters, which is what
+    real cloud-spotting looks like — shapes hide in the negative
+    space as much as in the clouds themselves."""
     cloud = (252, 250, 245, 255)
-    # Wide flat base — single ellipse so there's no center notch
-    draw.ellipse((cx - 230, cy + 0, cx + 250, cy + 140), fill=cloud)
-    # Mid-row lobes (fluffy middle)
-    draw.ellipse((cx - 200, cy - 50, cx - 30, cy + 110), fill=cloud)
-    draw.ellipse((cx + 30, cy - 50, cx + 220, cy + 110), fill=cloud)
-    # Upper lobes (tall fluffy top)
-    draw.ellipse((cx - 140, cy - 140, cx + 40, cy + 50), fill=cloud)
-    draw.ellipse((cx - 20, cy - 170, cx + 170, cy + 50), fill=cloud)
-    draw.ellipse((cx + 50, cy - 120, cx + 200, cy + 30), fill=cloud)
+
+    # Five cloud puffs whose ARRANGEMENT is the bird: two outer
+    # wingtip puffs, two inner wing-root puffs, and a central body
+    # puff. The ink trace then sits inside each cloud — wings
+    # flowing through the wingtip+root clouds, body through the
+    # central cloud. Thin sky-gaps between clouds let the
+    # "scattered clouds together suggest a shape" feel read
+    # instead of a single cumulus.
+
+    # Body — vertical cluster at center, taller than wide so the
+    # bird's body proportions read at a glance.
+    draw.ellipse((cx - 75, cy - 95, cx + 75, cy + 105), fill=cloud)
+    draw.ellipse((cx - 95, cy - 70, cx + 95, cy + 70), fill=cloud)
+
+    # Inner wing puffs — flanking the body, slightly above the
+    # mid-line so they sit where a bird's wing-root would.
+    draw.ellipse((cx - 200, cy - 85, cx - 70, cy + 25), fill=cloud)
+    draw.ellipse((cx + 70, cy - 85, cx + 200, cy + 25), fill=cloud)
+
+    # Wingtip puffs — smaller and higher, out at the bird's
+    # wingtip positions. Kept inside the photo edge (max extent
+    # cx±275, well under the 280px half-width) so they don't clip
+    # the Polaroid frame.
+    draw.ellipse((cx - 275, cy - 105, cx - 175, cy + 0), fill=cloud)
+    draw.ellipse((cx + 175, cy - 105, cx + 275, cy + 0), fill=cloud)
+
+    # Tail puff — wider than tall so it reads as a wispy cloud
+    # streak below the body rather than a perfect circle (which
+    # comes off UFO-like at icon scale).
+    draw.ellipse((cx - 45, cy + 130, cx + 45, cy + 180), fill=cloud)
 
     _draw_ink_trace(draw, cx, cy)
 
@@ -103,38 +124,40 @@ def _draw_ink_trace(draw, cx, cy):
     trace never appears to leave the cloud."""
     ink = (38, 40, 56, 220)
 
-    # Bird seen from below/behind, wings spread in a gentle V. Body
-    # at center, wings sweep up-and-outward to wingtips on either
-    # side. Closed loop so the silhouette reads as a single shape.
+    # Bird seen from below/behind, wings spread in a gentle V.
+    # Body at center, wings sweep up-and-outward to wingtips on
+    # either side. Closed loop so the silhouette reads as a single
+    # shape. Scaled to span the 5-cloud arrangement so the trace
+    # flows through each cloud rather than floating between them.
     path = [
         # Start at the back of the right wing root, tracing up + out
-        (cx + 30,  cy + 5),
-        (cx + 70,  cy - 10),    # along underside of right wing
-        (cx + 130, cy - 30),
-        (cx + 175, cy - 55),    # right wingtip
-        (cx + 145, cy - 45),    # back across top of right wing
-        (cx + 90,  cy - 35),
-        (cx + 35,  cy - 35),    # right wing meets shoulder
+        (cx + 40,  cy + 10),
+        (cx + 100, cy - 15),    # along underside of right wing
+        (cx + 180, cy - 40),
+        (cx + 245, cy - 75),    # right wingtip
+        (cx + 205, cy - 60),    # back across top of right wing
+        (cx + 130, cy - 50),
+        (cx + 50,  cy - 50),    # right wing meets shoulder
         # Head (small forward bump between the shoulders)
-        (cx + 10,  cy - 50),
-        (cx - 10,  cy - 50),
+        (cx + 14,  cy - 70),
+        (cx - 14,  cy - 70),
         # Left shoulder
-        (cx - 35,  cy - 35),
-        (cx - 90,  cy - 35),    # across top of left wing
-        (cx - 145, cy - 45),
-        (cx - 175, cy - 55),    # left wingtip
-        (cx - 130, cy - 30),    # back along underside of left wing
-        (cx - 70,  cy - 10),
-        (cx - 30,  cy + 5),
+        (cx - 50,  cy - 50),
+        (cx - 130, cy - 50),    # across top of left wing
+        (cx - 205, cy - 60),
+        (cx - 245, cy - 75),    # left wingtip
+        (cx - 180, cy - 40),    # back along underside of left wing
+        (cx - 100, cy - 15),
+        (cx - 40,  cy + 10),
         # Body / tail (small triangle hanging down)
-        (cx - 15,  cy + 30),
-        (cx,       cy + 55),    # tail tip
-        (cx + 15,  cy + 30),
+        (cx - 22,  cy + 45),
+        (cx,       cy + 80),    # tail tip
+        (cx + 22,  cy + 45),
         # Close back to start
-        (cx + 30,  cy + 5),
+        (cx + 40,  cy + 10),
     ]
 
-    draw.line(path, fill=ink, width=9, joint='curve')
+    draw.line(path, fill=ink, width=11, joint='curve')
 
 
 def build_polaroid():

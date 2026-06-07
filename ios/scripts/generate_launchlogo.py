@@ -20,9 +20,11 @@ OUT_DIR = os.path.join(
 )
 
 # Base size in points. iOS asset catalog will pick 1x/2x/3x at runtime.
-# Wider than tall to fit the cumulus silhouette comfortably.
-BASE_W = 280
-BASE_H = 200
+# Aspect tracks the bird-shaped cloud arrangement (~1.9:1 wider
+# than tall) so the silhouette fits with breathing room on every
+# edge at any size.
+BASE_W = 320
+BASE_H = 180
 
 # Cloud color — soft warm white to feel like a Polaroid edge under
 # warm light, not a clinical UI white.
@@ -32,7 +34,7 @@ GLOW = (255, 255, 255, 30)
 
 
 def draw_cloud(draw, cx, cy, scale=1.0):
-    """Same cumulus + bird-trace as the app icon (see
+    """Same 5-cloud-puff bird arrangement as the app icon (see
     generate_appicon.py for design rationale). Keeping both in
     sync so the icon you tapped and the brief launch flash read as
     one continuous moment."""
@@ -45,34 +47,47 @@ def draw_cloud(draw, cx, cy, scale=1.0):
     def p(x, y):
         return (cx + int(x * scale), cy + int(y * scale))
 
-    # Cumulus body
-    draw.ellipse(e(-230, 0, 250, 140), fill=CLOUD)
-    draw.ellipse(e(-200, -50, -30, 110), fill=CLOUD)
-    draw.ellipse(e(30, -50, 220, 110), fill=CLOUD)
-    draw.ellipse(e(-140, -140, 40, 50), fill=CLOUD)
-    draw.ellipse(e(-20, -170, 170, 50), fill=CLOUD)
-    draw.ellipse(e(50, -120, 200, 30), fill=CLOUD)
+    # Body
+    draw.ellipse(e(-75, -95, 75, 105), fill=CLOUD)
+    draw.ellipse(e(-95, -70, 95, 70), fill=CLOUD)
+    # Inner wing puffs
+    draw.ellipse(e(-200, -85, -70, 25), fill=CLOUD)
+    draw.ellipse(e(70, -85, 200, 25), fill=CLOUD)
+    # Wingtip puffs
+    draw.ellipse(e(-275, -105, -175, 0), fill=CLOUD)
+    draw.ellipse(e(175, -105, 275, 0), fill=CLOUD)
+    # Tail puff
+    draw.ellipse(e(-45, 130, 45, 180), fill=CLOUD)
 
     # Bird-in-flight trace
     path = [
-        p(30, 5), p(70, -10), p(130, -30), p(175, -55),
-        p(145, -45), p(90, -35), p(35, -35),
-        p(10, -50), p(-10, -50),
-        p(-35, -35), p(-90, -35), p(-145, -45), p(-175, -55),
-        p(-130, -30), p(-70, -10), p(-30, 5),
-        p(-15, 30), p(0, 55), p(15, 30),
-        p(30, 5),
+        p(40, 10), p(100, -15), p(180, -40), p(245, -75),
+        p(205, -60), p(130, -50), p(50, -50),
+        p(14, -70), p(-14, -70),
+        p(-50, -50), p(-130, -50), p(-205, -60), p(-245, -75),
+        p(-180, -40), p(-100, -15), p(-40, 10),
+        p(-22, 45), p(0, 80), p(22, 45),
+        p(40, 10),
     ]
-    draw.line(path, fill=ink, width=max(4, int(9 * scale)), joint='curve')
+    draw.line(path, fill=ink, width=max(4, int(11 * scale)), joint='curve')
 
 
 def render(width, height):
     img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     d = ImageDraw.Draw(img, "RGBA")
-    # Cloud scaled to fit the height, centered with a hair of bottom
-    # padding so the silhouette doesn't kiss the safe-area edge.
-    scale = height / 360.0
-    draw_cloud(d, width // 2, height // 2 + int(20 * scale), scale=scale)
+    # Pick scale so the cloud arrangement (550w x 285h in design
+    # units) fits in the canvas with breathing room on every edge.
+    # Constrain by whichever dimension is tighter.
+    scale = min((width * 0.95) / 580.0, (height * 0.95) / 320.0)
+    # Vertical center: nudge up slightly so the bird body sits
+    # above the canvas center (the tail puff extends downward and
+    # would otherwise drag the visual weight).
+    draw_cloud(
+        d,
+        width // 2,
+        height // 2 - int(20 * scale),
+        scale=scale,
+    )
     return img
 
 
