@@ -1,4 +1,6 @@
 import SwiftUI
+import UIKit
+import CoreLocation
 
 /// The contents of Cloudoodle's bottom weather drawer. Shared by
 /// today's Polaroid view and the camera viewfinder so the swipe-up
@@ -17,6 +19,8 @@ import SwiftUI
 struct WeatherDrawerContent<ActionRow: View>: View {
     let weather: WeatherSnapshot?
     @ViewBuilder let actionRow: () -> ActionRow
+
+    @EnvironmentObject private var location: LocationService
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -135,15 +139,54 @@ struct WeatherDrawerContent<ActionRow: View>: View {
         }
     }
 
+    /// Weather requires a coarse location. When that's denied we
+    /// can't recover from inside the app — surface the system
+    /// Settings deep link so the user has a one-tap path.
+    @ViewBuilder
     private var weatherUnavailable: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "cloud.slash")
-                .foregroundStyle(CV.Color.textTertiary)
-            Text("Weather unavailable — check location access.")
-                .font(CV.Font.caption)
-                .foregroundStyle(CV.Color.textSecondary)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Image(systemName: "cloud.slash")
+                    .foregroundStyle(CV.Color.textTertiary)
+                Text(unavailableMessage)
+                    .font(CV.Font.caption)
+                    .foregroundStyle(CV.Color.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if needsSystemSettings {
+                Button {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.up.right.square")
+                            .font(.system(size: 11))
+                        Text("Open iOS Settings")
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .foregroundStyle(CV.Color.accentBlue)
+                }
+                .buttonStyle(.plain)
+            }
         }
         .padding(.vertical, 6)
+    }
+
+    private var needsSystemSettings: Bool {
+        location.authorizationStatus == .denied
+            || location.authorizationStatus == .restricted
+    }
+
+    private var unavailableMessage: String {
+        switch location.authorizationStatus {
+        case .denied, .restricted:
+            return "Weather needs your location. Enable it in iOS Settings → Cloudoodle."
+        case .notDetermined:
+            return "Waiting on a location reading…"
+        default:
+            return "Weather unavailable right now. Try again in a moment."
+        }
     }
 
     private func sectionLabel(_ text: String) -> some View {

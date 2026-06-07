@@ -21,6 +21,7 @@ struct TodaysPolaroidView: View {
     var onCaptureRequested: () -> Void = {}
 
     @State private var subscriptions = SubscriptionService.shared
+    @State private var store = JournalStore.shared
     @State private var showGallery = false
     @State private var showNoteEditor = false
     @State private var showUpgrade = false
@@ -97,9 +98,16 @@ struct TodaysPolaroidView: View {
                     .font(.system(size: 11, weight: .semibold, design: .monospaced))
                     .tracking(2)
                     .foregroundStyle(.white.opacity(0.55))
-                Text(headerDate)
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(.white.opacity(0.40))
+                if store.currentStreak >= 2 {
+                    Text("\(store.currentStreak)-DAY STREAK")
+                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                        .tracking(1.5)
+                        .foregroundStyle(CV.Color.accent.opacity(0.85))
+                } else {
+                    Text(headerDate)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.40))
+                }
             }
             Spacer()
             Button {

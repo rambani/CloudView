@@ -98,6 +98,45 @@ final class JournalStore {
         return entries.first(where: { cal.isDateInToday($0.createdAt) })
     }
 
+    /// Count of consecutive recent days (ending today or yesterday)
+    /// that have at least one Polaroid. Used by the home view to
+    /// quietly reward the daily ritual without becoming nagware:
+    ///   • 0  → nothing shown
+    ///   • 1  → "1 day" (today is fresh)
+    ///   • N+ → "N-day streak"
+    ///
+    /// "Ending yesterday" is intentional — if the user opens the app
+    /// in the morning before they've scanned, we still want their
+    /// in-progress streak to be visible so they want to extend it.
+    var currentStreak: Int {
+        guard !entries.isEmpty else { return 0 }
+        let cal = Calendar.current
+        // Bucket entries by day for O(1) lookup.
+        let days = Set(entries.map { cal.startOfDay(for: $0.createdAt) })
+
+        // Anchor on the most recent day with an entry that's either
+        // today or yesterday. Older-than-yesterday → streak is zero.
+        let today = cal.startOfDay(for: Date())
+        let yesterday = cal.date(byAdding: .day, value: -1, to: today) ?? today
+        let anchor: Date
+        if days.contains(today) {
+            anchor = today
+        } else if days.contains(yesterday) {
+            anchor = yesterday
+        } else {
+            return 0
+        }
+
+        var streak = 0
+        var cursor = anchor
+        while days.contains(cursor) {
+            streak += 1
+            guard let prev = cal.date(byAdding: .day, value: -1, to: cursor) else { break }
+            cursor = prev
+        }
+        return streak
+    }
+
     /// Write `entries` back to disk. Off-main since JSON encoding
     /// + file write is non-trivial for entries that carry images.
     private func persist() async {
