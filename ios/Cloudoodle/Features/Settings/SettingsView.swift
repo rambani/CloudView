@@ -109,10 +109,9 @@ struct SettingsView: View {
                             }
                         }
 
-                        // OpenAI section — optional, powers the
-                        // "Develop with AI" Polaroid path. Without
-                        // it the rest of the app still works.
-                        SettingsSection(title: "Develop with AI", icon: "wand.and.sparkles") {
+                        // OpenAI section — required for the Polaroid
+                        // develop step (every scan goes through it).
+                        SettingsSection(title: "Polaroid Develop", icon: "wand.and.sparkles") {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("OpenAI API Key")
                                     .font(CV.Font.caption)
@@ -123,11 +122,11 @@ struct SettingsView: View {
                                     placeholder: "sk-..."
                                 )
                                 HStack(spacing: 4) {
-                                    Image(systemName: openaiKey.isEmpty ? "wand.and.stars.inverse" : "wand.and.sparkles")
+                                    Image(systemName: openaiKey.isEmpty ? "exclamationmark.circle" : "checkmark.circle")
                                         .foregroundStyle(openaiKey.isEmpty ? .orange : .green)
                                     Text(openaiKey.isEmpty
-                                         ? "Optional · ~$0.04 per developed image"
-                                         : "Develop button unlocked · gpt-image-1 active")
+                                         ? "Required to develop Polaroids · ~$0.04 per image"
+                                         : "Developing every Polaroid · gpt-image-1 active")
                                         .foregroundStyle(CV.Color.textTertiary)
                                 }
                                 .font(CV.Font.caption)

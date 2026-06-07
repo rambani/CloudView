@@ -64,9 +64,6 @@ struct OnboardingFlowView: View {
         case .notifications:
             NotificationPermissionPage(onAdvance: store.advance)
                 .padding(.top, 48)
-        case .username:
-            UsernamePage(store: store, onContinue: store.advance)
-                .padding(.top, 48)
         case .demo:
             DemoPage(onContinue: store.advance)
         case .finished:

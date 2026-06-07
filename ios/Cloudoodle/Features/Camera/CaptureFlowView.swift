@@ -59,6 +59,7 @@ struct CaptureFlowView: View {
             set: { if !$0 { scanError = nil } }
         )) {
             Button("Try Again") { scanError = nil }
+            Button("Open Settings") { showSettings = true }
             Button("Cancel", role: .cancel) { onCancel?() }
         } message: {
             Text(scanError ?? "")
@@ -87,6 +88,10 @@ struct CaptureFlowView: View {
             get: { polaroidError != nil },
             set: { if !$0 { polaroidError = nil } }
         )) {
+            // Most develop failures the user can act on involve the
+            // OpenAI key — surface the Settings sheet right from the
+            // alert so they don't have to hunt for the gear icon.
+            Button("Open Settings") { showSettings = true }
             Button("OK", role: .cancel) {}
         } message: {
             Text(polaroidError ?? "")
@@ -205,20 +210,32 @@ struct CaptureFlowView: View {
     private var phaseContent: some View {
         switch phase {
         case .viewfinder:
-            ZStack {
-                ViewfinderLayer(
-                    camera: camera,
+            if camera.authorizationStatus == .denied
+                || camera.authorizationStatus == .restricted {
+                // Don't leave the user staring at a black viewfinder
+                // when iOS has blocked camera access — explain
+                // what's needed and offer a one-tap jump to Settings.
+                CameraPermissionDeniedView(
+                    onOpenSettings: { openSystemSettings() },
                     onSettings: { showSettings = true },
-                    onCancel: onCancel,
-                    onCapture: { Task { await capture() } }
+                    onCancel: onCancel
                 )
-                GlassDrawer(
-                    position: $viewfinderDrawerPosition,
-                    peekHeight: 160,
-                    halfFraction: 0.55
-                ) {
-                    WeatherDrawerContent(weather: viewfinderWeather) {
-                        EmptyView()
+            } else {
+                ZStack {
+                    ViewfinderLayer(
+                        camera: camera,
+                        onSettings: { showSettings = true },
+                        onCancel: onCancel,
+                        onCapture: { Task { await capture() } }
+                    )
+                    GlassDrawer(
+                        position: $viewfinderDrawerPosition,
+                        peekHeight: 160,
+                        halfFraction: 0.55
+                    ) {
+                        WeatherDrawerContent(weather: viewfinderWeather) {
+                            EmptyView()
+                        }
                     }
                 }
             }
@@ -232,6 +249,14 @@ struct CaptureFlowView: View {
                 photoBackground(image)
                 scanningOverlay(progress: progress)
             }
+        }
+    }
+
+    /// Deep-links into iOS Settings → Cloudoodle. The only reliable
+    /// way to recover camera-permission-denied without uninstalling.
+    private func openSystemSettings() {
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(url)
         }
     }
 
@@ -472,6 +497,90 @@ private struct ViewfinderLayer: View {
                 ShutterButton(action: onCapture)
                     .padding(.bottom, 180)   // clear of the drawer peek
             }
+        }
+    }
+}
+
+// MARK: - Permission-denied overlay
+
+/// Shown in place of the viewfinder when iOS has blocked camera
+/// access (denied or restricted). The user can't recover from
+/// inside the app — they have to flip the toggle in iOS Settings
+/// — so the only useful CTA is a deep-link there.
+private struct CameraPermissionDeniedView: View {
+    let onOpenSettings: () -> Void
+    let onSettings: () -> Void
+    let onCancel: (() -> Void)?
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color(red: 0.08, green: 0.10, blue: 0.16),
+                         Color(red: 0.02, green: 0.03, blue: 0.06)],
+                startPoint: .top, endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            VStack {
+                HStack {
+                    Button(action: onSettings) {
+                        Image(systemName: "gearshape")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 36, height: 36)
+                            .background(Circle().fill(.black.opacity(0.35)))
+                    }
+                    .accessibilityLabel("Settings")
+                    Spacer()
+                    if let onCancel {
+                        Button(action: onCancel) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 36, height: 36)
+                                .background(Circle().fill(.black.opacity(0.35)))
+                        }
+                        .accessibilityLabel("Back to today's Polaroid")
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 56)
+                Spacer()
+            }
+
+            VStack(spacing: 20) {
+                Image(systemName: "camera.slash")
+                    .font(.system(size: 42))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(.white.opacity(0.85))
+
+                VStack(spacing: 10) {
+                    Text("Camera access needed")
+                        .font(.system(size: 22, weight: .regular, design: .serif))
+                        .foregroundStyle(.white)
+                    Text("Cloudoodle needs the camera to capture the sky. Enable it in iOS Settings → Cloudoodle → Camera, then come back.")
+                        .font(.system(size: 14, design: .serif))
+                        .italic()
+                        .foregroundStyle(.white.opacity(0.7))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Button(action: onOpenSettings) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "arrow.up.right.square")
+                        Text("Open iOS Settings")
+                            .font(.system(size: 15, weight: .semibold))
+                    }
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 22).padding(.vertical, 13)
+                    .background(Capsule().fill(CV.Color.accent))
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 6)
+            }
+            .padding(.horizontal, 28)
         }
     }
 }

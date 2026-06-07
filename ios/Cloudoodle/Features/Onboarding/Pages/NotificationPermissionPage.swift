@@ -1,8 +1,10 @@
 import SwiftUI
 
-/// Page 05 — notifications prime. Sunset palette + a fake push card
-/// previews exactly what a real "Golden hour in 20 min" nudge looks
-/// like (the notify-nearby-users edge function ships the same shape).
+/// Page 05 — notifications prime. The only notification Cloudoodle
+/// actually fires today is the daily reminder — one quiet nudge at
+/// a time the user picks (see DailyReminderService). The page sells
+/// that honestly: a single daily fire, only on days they haven't
+/// already scanned.
 struct NotificationPermissionPage: View {
     var onAdvance: () -> Void
 
@@ -10,19 +12,25 @@ struct NotificationPermissionPage: View {
         PermissionPageLayout(
             backdrop: .sunset,
             backdropOverlay: AnyView(NotificationPreviewCard()),
-            eyebrow: "Nudges",
-            headline: "I'll ping you when the sky shows off",
-            italicWord: "shows off",
-            bodyText: "Golden hour, dramatic clouds, a sky worth looking up for. A couple of nudges a week — never spam.",
-            chips: ["Golden hour", "Big skies", "~2 a week"],
-            primaryTitle: "Turn on nudges",
+            eyebrow: "Reminders",
+            headline: "A quiet nudge, once a day",
+            italicWord: "once a day",
+            bodyText: "Pick a time in Settings. I'll only nudge you on days you haven't already scanned. No spam — and you can turn it off anytime.",
+            chips: ["1 nudge/day", "Skips days you scan", "Off by default"],
+            primaryTitle: "Allow reminders",
             primaryAction: {
                 Task {
-                    _ = await NotificationService.shared.requestPermission()
+                    let granted = await NotificationService.shared.requestPermission()
+                    if granted {
+                        // Pre-enable the daily reminder so the user
+                        // sees an immediate value from saying yes —
+                        // they can fine-tune the time in Settings.
+                        DailyReminderService.shared.enabled = true
+                    }
                     onAdvance()
                 }
             },
-            secondaryTitle: "No thanks",
+            secondaryTitle: "Maybe later",
             secondaryAction: onAdvance
         )
     }
@@ -30,7 +38,7 @@ struct NotificationPermissionPage: View {
 
 /// Mock notification banner — Apple's actual notification chrome at
 /// roughly the right size, with the Cloudoodle app icon stamp + a
-/// representative payload from notify-nearby-users.
+/// representative reminder payload.
 private struct NotificationPreviewCard: View {
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -49,13 +57,16 @@ private struct NotificationPreviewCard: View {
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(.black.opacity(0.75))
                     Spacer()
-                    Text("now")
+                    Text("11:00 am")
                         .font(.system(size: 11))
                         .foregroundStyle(.black.opacity(0.55))
                 }
-                Text("Golden hour in 20 min — there's a whale forming over the river. 🐋")
-                    .font(.system(size: 13))
+                Text("Today's sky is waiting ☁︎")
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.black)
+                Text("Five minutes with the sky. That's the whole thing.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.black.opacity(0.7))
                     .lineLimit(2)
             }
         }
@@ -64,7 +75,7 @@ private struct NotificationPreviewCard: View {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(.white.opacity(0.92))
         )
-        .frame(maxWidth: 280)
+        .frame(maxWidth: 300)
         .padding(.horizontal, 24)
     }
 }
