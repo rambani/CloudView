@@ -42,7 +42,7 @@ struct TodaysPolaroidView: View {
             VStack(spacing: 0) {
                 topBar
                 Spacer(minLength: 8)
-                polaroid
+                ZoomableView { polaroid }
                     .padding(.horizontal, 36)
                     .offset(x: dragOffset)
                     .rotationEffect(.degrees(-1.2 + dragOffset / 80))

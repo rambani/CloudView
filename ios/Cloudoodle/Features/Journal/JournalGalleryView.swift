@@ -180,11 +180,13 @@ struct JournalGalleryView: View {
     private func page(for entry: JournalEntry, index: Int) -> some View {
         VStack(spacing: 18) {
             Spacer()
-            PolaroidCard(
-                entry: entry,
-                showShapeCaption: showShapeCaption,
-                tilt: tilt(forIndex: index)
-            )
+            ZoomableView {
+                PolaroidCard(
+                    entry: entry,
+                    showShapeCaption: showShapeCaption,
+                    tilt: tilt(forIndex: index)
+                )
+            }
             .padding(.horizontal, 36)
             .onTapGesture { editingNoteFor = entry.id }
             .contextMenu {

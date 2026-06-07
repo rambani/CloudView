@@ -35,6 +35,11 @@ struct CaptureFlowView: View {
     @State private var showSettings = false
     @State private var viewfinderDrawerPosition: GlassDrawer<WeatherDrawerContent<EmptyView>>.DrawerPosition = .peek
 
+    /// First-launch capture hint. Stays true until the user's first
+    /// interaction with the viewfinder (a tap on the hint card or a
+    /// shutter press), then never appears again.
+    @AppStorage("seen_first_capture_guide") private var seenFirstCaptureGuide = false
+
     // Polaroid develop state
     @State private var showPolaroid = false
     @State private var polaroidOriginal: UIImage?
@@ -150,6 +155,15 @@ struct CaptureFlowView: View {
                     polaroidProgress = 1.0
                     polaroidJournalEntryId = saved.id
                 }
+                // Send a minimal aggregation payload — shape, city,
+                // timestamp. Never the image, never the note, never
+                // the precise coordinates. Fire-and-forget; if the
+                // user isn't signed in this is a silent no-op.
+                await SupabaseService.shared.recordSightingMetadata(
+                    shapeName: sighting.shapeName,
+                    city: sighting.city,
+                    capturedAt: saved.createdAt
+                )
             } catch {
                 await MainActor.run {
                     polaroidError = (error as? LocalizedError)?.errorDescription
@@ -237,6 +251,13 @@ struct CaptureFlowView: View {
                             EmptyView()
                         }
                     }
+                    if !seenFirstCaptureGuide {
+                        FirstCaptureGuide(onDismiss: {
+                            withAnimation(.easeOut(duration: 0.3)) {
+                                seenFirstCaptureGuide = true
+                            }
+                        })
+                    }
                 }
             }
 
@@ -308,6 +329,12 @@ struct CaptureFlowView: View {
     // MARK: - Capture flow
 
     private func capture() async {
+        // Tapping the shutter also dismisses the first-capture hint
+        // — the user clearly knows what to do; no reason to keep the
+        // tooltip floating during their first shot.
+        if !seenFirstCaptureGuide {
+            seenFirstCaptureGuide = true
+        }
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         do {
             let image = try await camera.capturePhoto()

@@ -232,6 +232,39 @@ final class SupabaseService: ObservableObject {
             .execute()
     }
 
+    /// Fires off a minimal aggregation payload after each developed
+    /// Polaroid — three fields only: the AI's shape description, the
+    /// city name (for regional roll-ups), and the captured timestamp.
+    ///
+    /// What we DO send: shape_name, city, captured_at.
+    /// What we DO NOT send: the image, precise lat/long, the note,
+    /// or any other JournalEntry field.
+    ///
+    /// Fire-and-forget. Silently no-ops when:
+    ///   • Supabase isn't configured,
+    ///   • the user isn't signed in (only signed-in users contribute
+    ///     to aggregation, which keeps the table free of spam).
+    ///
+    /// Reads by the `sighting_metadata` table powered by migration
+    /// 010 — RLS lets only the row owner insert, no one read; the
+    /// daily edge function will roll up with service_role.
+    func recordSightingMetadata(
+        shapeName: String,
+        city: String?,
+        capturedAt: Date
+    ) async {
+        guard let client, let userId = currentUser?.id else { return }
+        var row: [String: AnyJSON] = [
+            "user_id": .string(userId.uuidString),
+            "shape_name": .string(String(shapeName.prefix(80))),
+            "captured_at": .string(ISO8601DateFormatter().string(from: capturedAt))
+        ]
+        if let city, !city.isEmpty {
+            row["city"] = .string(String(city.prefix(60)))
+        }
+        try? await client.from("sighting_metadata").insert(row).execute()
+    }
+
     private func upsertProfile(id: UUID, username: String) async throws {
         guard let client else { throw SupabaseError.notConfigured }
         let row: [String: AnyJSON] = [
