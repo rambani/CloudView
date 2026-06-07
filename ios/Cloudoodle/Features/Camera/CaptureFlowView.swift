@@ -343,7 +343,10 @@ struct CaptureFlowView: View {
             try? await Task.sleep(for: .milliseconds(100))
             await scan(image: image)
         } catch {
-            dismiss()
+            // Capture failed — phase is still .viewfinder, so the
+            // user is already back at the camera and can just try
+            // again. (The old behavior was to dismiss the cover,
+            // but we don't have one anymore.)
         }
     }
 

@@ -85,7 +85,7 @@ enum Composition {
            let anchorName = prop.attachesTo,
            let subjectAnchor = subject.anchors?[anchorName],
            subjectAnchor.count >= 2 {
-            let anchorPoint = mapPoint(subjectAnchor, from: templateBox, to: cloudBox)
+            let anchorPoint = mapPointCG(subjectAnchor, from: templateBox, to: cloudBox)
             let scale = prop.sizeRelativeToSubject ?? 1.0
             let propWidth = cloudBox.width * scale
             let propBBox = templateBoundingBox(prop)
@@ -134,8 +134,13 @@ enum Composition {
         ]
     }
 
-    /// Helper to overload mapPoint with target rect.
-    private static func mapPoint(
+    /// CGPoint-returning variant. Renamed (was previously an
+    /// overload of mapPoint differing only in return type) because
+    /// Swift can't disambiguate the two when the call site doesn't
+    /// pin the return type — e.g., inside `.map { ... }` closures
+    /// where the result is later passed through several layers of
+    /// inference.
+    private static func mapPointCG(
         _ p: [Double],
         from src: CGRect,
         to dst: CGRect
