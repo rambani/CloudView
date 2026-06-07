@@ -63,7 +63,7 @@ struct TodaysPolaroidView: View {
         .fullScreenCover(isPresented: $showGallery) {
             JournalGalleryView(focusEntryId: entry.id)
         }
-        .sheet(isPresented: $showNoteEditor) { noteEditorSheet }
+        .sheet(isPresented: $showNoteEditor) { NoteEditorSheet(entry: entry) }
         .sheet(isPresented: $showUpgrade) { UpgradeSheetView() }
         .sheet(isPresented: $showSettings) { SettingsView() }
     }
@@ -171,25 +171,6 @@ struct TodaysPolaroidView: View {
                         .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5))
             )
         }
-    }
-
-    // MARK: - Note editor sheet
-
-    private var noteEditorSheet: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                Text(entry.captionLine)
-                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                    .tracking(1.5)
-                    .foregroundStyle(.black.opacity(0.5))
-                JournalNoteEditor(entryId: entry.id, initial: entry.note)
-            }
-            .padding(.horizontal, 22)
-            .padding(.top, 22)
-        }
-        .background(Color(red: 0.97, green: 0.96, blue: 0.93))
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
     }
 
     // MARK: - Helpers

@@ -211,7 +211,7 @@ struct JournalGalleryView: View {
             get: { editingNoteFor == entry.id },
             set: { if !$0 { editingNoteFor = nil } }
         )) {
-            noteEditorSheet(for: entry)
+            NoteEditorSheet(entry: entry)
         }
     }
 
@@ -266,23 +266,6 @@ struct JournalGalleryView: View {
             }
             .buttonStyle(.plain)
         }
-    }
-
-    private func noteEditorSheet(for entry: JournalEntry) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                Text(entry.captionLine)
-                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                    .tracking(1.5)
-                    .foregroundStyle(.black.opacity(0.5))
-                JournalNoteEditor(entryId: entry.id, initial: entry.note)
-            }
-            .padding(.horizontal, 22)
-            .padding(.top, 22)
-        }
-        .background(Color(red: 0.97, green: 0.96, blue: 0.93))
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
     }
 
     private var emptyState: some View {

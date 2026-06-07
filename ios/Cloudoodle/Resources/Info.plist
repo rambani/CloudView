@@ -35,12 +35,18 @@
     </dict>
     <key>UILaunchScreen</key>
     <dict>
-        <!-- Dark background that matches the app's preferred color scheme,
-             so cold start doesn't flash white before SwiftUI mounts. The
-             color reference resolves via Assets.xcassets — fallback to
-             black if the asset is missing so the launch is never broken. -->
+        <!-- Warm darkroom backdrop matching the app's home views, so the
+             cold-start flash transitions cleanly into camera-or-today
+             without a color jump. Resolved via Assets.xcassets;
+             fallback to black if the asset is missing so the launch
+             is never broken. -->
         <key>UIColorName</key>
         <string>LaunchBackground</string>
+        <!-- Centered cloud silhouette — same shape as the app icon's
+             inner cloud, so tapping the icon and landing in the app
+             feels continuous. Resolved via Assets.xcassets at 1x/2x/3x. -->
+        <key>UIImageName</key>
+        <string>LaunchLogo</string>
         <key>UIImageRespectsSafeAreaInsets</key>
         <true/>
     </dict>
