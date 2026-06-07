@@ -8,6 +8,8 @@ struct ProfileView: View {
     @State private var isLoading = false
 
     @State private var showSettings = false
+    @State private var showJournal = false
+    @State private var journalStore = JournalStore.shared
 
     var body: some View {
         ZStack {
@@ -20,6 +22,8 @@ struct ProfileView: View {
             }
         }
         .sheet(isPresented: $showSettings) { SettingsView() }
+        .fullScreenCover(isPresented: $showJournal) { JournalGalleryView() }
+        .task { await journalStore.loadIfNeeded() }
     }
 
     private func authenticatedProfile(_ user: AppUser) -> some View {
@@ -31,6 +35,10 @@ struct ProfileView: View {
 
                 // Stats row
                 statsRow(user)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 16)
+
+                journalRow
                     .padding(.horizontal, 20)
                     .padding(.bottom, 28)
 
@@ -96,6 +104,56 @@ struct ProfileView: View {
             RoundedRectangle(cornerRadius: CV.Radius.md)
                 .fill(Color(white: 0.08))
         )
+    }
+
+    /// Card that opens the Polaroid journal. Sits below the stats so
+    /// it reads as a separate, more personal collection — the develop-
+    /// and-write ritual rather than the community sightings feed.
+    private var journalRow: some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            showJournal = true
+        } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(Color(white: 0.96))
+                        .frame(width: 40, height: 46)
+                        .rotationEffect(.degrees(-6))
+                        .shadow(color: .black.opacity(0.35), radius: 6, y: 3)
+                    Image(systemName: "book.closed.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Color(red: 0.11, green: 0.15, blue: 0.24))
+                        .rotationEffect(.degrees(-6))
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Your Polaroid journal")
+                        .font(.system(size: 15, weight: .semibold, design: .serif))
+                        .foregroundStyle(CV.Color.textPrimary)
+                    Text(journalSubtitle)
+                        .font(CV.Font.caption)
+                        .foregroundStyle(CV.Color.textSecondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(CV.Color.textTertiary)
+            }
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: CV.Radius.md)
+                    .fill(Color(white: 0.08))
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var journalSubtitle: String {
+        let n = journalStore.entries.count
+        if n == 0 { return "Start your stack — develop a Polaroid" }
+        if n == 1 { return "1 Polaroid · tap to revisit" }
+        return "\(n) Polaroids · tap to revisit"
     }
 
     private var topShape: String? {

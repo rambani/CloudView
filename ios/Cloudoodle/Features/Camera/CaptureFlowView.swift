@@ -23,6 +23,10 @@ struct CaptureFlowView: View {
     @State private var polaroidProgress: Double = 0
     @State private var polaroidError: String?
     @State private var smartCropRect: CGRect = .zero
+    /// JournalEntry written when develop succeeds — handed to
+    /// PolaroidDevelopView so its swipe-to-gallery affordance opens
+    /// focused on this very Polaroid.
+    @State private var polaroidJournalEntryId: UUID?
 
     @EnvironmentObject private var notifications: NotificationService
 
@@ -48,7 +52,8 @@ struct CaptureFlowView: View {
                     original: original,
                     developed: polaroidDeveloped,
                     progress: polaroidProgress,
-                    onTap: { showPolaroid = false }
+                    onTap: { showPolaroid = false },
+                    journalEntryId: polaroidJournalEntryId
                 )
                 .onAppear { driveDevelopAnimation() }
             }
@@ -76,6 +81,7 @@ struct CaptureFlowView: View {
         polaroidOriginal = original
         polaroidDeveloped = nil
         polaroidProgress = 0
+        polaroidJournalEntryId = nil
         showPolaroid = true
 
         Task {
@@ -99,9 +105,27 @@ struct CaptureFlowView: View {
                     overlay: img,
                     in: crop.normalizedRect
                 )
+                // Persist as a journal entry. We use the composited
+                // (full-frame) developed image rather than the crop —
+                // that's what the user sees and what reads correctly
+                // in the gallery. Original is preserved separately so
+                // future iterations can re-develop or compare.
+                let entry = JournalEntry(
+                    originalImageData: original.jpegData(compressionQuality: 0.85) ?? data,
+                    developedImageData: composited.jpegData(compressionQuality: 0.88),
+                    shapeName: sighting.shapeName,
+                    quip: sighting.quip,
+                    cloudType: sighting.cloudType,
+                    weatherMood: sighting.weatherMood,
+                    city: sighting.city,
+                    country: sighting.country,
+                    temperatureF: capturedWeather?.temperature
+                )
+                let saved = await JournalStore.shared.add(entry)
                 await MainActor.run {
                     polaroidDeveloped = composited
                     polaroidProgress = 1.0
+                    polaroidJournalEntryId = saved.id
                 }
             } catch {
                 await MainActor.run {
