@@ -179,40 +179,53 @@ def _draw_ink_trace(draw, cx, cy):
     trace never appears to leave the cloud."""
     ink = (38, 40, 56, 220)
 
-    # Bird seen from below/behind, wings spread in a gentle V.
-    # Body at center, wings sweep up-and-outward to wingtips on
-    # either side. Closed loop so the silhouette reads as a single
-    # shape. Scaled to span the 5-cloud arrangement so the trace
-    # flows through each cloud rather than floating between them.
+    # Seagull-style bird in flight: wings peak in the MIDDLE of
+    # each wing (not at the tips), with the wingtips drooping
+    # lower — the classic bird-from-below silhouette. The previous
+    # straight-line wings + sharp V tail read like a longhorn
+    # silhouette; this M-shape outline avoids that completely.
+    #
+    # Closed outline traced clockwise: top edge sweeps up-down-up
+    # across both wings, underside threads back through the body
+    # with a small fanned tail extending below.
     path = [
-        # Start at the back of the right wing root, tracing up + out
-        (cx + 40,  cy + 10),
-        (cx + 100, cy - 15),    # along underside of right wing
-        (cx + 180, cy - 40),
-        (cx + 245, cy - 75),    # right wingtip
-        (cx + 205, cy - 60),    # back across top of right wing
-        (cx + 130, cy - 50),
-        (cx + 50,  cy - 50),    # right wing meets shoulder
-        # Head (small forward bump between the shoulders)
-        (cx + 14,  cy - 70),
-        (cx - 14,  cy - 70),
-        # Left shoulder
-        (cx - 50,  cy - 50),
-        (cx - 130, cy - 50),    # across top of left wing
-        (cx - 205, cy - 60),
-        (cx - 245, cy - 75),    # left wingtip
-        (cx - 180, cy - 40),    # back along underside of left wing
-        (cx - 100, cy - 15),
-        (cx - 40,  cy + 10),
-        # Body / tail (small triangle hanging down)
-        (cx - 22,  cy + 45),
-        (cx,       cy + 80),    # tail tip
-        (cx + 22,  cy + 45),
-        # Close back to start
-        (cx + 40,  cy + 10),
+        # ---- Top edge (M-shape across both wings) ------------------
+        (cx - 250, cy + 5),     # left wingtip (sits low)
+        (cx - 205, cy - 18),    # leading edge rising
+        (cx - 150, cy - 50),
+        (cx - 100, cy - 70),    # LEFT WING PEAK (highest point)
+        (cx - 55,  cy - 55),    # descending toward body
+        (cx - 25,  cy - 45),    # body shoulder
+        (cx,       cy - 60),    # head bump
+        (cx + 25,  cy - 45),    # body shoulder
+        (cx + 55,  cy - 55),    # rising to right peak
+        (cx + 100, cy - 70),    # RIGHT WING PEAK
+        (cx + 150, cy - 50),
+        (cx + 205, cy - 18),
+        (cx + 250, cy + 5),     # right wingtip
+        # ---- Underside (back to left wingtip) ----------------------
+        (cx + 215, cy + 18),    # bottom of right wingtip
+        (cx + 165, cy + 0),     # underside rises (wing thinner here)
+        (cx + 115, cy - 30),    # under right wing peak
+        (cx + 75,  cy - 32),
+        (cx + 45,  cy - 22),    # body right underside
+        (cx + 22,  cy + 5),
+        # Small fanned tail (rounded, not a sharp V)
+        (cx + 18,  cy + 30),
+        (cx + 8,   cy + 50),
+        (cx,       cy + 55),    # tail center
+        (cx - 8,   cy + 50),
+        (cx - 18,  cy + 30),
+        (cx - 22,  cy + 5),     # body left underside
+        (cx - 45,  cy - 22),
+        (cx - 75,  cy - 32),
+        (cx - 115, cy - 30),    # under left wing peak
+        (cx - 165, cy + 0),
+        (cx - 215, cy + 18),
+        (cx - 250, cy + 5),     # close
     ]
 
-    draw.line(path, fill=ink, width=11, joint='curve')
+    draw.line(path, fill=ink, width=10, joint='curve')
 
 
 def build_polaroid():

@@ -85,17 +85,19 @@ def draw_cloud(draw, cx, cy, scale=1.0):
         fill=CLOUD,
     )
 
-    # Bird-in-flight trace
+    # Seagull-in-flight trace (matches generate_appicon.py exactly)
     path = [
-        p(40, 10), p(100, -15), p(180, -40), p(245, -75),
-        p(205, -60), p(130, -50), p(50, -50),
-        p(14, -70), p(-14, -70),
-        p(-50, -50), p(-130, -50), p(-205, -60), p(-245, -75),
-        p(-180, -40), p(-100, -15), p(-40, 10),
-        p(-22, 45), p(0, 80), p(22, 45),
-        p(40, 10),
+        p(-250, 5), p(-205, -18), p(-150, -50), p(-100, -70),
+        p(-55, -55), p(-25, -45), p(0, -60), p(25, -45),
+        p(55, -55), p(100, -70), p(150, -50), p(205, -18),
+        p(250, 5),
+        p(215, 18), p(165, 0), p(115, -30), p(75, -32),
+        p(45, -22), p(22, 5),
+        p(18, 30), p(8, 50), p(0, 55), p(-8, 50), p(-18, 30),
+        p(-22, 5), p(-45, -22), p(-75, -32), p(-115, -30),
+        p(-165, 0), p(-215, 18), p(-250, 5),
     ]
-    draw.line(path, fill=ink, width=max(4, int(11 * scale)), joint='curve')
+    draw.line(path, fill=ink, width=max(4, int(10 * scale)), joint='curve')
 
 
 def render(width, height):
