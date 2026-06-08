@@ -234,10 +234,16 @@ struct UpgradeSheetView: View {
         guard let monthly = subscriptions.monthlyProduct() else {
             return "billed yearly · cancel anytime"
         }
-        let monthlyAnnualized = monthly.price * 12
+        let monthlyAnnualized = monthly.price * Decimal(12)
         guard monthlyAnnualized > 0 else { return "billed yearly · cancel anytime" }
         let saving = (monthlyAnnualized - yearly.price) / monthlyAnnualized
-        let pct = Int((saving * 100).rounded())
+        // Decimal doesn't have a Swift-native `.rounded()` — bridging
+        // to Double lets us round + cast to Int cleanly. (If we left
+        // it as `(saving * 100).rounded()`, Swift would try Float16
+        // as the fallback float type and fail to multiply with
+        // Decimal.)
+        let savingDouble = NSDecimalNumber(decimal: saving).doubleValue
+        let pct = Int((savingDouble * 100).rounded())
         return pct > 0
             ? "billed yearly · save \(pct)% vs monthly"
             : "billed yearly · cancel anytime"

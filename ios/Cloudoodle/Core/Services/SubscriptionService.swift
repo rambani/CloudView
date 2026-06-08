@@ -52,9 +52,11 @@ final class SubscriptionService {
         Task { await refreshEntitlements() }
     }
 
-    deinit {
-        updatesTask?.cancel()
-    }
+    // No deinit — this is a singleton (`shared`) that lives for the
+    // entire app lifetime, so `updatesTask` never needs cleanup.
+    // Adding a deinit here would also clash with Swift 6's strict
+    // concurrency rules (deinits on @MainActor types can't touch
+    // main-actor-isolated state without going nonisolated).
 
     // MARK: - Daily quota
 
