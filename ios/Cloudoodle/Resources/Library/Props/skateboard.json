@@ -1,0 +1,41 @@
+{
+  "id": "skateboard",
+  "category": "vehicle",
+  "tags": ["wheels", "deck", "ramp", "street"],
+  "attaches_to": "feet_center",
+  "anchor_on_self": [0.50, 0.20],
+  "size_relative_to_subject": 0.95,
+  "strokes": [
+    {
+      "label": "deck",
+      "width": 2.4,
+      "points": [
+        [0.04, 0.20], [0.12, 0.12], [0.88, 0.12], [0.96, 0.20],
+        [0.96, 0.42], [0.88, 0.50], [0.12, 0.50], [0.04, 0.42],
+        [0.04, 0.20]
+      ]
+    },
+    {
+      "label": "deck-grip",
+      "width": 1.2,
+      "points": [
+        [0.16, 0.22], [0.84, 0.22], [0.84, 0.40], [0.16, 0.40],
+        [0.16, 0.22]
+      ]
+    },
+    {"label": "wheel-fl", "width": 2.4, "points": [[0.16, 0.66]]},
+    {"label": "wheel-fr", "width": 2.4, "points": [[0.34, 0.66]]},
+    {"label": "wheel-bl", "width": 2.4, "points": [[0.66, 0.66]]},
+    {"label": "wheel-br", "width": 2.4, "points": [[0.84, 0.66]]},
+    {
+      "label": "truck-front",
+      "width": 1.6,
+      "points": [[0.16, 0.52], [0.16, 0.62], [0.34, 0.62], [0.34, 0.52]]
+    },
+    {
+      "label": "truck-back",
+      "width": 1.6,
+      "points": [[0.66, 0.52], [0.66, 0.62], [0.84, 0.62], [0.84, 0.52]]
+    }
+  ]
+}

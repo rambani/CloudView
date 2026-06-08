@@ -38,19 +38,21 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         completionHandler([.banner, .sound])
     }
 
-    // Handle tap on a notification — navigate to feed and surface the relevant sighting
+    // Handle tap on a notification — surface a brief in-app banner.
+    // Today the only notification source is the local daily reminder
+    // (DailyReminderService), so we don't need to route to a specific
+    // entry; landing in the app is the action.
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
-        let info = response.notification.request.content.userInfo
-        if let idString = info["sighting_id"] as? String, let id = UUID(uuidString: idString) {
-            let body = response.notification.request.content.body
-            Task { @MainActor in
-                AppState.shared.selectedTab = .feed
-                AppState.shared.incomingNotification = AppState.NotificationAlert(sightingId: id, body: body)
-            }
+        let content = response.notification.request.content
+        Task { @MainActor in
+            AppState.shared.incomingNotification = AppState.NotificationAlert(
+                title: content.title,
+                body: content.body
+            )
         }
         completionHandler()
     }

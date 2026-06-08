@@ -1,20 +1,20 @@
 import SwiftUI
 
+/// App-wide state that doesn't belong to a specific feature. Kept
+/// small on purpose — most app state lives in the singletons that
+/// own a domain (JournalStore, SubscriptionService, LocationService).
 @Observable
 final class AppState {
     static let shared = AppState()
 
-    var selectedTab: Tab = .feed
-    var pendingSighting: CloudSighting?
-    var analysisError: Error?
+    /// Toast banner shown at the top of the root view. Currently
+    /// driven by the daily reminder notification tap (the user taps
+    /// the push and lands in the app — we surface a brief banner
+    /// linking back to today's view or the gallery). Nil = no toast.
     var incomingNotification: NotificationAlert?
 
-    enum Tab: Hashable {
-        case feed, capture, map, profile
-    }
-
-    struct NotificationAlert {
-        let sightingId: UUID
-        let body: String   // notification body text, e.g. "'Dragon' spotted near London just now"
+    struct NotificationAlert: Equatable {
+        let title: String
+        let body: String
     }
 }

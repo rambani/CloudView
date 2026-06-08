@@ -6,8 +6,22 @@ struct SettingsView: View {
 
     // API keys
     @AppStorage("gemini_api_key") private var geminiKey = ""
+    @AppStorage("openai_api_key") private var openaiKey = ""
     @AppStorage("supabase_url") private var supabaseURL = ""
     @AppStorage("supabase_anon_key") private var supabaseAnonKey = ""
+
+    // Display preferences
+    @AppStorage("polaroid_show_shape_caption") private var showShapeCaption = true
+
+    // Subscription
+    @State private var subscriptions = SubscriptionService.shared
+    @State private var showUpgrade = false
+
+    // Daily reminder
+    @State private var reminder = DailyReminderService.shared
+    @State private var reminderEnabled = DailyReminderService.shared.enabled
+    @State private var reminderTime = DailyReminderService.shared.reminderTime
+    @State private var reminderPermissionDenied = false
 
     // Auth form
     @State private var email = ""
@@ -21,6 +35,7 @@ struct SettingsView: View {
 
     // UI
     @State private var showAnthropicKey = false
+    @State private var showOpenAIKey = false
     @State private var showSupabaseKey = false
     @State private var legalSheet: LegalSheet?
 
@@ -44,6 +59,33 @@ struct SettingsView: View {
                 Color.black.ignoresSafeArea()
                 ScrollView {
                     VStack(spacing: 28) {
+                        // Cloudoodle Unlimited — surfaces subscription
+                        // status + the upgrade path. Subscribers see
+                        // their plan; free users see the pitch.
+                        SettingsSection(title: "Cloudoodle Unlimited", icon: "infinity") {
+                            subscriptionRow
+                        }
+
+                        // Polaroid display preferences
+                        SettingsSection(title: "Polaroid", icon: "photo.on.rectangle.angled") {
+                            Toggle(isOn: $showShapeCaption) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Show shape name on Polaroid")
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundStyle(CV.Color.textPrimary)
+                                    Text("Faint italic caption inside the photo.")
+                                        .font(CV.Font.caption)
+                                        .foregroundStyle(CV.Color.textTertiary)
+                                }
+                            }
+                            .tint(CV.Color.accent)
+                        }
+
+                        // Daily reminder
+                        SettingsSection(title: "Daily Reminder", icon: "bell") {
+                            reminderSection
+                        }
+
                         // Gemini section
                         SettingsSection(title: "AI Analysis", icon: "brain") {
                             VStack(alignment: .leading, spacing: 8) {
@@ -61,6 +103,30 @@ struct SettingsView: View {
                                     Text(geminiKey.isEmpty
                                          ? "Free at aistudio.google.com — 1,500 scans/day"
                                          : "Gemini Flash active · quips generated on-device")
+                                        .foregroundStyle(CV.Color.textTertiary)
+                                }
+                                .font(CV.Font.caption)
+                            }
+                        }
+
+                        // OpenAI section — required for the Polaroid
+                        // develop step (every scan goes through it).
+                        SettingsSection(title: "Polaroid Develop", icon: "wand.and.sparkles") {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("OpenAI API Key")
+                                    .font(CV.Font.caption)
+                                    .foregroundStyle(CV.Color.textTertiary)
+                                SecureRevealField(
+                                    text: $openaiKey,
+                                    isRevealed: $showOpenAIKey,
+                                    placeholder: "sk-..."
+                                )
+                                HStack(spacing: 4) {
+                                    Image(systemName: openaiKey.isEmpty ? "exclamationmark.circle" : "checkmark.circle")
+                                        .foregroundStyle(openaiKey.isEmpty ? .orange : .green)
+                                    Text(openaiKey.isEmpty
+                                         ? "Required to develop Polaroids · ~$0.04 per image"
+                                         : "Developing every Polaroid · gpt-image-1 active")
                                         .foregroundStyle(CV.Color.textTertiary)
                                 }
                                 .font(CV.Font.caption)
@@ -191,8 +257,143 @@ struct SettingsView: View {
                 case .terms:   LegalView(title: "Terms of Service", resourceName: "TermsOfService")
                 }
             }
+            .sheet(isPresented: $showUpgrade) {
+                UpgradeSheetView()
+            }
         }
         .preferredColorScheme(.dark)
+        .task { await subscriptions.refreshEntitlements() }
+    }
+
+    /// Daily reminder section. Toggle + time picker. When the user
+    /// enables it for the first time we walk through requesting
+    /// notification permission; if denied, we surface a small hint
+    /// pointing them at the system Settings.
+    @ViewBuilder
+    private var reminderSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Toggle(isOn: $reminderEnabled) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Remind me daily")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(CV.Color.textPrimary)
+                    Text("A quiet nudge to look up — only on days you haven't scanned.")
+                        .font(CV.Font.caption)
+                        .foregroundStyle(CV.Color.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .tint(CV.Color.accent)
+            .onChange(of: reminderEnabled) { _, newValue in
+                Task { await handleReminderToggle(newValue) }
+            }
+
+            if reminderEnabled {
+                DatePicker(
+                    "Time",
+                    selection: $reminderTime,
+                    displayedComponents: .hourAndMinute
+                )
+                .font(.system(size: 14))
+                .foregroundStyle(CV.Color.textPrimary)
+                .tint(CV.Color.accent)
+                .onChange(of: reminderTime) { _, newValue in
+                    let comps = Calendar.current.dateComponents([.hour, .minute], from: newValue)
+                    reminder.hour = comps.hour ?? 11
+                    reminder.minute = comps.minute ?? 0
+                }
+            }
+
+            if reminderPermissionDenied {
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: "exclamationmark.circle")
+                        .foregroundStyle(.orange)
+                    Text("Notifications are off for Cloudoodle. Enable them in the system Settings app to receive the reminder.")
+                        .font(CV.Font.caption)
+                        .foregroundStyle(CV.Color.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            // Forward-looking hint — sets expectations now while the
+            // backend aggregation isn't wired yet.
+            Text("Coming soon: when enough people near you spot the same shape, the reminder will say so.")
+                .font(.system(size: 11, design: .serif))
+                .italic()
+                .foregroundStyle(CV.Color.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 2)
+        }
+    }
+
+    private func handleReminderToggle(_ newValue: Bool) async {
+        if newValue {
+            // First-time enable: make sure we have notification
+            // permission before we promise the user we'll fire.
+            let svc = NotificationService.shared
+            await svc.checkAuthorizationStatus()
+            if !svc.isAuthorized {
+                let granted = await svc.requestPermission()
+                if !granted {
+                    reminderPermissionDenied = true
+                    reminderEnabled = false
+                    reminder.enabled = false
+                    return
+                }
+            }
+            reminderPermissionDenied = false
+        }
+        reminder.enabled = newValue
+    }
+
+    /// Subscription status row inside the "Cloudoodle Unlimited"
+    /// section. Subscribers see active state + a link to manage in
+    /// the system Subscriptions page; free users see the pitch +
+    /// upgrade button.
+    @ViewBuilder
+    private var subscriptionRow: some View {
+        if subscriptions.isSubscribed {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.seal.fill")
+                        .foregroundStyle(CV.Color.accent)
+                    Text("Unlimited active")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(CV.Color.textPrimary)
+                    Spacer()
+                }
+                Text("Capture as many Polaroids as you'd like, every day. Thank you for supporting Cloudoodle.")
+                    .font(CV.Font.caption)
+                    .foregroundStyle(CV.Color.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
+                    Link("Manage subscription", destination: url)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(CV.Color.accentBlue)
+                        .padding(.top, 4)
+                }
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("One free Polaroid per day. Upgrade for unlimited captures and to support a tiny indie app.")
+                    .font(.system(size: 13, design: .serif))
+                    .foregroundStyle(CV.Color.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button {
+                    showUpgrade = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "sparkles")
+                        Text("See plans")
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 14).padding(.vertical, 9)
+                    .background(Capsule().fill(CV.Color.accent))
+                }
+                .buttonStyle(.plain)
+            }
+        }
     }
 
     private static var appVersion: String {

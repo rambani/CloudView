@@ -11,6 +11,12 @@
 // Free tier: 1,500 requests/day, 1M tokens/day
 GEMINI_API_KEY =
 
+// OpenAI — used ONLY for the optional "Develop with AI" feature
+// (gpt-image-1, ~$0.04 per render). Leave blank to disable the
+// develop button; the cheap on-device path still works without this.
+// Get a key at https://platform.openai.com/api-keys
+OPENAI_API_KEY =
+
 // Supabase project URL — found in Settings → API in your Supabase dashboard
 SUPABASE_URL = https://xxxxxxxxxxxxxxxxxxxx.supabase.co
 

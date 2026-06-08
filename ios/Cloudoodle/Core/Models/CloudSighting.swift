@@ -6,6 +6,12 @@ struct CloudSighting: Identifiable, Codable, Sendable {
     let userId: UUID?
     var imageURL: String?
     var localImageData: Data?
+    /// The "developed" AI-rendered version of the photo with ink
+    /// overlays. Only set when the user tapped the develop button
+    /// and the OpenAI image-edit API returned successfully. When
+    /// set, surfaces (capture-flow drawer, profile collection)
+    /// prefer this over `localImageData`.
+    var developedImageData: Data?
     let shapeName: String
     let quip: String
     let cloudType: String
@@ -29,6 +35,7 @@ struct CloudSighting: Identifiable, Codable, Sendable {
         userId: UUID? = nil,
         imageURL: String? = nil,
         localImageData: Data? = nil,
+        developedImageData: Data? = nil,
         analysis: CloudAnalysis,
         drawingElements: [CloudAnalysis.DrawingElement] = [],
         drawingLabelX: Double = 0.5,
@@ -45,6 +52,7 @@ struct CloudSighting: Identifiable, Codable, Sendable {
         self.userId = userId
         self.imageURL = imageURL
         self.localImageData = localImageData
+        self.developedImageData = developedImageData
         self.shapeName = analysis.shapeName
         self.quip = analysis.quip
         self.cloudType = analysis.cloudType
@@ -78,7 +86,7 @@ struct CloudSighting: Identifiable, Codable, Sendable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, userId = "user_id", imageURL = "image_url", localImageData
+        case id, userId = "user_id", imageURL = "image_url", localImageData, developedImageData
         case shapeName = "shape_name", quip
         case cloudType = "cloud_type", weatherMood = "weather_mood"
         case watchabilityScore = "watchability_score"

@@ -25,7 +25,15 @@ struct CloudoodleApp: App {
                 .onAppear {
                     supabase.configure()
                     location.startUpdating()
-                    Task { await notifications.checkAuthorizationStatus() }
+                    Task {
+                        await notifications.checkAuthorizationStatus()
+                        // Re-evaluate the daily reminder schedule on
+                        // every cold launch. Catches: permission
+                        // changes in the system Settings app, time
+                        // zone shifts, and the user's chosen time
+                        // having slipped past while the app was off.
+                        await DailyReminderService.shared.rescheduleIfNeeded()
+                    }
                 }
         }
     }

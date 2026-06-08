@@ -49,19 +49,39 @@ private struct CloudPathView: View {
     let size: CGSize
     let progress: Double
 
+    // Same ink + halo treatment as the animated HandDrawingView so
+    // the static overlay reads identically when the user revisits a
+    // saved sighting. Pure white-on-cumulus disappears; ink wrapped
+    // in a soft halo reads against any backdrop.
+    private static let ink  = Color(red: 0.11, green: 0.15, blue: 0.24)
+    private static let halo = Color.white.opacity(0.85)
+
     var body: some View {
-        buildPath()
-            .trim(from: 0, to: progress)
-            .stroke(
-                Color.white,
-                style: StrokeStyle(
-                    lineWidth: element.strokeWidth * size.width / 375, // scale to screen
-                    lineCap: .round,
-                    lineJoin: .round
+        let sw = element.strokeWidth * size.width / 375
+        ZStack {
+            buildPath()
+                .trim(from: 0, to: progress)
+                .stroke(
+                    Self.halo,
+                    style: StrokeStyle(
+                        lineWidth: sw + max(6, sw * 1.2),
+                        lineCap: .round,
+                        lineJoin: .round
+                    )
                 )
-            )
-            .shadow(color: .white.opacity(0.5), radius: 4)
-            .animation(.easeOut(duration: 1.2), value: progress)
+                .blur(radius: 1.5)
+            buildPath()
+                .trim(from: 0, to: progress)
+                .stroke(
+                    Self.ink,
+                    style: StrokeStyle(
+                        lineWidth: sw,
+                        lineCap: .round,
+                        lineJoin: .round
+                    )
+                )
+        }
+        .animation(.easeOut(duration: 1.2), value: progress)
     }
 
     private func buildPath() -> Path {

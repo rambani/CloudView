@@ -26,9 +26,22 @@ targets:
           # resources so xcodegen doesn't classify them as "text" and
           # drop them from the bundle.
           - "Resources/Legal/*.md"
+          # Creature library JSON also added explicitly below — the
+          # `subdirectory` argument of Bundle.urls(forResourcesWithExtension:)
+          # only matches files copied via a folder reference, which
+          # explicit buildPhase: resources entries produce.
+          - "Resources/Library/**"
+          # StoreKit configuration files are referenced from the Run
+          # scheme (Edit Scheme → Options → StoreKit Configuration),
+          # not the app bundle. xcodegen would otherwise add them to
+          # Copy Bundle Resources where they'd ship dead weight.
+          - "Resources/StoreKit/**"
       - path: Cloudoodle/Resources/Legal/PrivacyPolicy.md
         buildPhase: resources
       - path: Cloudoodle/Resources/Legal/TermsOfService.md
+        buildPhase: resources
+      - path: Cloudoodle/Resources/Library
+        type: folder
         buildPhase: resources
     settings:
       base:

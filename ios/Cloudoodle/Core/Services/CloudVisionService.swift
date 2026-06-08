@@ -84,32 +84,57 @@ actor CloudVisionService {
 
     // MARK: - Cloud-edge waypoint extraction
 
+    /// A single candidate cloud region found by contour detection,
+    /// scored by how "creature-like" its silhouette looks.
+    struct CandidateRegion {
+        /// ~18 evenly-sampled points along the silhouette,
+        /// normalized to 0–1 in the photo, top-left origin.
+        let waypoints: [[Double]]
+        /// Normalized 0–1 in the photo.
+        let boundingBox: CGRect
+        /// 4π·area / perimeter². 1.0 for a perfect circle, lower for
+        /// elongated shapes. Mid-range (0.4–0.8) is most "creature-like."
+        let compactness: Double
+        /// Composite score: prefers medium-size + medium-compactness
+        /// regions. Higher is better.
+        let score: Double
+    }
+
+    /// Find UP TO `topK` candidate cloud regions that look like
+    /// containable shapes — not the whole sky, not noise. Sorted by
+    /// score descending. Empty when nothing usable is found.
+    ///
+    /// This replaces the older "find the single largest contour"
+    /// behavior. Real cloud-watching is "I see a fish in THAT puff",
+    /// not "the entire frame is a fish" — so we extract multiple
+    /// candidates and rank by shape-likeness, letting the upstream
+    /// flow pick which one to draw on.
+    func findCandidateRegions(in image: UIImage, topK: Int = 3) async -> [CandidateRegion] {
+        guard let cg = image.cgImage,
+              let preprocessed = preprocessForContours(cg)
+        else { return [] }
+        return await contourCandidates(cgImage: preprocessed, topK: topK)
+    }
+
     /// Extract a sampled silhouette of the brightest cloud cluster in
-    /// the photo as ~18 normalized waypoints. We pass these into the
-    /// Gemini prompt as "anchor points your strokes must follow," so
-    /// the model commits to tracing the real cloud edge instead of
-    /// inventing coordinates that land in empty blue sky.
-    ///
-    /// Pipeline:
-    ///   1. Preprocess via CoreImage — strip saturation, push contrast,
-    ///      then clamp so anything dim enough to be sky goes black and
-    ///      anything bright enough to be cloud stays white.
-    ///   2. VNDetectContoursRequest on the binarized image.
-    ///   3. Pick the contour with the largest bounding-box area —
-    ///      the most prominent cloud cluster, not noise from haze.
-    ///   4. Sample ~18 evenly-indexed points along the contour.
-    ///   5. Flip Y to SwiftUI's top-left origin.
-    ///
-    /// Returns an empty array on any failure; Gemini falls back to
-    /// prompt-only grounding (still better than 1.0-temperature wild
-    /// invention) when waypoints are absent.
+    /// the photo as ~18 normalized waypoints. Kept for back-compat —
+    /// returns the top-scored candidate's waypoints if any, else [].
     private func extractCloudWaypoints(cgImage: CGImage) async -> [[Double]] {
-        guard let preprocessed = preprocessForContours(cgImage) else {
-            return []
-        }
+        let candidates = await contourCandidates(cgImage: cgImage, topK: 1)
+        return candidates.first?.waypoints ?? []
+    }
+
+    /// Score every contour in the image and return the top K. Scoring
+    /// favors medium-sized + medium-compact silhouettes — the kind of
+    /// "I can see a creature in that puff" cloud, not "the entire
+    /// sky is white." Thrown errors and empty contour sets return [].
+    private func contourCandidates(
+        cgImage: CGImage,
+        topK: Int
+    ) async -> [CandidateRegion] {
         return await withCheckedContinuation { cont in
             var hasResumed = false
-            func resumeOnce(with value: [[Double]]) {
+            func resumeOnce(with value: [CandidateRegion]) {
                 guard !hasResumed else { return }
                 hasResumed = true
                 cont.resume(returning: value)
@@ -120,60 +145,90 @@ actor CloudVisionService {
                     resumeOnce(with: [])
                     return
                 }
-                // Collect top-level contours (outermost shapes) and pick
-                // the one with the biggest bounding-box area. pointCount
-                // is a poor proxy — a wispy cirrus could have lots of
-                // points but a tiny footprint.
-                var biggest: VNContour?
-                var biggestArea: Float = 0
+                var scored: [CandidateRegion] = []
                 for c in obs.topLevelContours {
                     let pts = c.normalizedPoints
-                    guard !pts.isEmpty else { continue }
+                    guard pts.count >= 6 else { continue }
+                    // Bounding box of this contour (Vision origin, will flip below)
                     var minX: Float = 1, minY: Float = 1, maxX: Float = 0, maxY: Float = 0
                     for p in pts {
                         minX = min(minX, p.x); maxX = max(maxX, p.x)
                         minY = min(minY, p.y); maxY = max(maxY, p.y)
                     }
-                    let area = (maxX - minX) * (maxY - minY)
-                    if area > biggestArea {
-                        biggestArea = area
-                        biggest = c
+                    let bboxArea = Double((maxX - minX) * (maxY - minY))
+                    // Reject too-small (noise/haze) and too-large
+                    // (the whole sky filling the frame).
+                    guard bboxArea > 0.01, bboxArea < 0.40 else { continue }
+                    // Compactness = 4π·area / perimeter². Use bbox area
+                    // as a stand-in for true polygon area to avoid a
+                    // shoelace pass on every contour.
+                    let perim = Self.contourPerimeter(pts)
+                    let compactness = perim > 0
+                        ? min(1.0, 4 * .pi * bboxArea / (Double(perim) * Double(perim)))
+                        : 0
+                    // Size sweet-spot: ~10% of image area is ideal;
+                    // taper off above 30% or below 3%.
+                    let sizeScore = Self.bell(value: bboxArea, peak: 0.10, width: 0.12)
+                    // Compactness sweet-spot: 0.5–0.8 (creature-like
+                    // but not perfectly circular).
+                    let compactnessScore = Self.bell(value: compactness, peak: 0.65, width: 0.30)
+                    let score = sizeScore * 0.55 + compactnessScore * 0.45
+                    // Sample + flip Y to SwiftUI's top-left origin
+                    let sampled = Self.sampleEvenly(pts, target: 18)
+                    let flipped: [[Double]] = sampled.map {
+                        [Double($0.x), 1.0 - Double($0.y)]
                     }
+                    let flippedBox = CGRect(
+                        x: CGFloat(minX),
+                        y: CGFloat(1.0 - maxY),
+                        width: CGFloat(maxX - minX),
+                        height: CGFloat(maxY - minY)
+                    )
+                    scored.append(CandidateRegion(
+                        waypoints: flipped,
+                        boundingBox: flippedBox,
+                        compactness: compactness,
+                        score: score
+                    ))
                 }
-                guard let chosen = biggest else {
-                    resumeOnce(with: [])
-                    return
-                }
-                // Reject very small contours — anything covering less
-                // than 1% of the image area is noise from haze /
-                // compression artifacts, not a real cloud.
-                guard biggestArea > 0.01 else {
-                    resumeOnce(with: [])
-                    return
-                }
-                let sampled = Self.sampleEvenly(chosen.normalizedPoints, target: 18)
-                // VNContour points are in Vision's bottom-left origin —
-                // flip Y so they line up with SwiftUI / Gemini's
-                // expected top-left coordinate system.
-                let flipped: [[Double]] = sampled.map {
-                    [Double($0.x), 1.0 - Double($0.y)]
-                }
-                resumeOnce(with: flipped)
+                scored.sort { $0.score > $1.score }
+                resumeOnce(with: Array(scored.prefix(topK)))
             }
-            // We're looking for bright cloud silhouettes on a dimmer
-            // background after preprocessing. detectsDarkOnLight=false
-            // tells Vision to treat *light* regions as the foreground.
             request.detectsDarkOnLight = false
             request.contrastAdjustment = 2.0
-            request.maximumImageDimension = 512   // plenty for silhouette extraction; saves ~30ms
+            request.maximumImageDimension = 512
 
-            let handler = VNImageRequestHandler(cgImage: preprocessed, options: [:])
+            let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
             do {
                 try handler.perform([request])
             } catch {
                 resumeOnce(with: [])
             }
         }
+    }
+
+    /// Smooth bell-curve scorer — peaks at `peak`, falls off with
+    /// width `width`. Used so that "halfway-good" values still get
+    /// some credit instead of dropping to zero.
+    nonisolated private static func bell(value: Double, peak: Double, width: Double) -> Double {
+        let d = (value - peak) / max(0.001, width)
+        return exp(-d * d)
+    }
+
+    /// Approximate contour perimeter in normalized 0-1 coords.
+    nonisolated private static func contourPerimeter(_ pts: [simd_float2]) -> Float {
+        guard pts.count > 1 else { return 0 }
+        var sum: Float = 0
+        for i in 0..<(pts.count - 1) {
+            let dx = pts[i+1].x - pts[i].x
+            let dy = pts[i+1].y - pts[i].y
+            sum += sqrt(dx * dx + dy * dy)
+        }
+        // close the loop
+        let dx = pts[0].x - pts[pts.count - 1].x
+        let dy = pts[0].y - pts[pts.count - 1].y
+        sum += sqrt(dx * dx + dy * dy)
+        return sum
     }
 
     /// Binarize the photo so contour detection sees clean cloud
