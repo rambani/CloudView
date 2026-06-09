@@ -110,6 +110,16 @@ final class DailyReminderService {
         )
 
         do { try await center.add(request) } catch { /* best-effort */ }
+
+        // Mirror the local schedule up to the user's profile so the
+        // server-side `daily-reminders` cron knows when to send the
+        // personalized regional-aggregate push. Silent no-op for
+        // signed-out users; they keep getting the local fire above.
+        await SupabaseService.shared.updateReminderPrefs(
+            enabled: enabled,
+            hour: hour,
+            minute: minute
+        )
     }
 
     /// Called after a successful scan. Cancels today's pending

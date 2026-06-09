@@ -232,6 +232,32 @@ final class SupabaseService: ObservableObject {
             .execute()
     }
 
+    /// Sync the user's daily-reminder preferences + their local
+    /// timezone up to their profile row. The `daily-reminders` edge
+    /// function reads these on every cron tick to decide who's due
+    /// for a personalized regional-aggregate push.
+    ///
+    /// Silent no-op if Supabase isn't configured or the user isn't
+    /// signed in (signed-out users get the on-device local notification
+    /// instead). Best-effort; failures are swallowed.
+    func updateReminderPrefs(
+        enabled: Bool,
+        hour: Int,
+        minute: Int
+    ) async {
+        guard let client, let userId = currentUser?.id else { return }
+        let localTime = String(format: "%02d:%02d", hour, minute)
+        let row: [String: AnyJSON] = [
+            "reminder_enabled": .bool(enabled),
+            "reminder_local_time": .string(localTime),
+            "timezone": .string(TimeZone.current.identifier)
+        ]
+        try? await client.from("profiles")
+            .update(row)
+            .eq("id", value: userId.uuidString)
+            .execute()
+    }
+
     /// Fires off a minimal aggregation payload after each developed
     /// Polaroid — three fields only: the AI's shape description, the
     /// city name (for regional roll-ups), and the captured timestamp.
@@ -263,6 +289,17 @@ final class SupabaseService: ObservableObject {
             row["city"] = .string(String(city.prefix(60)))
         }
         try? await client.from("sighting_metadata").insert(row).execute()
+
+        // Keep `profiles.city` fresh so the daily-reminders edge
+        // function knows which city to summarize for this user. We
+        // overwrite rather than maintain history; "where you last
+        // scanned" is the right anchor for the reminder push.
+        if let city, !city.isEmpty {
+            try? await client.from("profiles")
+                .update(["city": AnyJSON.string(String(city.prefix(60)))])
+                .eq("id", value: userId.uuidString)
+                .execute()
+        }
     }
 
     private func upsertProfile(id: UUID, username: String) async throws {
