@@ -108,15 +108,34 @@ Style:
 Return the photo with the ink overlay applied. Do not change anything else about the image.`;
 }
 
-// Step 3 — re-caption from the finished image. The stored shape
-// name must describe what's actually drawn, not what was planned.
-function buildRecaptionPrompt(plannedShape: string): string {
+// Step 3 — re-caption + quip from the finished image. The stored
+// shape name must describe what's actually drawn, not what was
+// planned; the quip ties that shape to the REAL weather at capture
+// time, which is what makes each Polaroid feel like it was written
+// for this exact moment.
+function buildRecaptionPrompt(
+  plannedShape: string,
+  weatherSummary: string | null,
+): string {
+  const weatherSection = weatherSummary
+    ? `\n\nCurrent weather at the watcher's location: ${weatherSummary}\n\n` +
+      `Write a "quip": ONE playful sentence that ties the shape to this real weather. ` +
+      `The creature lives in this sky, so the weather is happening TO it. Examples of ` +
+      `the energy (don't copy): a dragon + incoming rain → "Better find shelter, ` +
+      `dragon — rain rolls in within the hour." A whale + high heat → "Even the whale ` +
+      `is looking for somewhere to cool off at 96°." A rabbit + strong wind → "Hold ` +
+      `onto your ears — gusts at 25 mph this afternoon." Use the most interesting ` +
+      `weather fact available (incoming rain beats temperature; a heat warning beats ` +
+      `mild wind). Keep it under 20 words, warm and wry, never mean.`
+    : `\n\nWrite a "quip": ONE playful sentence (under 20 words) about the shape ` +
+      `drifting in today's sky. Warm and wry, never mean.`;
+
   return `This sky photo has delicate white ink line-art added by a cloud-watcher. The watcher intended to trace: "${plannedShape}".
 
-Look at the FINAL image. What does the ink actually trace? Usually it matches the intent — confirm it. If the ink clearly reads as something else, name what it actually shows instead.
+Look at the FINAL image. What does the ink actually trace? Usually it matches the intent — confirm it. If the ink clearly reads as something else, name what it actually shows instead.${weatherSection}
 
 Respond with ONLY valid JSON, no markdown:
-{"shape_name": "short concrete phrase, max 6 words"}`;
+{"shape_name": "short concrete phrase, max 6 words", "quip": "one sentence, max 20 words"}`;
 }
 
 // ---------- Types -----------------------------------------------------------
@@ -127,6 +146,11 @@ interface RequestBody {
   /// The user's most recent shape names (client supplies up to ~7,
   /// newest first). Used as variety pressure in the identify prompt.
   recent_shapes?: string[];
+  /// Human-readable summary of the weather at capture time, built
+  /// client-side from WeatherKit (e.g. "72°F, feels like 70°, wind
+  /// 6 mph SW, rain expected in ~30 min"). Drives the quip — the
+  /// one-liner tying the cloud shape to the actual conditions.
+  weather_summary?: string;
 }
 
 interface GeminiAnalysis {
@@ -180,9 +204,15 @@ Deno.serve(async (req) => {
   // 3. The three-step pipeline. Steps are sequential by design:
   //    identify sets the develop instructions; re-caption needs the
   //    developed image. ~1s per text step, the image step dominates.
+  const weatherSummary =
+    typeof body.weather_summary === "string" && body.weather_summary.length > 0
+      ? body.weather_summary.slice(0, 300)
+      : null;
+
   let analysis: GeminiAnalysis;
   let developedPng: string;
   let finalShapeName: string;
+  let quip: string;
   try {
     analysis = await identify(body.image_base64, recentShapes);
     developedPng = await develop(
@@ -190,7 +220,11 @@ Deno.serve(async (req) => {
       analysis.shape_name,
       analysis.watchability_score,
     );
-    finalShapeName = await recaption(developedPng, analysis.shape_name);
+    ({ shapeName: finalShapeName, quip } = await recaption(
+      developedPng,
+      analysis.shape_name,
+      weatherSummary,
+    ));
   } catch (e) {
     console.error("AI pipeline failed", e);
     const message = e instanceof Error ? e.message : String(e);
@@ -223,6 +257,7 @@ Deno.serve(async (req) => {
   //    only the shape name is re-derived from the finished image.
   return json({
     shape_name: finalShapeName,
+    quip,
     cloud_type: analysis.cloud_type,
     weather_mood: analysis.weather_mood,
     watchability_score: analysis.watchability_score,
@@ -297,32 +332,39 @@ async function develop(
 async function recaption(
   developedImageBase64: string,
   plannedShape: string,
-): Promise<string> {
+  weatherSummary: string | null,
+): Promise<{ shapeName: string; quip: string }> {
   try {
     const text = await geminiText({
       imageBase64: developedImageBase64,
       imageMime: "image/png",
-      prompt: buildRecaptionPrompt(plannedShape),
-      maxTokens: 100,
+      prompt: buildRecaptionPrompt(plannedShape, weatherSummary),
+      maxTokens: 200,
+      // Hotter than the identify pass: quips benefit from spice;
+      // the shape confirmation is robust to it (it's mostly an echo).
+      temperature: 0.9,
     });
     const parsed = JSON.parse(stripCodeFences(text));
     const name = String(parsed?.shape_name ?? "").trim();
-    return name || plannedShape;
+    const quip = String(parsed?.quip ?? "").trim().slice(0, 200);
+    return { shapeName: name || plannedShape, quip };
   } catch (e) {
     // Re-caption is a truthfulness upgrade, not a hard dependency —
-    // if it fails, the planned shape is still a good caption.
+    // if it fails, the planned shape is still a good caption and
+    // the client falls back to its on-device quip generator.
     console.warn("Recaption failed; falling back to planned shape", e);
-    return plannedShape;
+    return { shapeName: plannedShape, quip: "" };
   }
 }
 
 // ---------- Gemini helpers --------------------------------------------------
 
-async function geminiText({ imageBase64, imageMime, prompt, maxTokens }: {
+async function geminiText({ imageBase64, imageMime, prompt, maxTokens, temperature = 0.5 }: {
   imageBase64: string;
   imageMime: string;
   prompt: string;
   maxTokens: number;
+  temperature?: number;
 }): Promise<string> {
   if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
 
@@ -336,7 +378,7 @@ async function geminiText({ imageBase64, imageMime, prompt, maxTokens }: {
     }],
     generationConfig: {
       responseMimeType: "application/json",
-      temperature: 0.5,
+      temperature,
       maxOutputTokens: maxTokens,
     },
   };

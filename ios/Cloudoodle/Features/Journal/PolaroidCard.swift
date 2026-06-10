@@ -51,7 +51,11 @@ struct PolaroidCard: View {
         if let city = entry.city, !city.isEmpty {
             parts.append("in \(city)")
         }
-        return parts.joined(separator: ", ") + "."
+        var description = parts.joined(separator: ", ") + "."
+        if !entry.quip.isEmpty {
+            description += " \(entry.quip)"
+        }
+        return description
     }
 
     // MARK: - Top border: date + time, old-timey stamp
@@ -143,14 +147,25 @@ struct PolaroidCard: View {
 
     /// The big white margin of a Polaroid where people used to write
     /// notes in pen. We print the moment's weather there: temperature
-    /// as the headline number, then a short italic line with the
-    /// conditions phrase and city. Two lines, breathing room — the
-    /// page should feel like a real Polaroid bottom edge.
+    /// as the headline number, a short italic conditions line, and —
+    /// when present — the quip, the one-liner tying the shape to the
+    /// day's weather ("Better find shelter, dragon — rain in 30").
+    /// The quip IS the handwritten-note feel; it gets the most
+    /// character-rich treatment of the three lines.
     private var bottomBorder: some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 4) {
                 temperatureLine
                 conditionsLine
+                if !entry.quip.isEmpty {
+                    Text(entry.quip)
+                        .font(.system(size: 12.5, weight: .regular, design: .serif))
+                        .italic()
+                        .foregroundStyle(.black.opacity(0.68))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 3)
+                }
             }
             Spacer(minLength: 4)
         }

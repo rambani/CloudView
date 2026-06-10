@@ -17,17 +17,24 @@ struct DemoPage: View {
         let palette: SkyBackdrop.Palette
         let conditions: String
         let temperatureF: Int
+        /// Sample weather-aware quip — previews the voice the real
+        /// AI quips use (shape + actual conditions in one line).
+        let quip: String
     }
 
     private let demos: [Demo] = [
         Demo(shapeName: "a whale, drifting", palette: .day,
-             conditions: "scattered cumulus", temperatureF: 72),
+             conditions: "scattered cumulus", temperatureF: 72,
+             quip: "Smooth sailing for this whale — not a ripple in the sky till sundown."),
         Demo(shapeName: "a sleeping dragon", palette: .sunset,
-             conditions: "broken cloud", temperatureF: 65),
+             conditions: "broken cloud", temperatureF: 65,
+             quip: "Let the dragon sleep — rain rolls in within the hour."),
         Demo(shapeName: "a cotton-tailed rabbit", palette: .day,
-             conditions: "clear sky", temperatureF: 78),
+             conditions: "clear sky", temperatureF: 78,
+             quip: "78° and not a cloud to hide in — bold move, rabbit."),
         Demo(shapeName: "a sailboat, far horizon", palette: .day,
-             conditions: "scattered cumulus", temperatureF: 70)
+             conditions: "scattered cumulus", temperatureF: 70,
+             quip: "A 12 mph westerly — perfect sailing weather, as it happens.")
     ]
 
     @State private var index = 0
@@ -44,7 +51,7 @@ struct DemoPage: View {
                     .font(.system(size: 26, weight: .regular, design: .serif))
                     .foregroundStyle(CV.Color.textPrimary)
                     .fixedSize(horizontal: false, vertical: true)
-                Text("Each Polaroid carries the date, the weather, and a shape the AI noticed in the sky.")
+                Text("Each Polaroid carries the date, the weather, the shape the AI noticed — and a line about how the two are getting along.")
                     .font(.system(size: 14))
                     .foregroundStyle(CV.Color.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -133,7 +140,8 @@ struct DemoPage: View {
             .aspectRatio(1, contentMode: .fit)
             .clipped()
 
-            // Bottom border — temp + conditions + city
+            // Bottom border — temp + conditions + weather-aware quip
+            // (same three-line layout as the real PolaroidCard)
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("\(demo.temperatureF)°")
@@ -143,6 +151,13 @@ struct DemoPage: View {
                         .font(.system(size: 12, weight: .regular, design: .serif))
                         .italic()
                         .foregroundStyle(.black.opacity(0.55))
+                    Text(demo.quip)
+                        .font(.system(size: 12.5, weight: .regular, design: .serif))
+                        .italic()
+                        .foregroundStyle(.black.opacity(0.68))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 3)
                 }
                 Spacer(minLength: 4)
             }

@@ -114,7 +114,8 @@ struct CaptureFlowView: View {
                 let result = try await SupabaseService.shared.developPolaroid(
                     crop: crop.cropped,
                     city: location.currentCity,
-                    recentShapes: await JournalStore.shared.recentShapeNames()
+                    recentShapes: await JournalStore.shared.recentShapeNames(),
+                    weatherSummary: Self.weatherSummary(from: capturedWeather)
                 )
 
                 guard let developedData = Data(base64Encoded: result.developedImageBase64),
@@ -131,10 +132,16 @@ struct CaptureFlowView: View {
                     in: crop.normalizedRect
                 )
 
-                let quip = await QuipGenerationService.shared.generateQuip(
-                    shapeName: result.shapeName,
-                    cloudType: result.cloudType
-                )
+                // Server quip is weather-aware ("Better find shelter,
+                // dragon — rain in 30"). The on-device generator only
+                // knows shape + cloud type, so it's strictly a fallback.
+                var quip = result.quip ?? ""
+                if quip.isEmpty {
+                    quip = await QuipGenerationService.shared.generateQuip(
+                        shapeName: result.shapeName,
+                        cloudType: result.cloudType
+                    )
+                }
 
                 let entry = JournalEntry(
                     originalImageData: originalImage.jpegData(compressionQuality: 0.85) ?? Data(),
@@ -268,6 +275,42 @@ struct CaptureFlowView: View {
                 scanningOverlay(progress: progress)
             }
         }
+    }
+
+    /// Compact human-readable conditions line for the quip prompt.
+    /// Leads with the most quip-worthy fact (incoming precipitation),
+    /// then temperature/wind/UV. Example output:
+    /// "Rain in ~30m. 72°F (feels like 70°), wind 12 mph SW, UV 8,
+    /// sunset 7:42 PM."
+    private static func weatherSummary(from snapshot: WeatherSnapshot?) -> String? {
+        guard let w = snapshot else { return nil }
+        var parts: [String] = []
+        if let alert = w.precipAlert {
+            parts.append(alert)
+        }
+        var tempPart = "\(w.temperature)°F"
+        if abs(w.feelsLike - w.temperature) >= 5 {
+            tempPart += " (feels like \(w.feelsLike)°)"
+        }
+        parts.append(tempPart)
+        if w.windSpeed >= 10 {
+            parts.append("wind \(w.windSpeed) mph \(w.windDirection)")
+        }
+        if w.uvIndex >= 8 {
+            parts.append("UV index \(w.uvIndex) (very high)")
+        }
+        if w.humidity >= 80 {
+            parts.append("humidity \(w.humidity)%")
+        }
+        let f = DateFormatter()
+        f.dateFormat = "h:mm a"
+        // Sunset within ~90 minutes is quip-worthy ("the dragon has
+        // an hour of golden light left").
+        let untilSunset = w.sunset.timeIntervalSince(Date())
+        if untilSunset > 0 && untilSunset < 90 * 60 {
+            parts.append("sunset at \(f.string(from: w.sunset)) (~\(Int(untilSunset / 60)) min away)")
+        }
+        return parts.joined(separator: ", ")
     }
 
     /// Deep-links into iOS Settings → Cloudoodle. The only reliable

@@ -275,6 +275,11 @@ final class SupabaseService: ObservableObject {
     /// Matches the JSON shape the function emits one-to-one.
     struct DevelopResult: Decodable {
         let shapeName: String
+        /// Weather-aware one-liner tying the shape to the real
+        /// conditions ("Better find shelter, dragon — rain rolls in
+        /// within the hour."). Empty when the server's quip pass
+        /// failed; callers fall back to the on-device generator.
+        let quip: String?
         let cloudType: String
         let weatherMood: String
         let watchabilityScore: Int
@@ -282,6 +287,7 @@ final class SupabaseService: ObservableObject {
 
         enum CodingKeys: String, CodingKey {
             case shapeName            = "shape_name"
+            case quip
             case cloudType            = "cloud_type"
             case weatherMood          = "weather_mood"
             case watchabilityScore    = "watchability_score"
@@ -304,10 +310,13 @@ final class SupabaseService: ObservableObject {
     /// onto `profiles.city` for the daily-reminders aggregation.
     /// `recentShapes` (newest first) gives the AI variety pressure
     /// so it avoids repeating the user's recent creatures.
+    /// `weatherSummary` is a compact human-readable line about the
+    /// current conditions — it powers the weather-aware quip.
     func developPolaroid(
         crop: UIImage,
         city: String?,
-        recentShapes: [String] = []
+        recentShapes: [String] = [],
+        weatherSummary: String? = nil
     ) async throws -> DevelopResult {
         try await signInAnonymouslyIfNeeded()
         guard let client else { throw SupabaseError.notConfigured }
@@ -318,6 +327,7 @@ final class SupabaseService: ObservableObject {
             "image_base64": .string(jpegData.base64EncodedString()),
             "city": city.map { .string($0) } ?? .null,
             "recent_shapes": .array(recentShapes.prefix(7).map { .string($0) }),
+            "weather_summary": weatherSummary.map { .string(String($0.prefix(300))) } ?? .null,
         ]
         do {
             let response: DevelopResult = try await client.functions
