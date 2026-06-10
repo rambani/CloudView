@@ -20,6 +20,10 @@ struct JournalGalleryView: View {
     /// When presented from today's home view or the develop reveal,
     /// the entry the gallery should scroll to on appear.
     var focusEntryId: UUID? = nil
+    /// Set when the gallery is hosted as an in-hierarchy overlay
+    /// (the slide-in presentation) rather than a fullScreenCover.
+    /// nil falls back to the environment dismiss.
+    var onClose: (() -> Void)? = nil
 
     var body: some View {
         ZStack {
@@ -41,6 +45,20 @@ struct JournalGalleryView: View {
         }
         .preferredColorScheme(.dark)
         .task { await store.loadIfNeeded() }
+        // Mirror of the entry gesture: the user swiped right to slide
+        // the gallery in, so swiping left slides it back out. The
+        // vertical card scroll is unaffected (horizontal threshold).
+        .gesture(
+            DragGesture(minimumDistance: 30)
+                .onEnded { value in
+                    let horizontal = value.translation.width
+                    let vertical = abs(value.translation.height)
+                    if horizontal < -80, vertical < abs(horizontal) {
+                        Haptics.soft()
+                        close()
+                    }
+                }
+        )
         .fullScreenCover(item: $detailEntry) { entry in
             JournalEntryDetailView(
                 entry: entry,
@@ -161,6 +179,7 @@ struct JournalGalleryView: View {
     private func cardRow(entry: JournalEntry, index: Int) -> some View {
         let polaroidWidth: CGFloat = UIScreen.main.bounds.width * 0.72
         return Button {
+            Haptics.tap()
             detailEntry = entry
         } label: {
             PolaroidCard(
@@ -229,10 +248,17 @@ struct JournalGalleryView: View {
         .ignoresSafeArea()
     }
 
+    /// Overlay-hosted galleries close via the parent's callback so
+    /// the slide-out transition runs in the parent's hierarchy;
+    /// cover-hosted ones use the environment dismiss.
+    private func close() {
+        if let onClose { onClose() } else { dismiss() }
+    }
+
     private var topBar: some View {
         HStack {
             Button {
-                dismiss()
+                close()
             } label: {
                 HStack(spacing: 4) {
                     Image(systemName: "chevron.left")

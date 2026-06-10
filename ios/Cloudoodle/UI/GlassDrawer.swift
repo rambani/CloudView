@@ -117,6 +117,12 @@ struct GlassDrawer<Content: View>: View {
             .onPreferenceChange(DrawerScrollAtTopKey.self) { atTop in
                 contentScrollAtTop = atTop
             }
+            // One selection tick whenever the drawer settles into a
+            // new position — drag snap, accessibility action, or a
+            // programmatic change all read the same to the hand.
+            .onChange(of: position) { _, _ in
+                Haptics.selection()
+            }
         }
     }
 

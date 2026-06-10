@@ -78,9 +78,11 @@ struct JournalEntryDetailView: View {
     private var inkToggle: some View {
         HStack(spacing: 0) {
             toggleSegment(title: "Ink", isActive: !showOriginal) {
+                Haptics.selection()
                 withAnimation(.easeInOut(duration: 0.2)) { showOriginal = false }
             }
             toggleSegment(title: "Original", isActive: showOriginal) {
+                Haptics.selection()
                 withAnimation(.easeInOut(duration: 0.2)) { showOriginal = true }
             }
         }

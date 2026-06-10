@@ -58,12 +58,26 @@ struct TodaysPolaroidView: View {
                     AnyView(drawerActionRow)
                 }
             }
+
+            // Gallery as an in-hierarchy overlay (not a cover) so it
+            // can slide in from the leading edge — the spatial mate
+            // of the card flying off to the right under the swipe.
+            if showGallery {
+                JournalGalleryView(
+                    focusEntryId: entry.id,
+                    onClose: {
+                        withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+                            showGallery = false
+                        }
+                    }
+                )
+                .ignoresSafeArea()
+                .transition(.move(edge: .leading))
+                .zIndex(50)
+            }
         }
         .preferredColorScheme(.dark)
         .task { await loadWeather() }
-        .fullScreenCover(isPresented: $showGallery) {
-            JournalGalleryView(focusEntryId: entry.id)
-        }
         .sheet(isPresented: $showNoteEditor) { NoteEditorSheet(entry: entry) }
         .sheet(isPresented: $showUpgrade) { UpgradeSheetView() }
         .sheet(isPresented: $showSettings) { SettingsView() }
@@ -112,7 +126,10 @@ struct TodaysPolaroidView: View {
             }
             Spacer()
             Button {
-                showGallery = true
+                Haptics.tap()
+                withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+                    showGallery = true
+                }
             } label: {
                 Image(systemName: "rectangle.stack")
                     .scaledFont(size: 15, weight: .semibold)
@@ -208,13 +225,16 @@ struct TodaysPolaroidView: View {
                 let commit = value.translation.width > 80
                     || value.predictedEndTranslation.width > 180
                 if commit {
+                    Haptics.soft()
                     withAnimation(.easeOut(duration: 0.18)) {
                         dragOffset = UIScreen.main.bounds.width
                     }
                     Task {
                         try? await Task.sleep(for: .milliseconds(160))
-                        showGallery = true
-                        try? await Task.sleep(for: .milliseconds(50))
+                        withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+                            showGallery = true
+                        }
+                        try? await Task.sleep(for: .milliseconds(80))
                         dragOffset = 0
                     }
                 } else {

@@ -71,7 +71,7 @@ struct PolaroidDevelopView: View {
             // Shake after a beat
             Task {
                 try? await Task.sleep(for: .seconds(1.2))
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                Haptics.shutter()
                 withAnimation(.easeInOut(duration: 0.10).repeatCount(5, autoreverses: true)) {
                     shakeOffset = 12
                 }
@@ -84,7 +84,7 @@ struct PolaroidDevelopView: View {
             if isDone, !hasSettled {
                 Task {
                     try? await Task.sleep(for: .milliseconds(200))
-                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    Haptics.success()
                     withAnimation(.spring(response: 0.45, dampingFraction: 0.7)) {
                         hasSettled = true
                     }

@@ -28,6 +28,7 @@ struct CaptureRootView: View {
             switch mode {
             case .resolving:
                 resolvingView
+                    .transition(.opacity)
             case .camera:
                 // Only offer a cancel path when there's something to
                 // cancel back to (i.e., a subscriber who already has
@@ -36,12 +37,14 @@ struct CaptureRootView: View {
                     onCompleted: { mode = .today },
                     onCancel: store.todaysEntry != nil ? { mode = .today } : nil
                 )
+                .transition(modeTransition)
             case .today:
                 if let today = store.todaysEntry {
                     TodaysPolaroidView(
                         entry: today,
                         onCaptureRequested: handleCaptureRequest
                     )
+                    .transition(modeTransition)
                 } else if subscriptions.hasQuotaToday {
                     // No today's entry, but quota is available — either
                     // a fresh day rolled in while the view was alive,
@@ -52,13 +55,19 @@ struct CaptureRootView: View {
                         onCompleted: { mode = .today },
                         onCancel: nil
                     )
+                    .transition(modeTransition)
                 } else {
                     // No quota, no today's entry — usually a free user
                     // who deleted their Polaroid from the gallery.
                     quotaSpentEmptyState
+                        .transition(modeTransition)
                 }
             }
         }
+        // Camera ↔ today's view used to hard-cut. The same soft
+        // dissolve-with-settle the onboarding pager uses — the new
+        // surface breathes in rather than snapping into place.
+        .animation(.spring(response: 0.45, dampingFraction: 0.85), value: mode)
         .task {
             await store.loadIfNeeded()
             await subscriptions.refreshEntitlements()
@@ -82,6 +91,16 @@ struct CaptureRootView: View {
         .sheet(isPresented: $showUpgrade) {
             UpgradeSheetView()
         }
+    }
+
+    /// Soft dissolve + barely-there scale settle. Matches the
+    /// onboarding pager's transition so the whole app changes
+    /// surfaces with one consistent motion.
+    private var modeTransition: AnyTransition {
+        .asymmetric(
+            insertion: .opacity.combined(with: .scale(scale: 0.98, anchor: .center)),
+            removal: .opacity.combined(with: .scale(scale: 1.02, anchor: .center))
+        )
     }
 
     // MARK: - States

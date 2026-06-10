@@ -102,6 +102,7 @@ struct ZoomableView<Content: View>: View {
     }
 
     private func toggleZoom() {
+        Haptics.soft()
         if isZoomed {
             committedScale = 1.0
             committedOffset = .zero

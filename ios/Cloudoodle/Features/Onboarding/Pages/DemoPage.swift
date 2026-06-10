@@ -190,6 +190,6 @@ struct DemoPage: View {
         // Mild tilt swap so each tap feels physical
         let amplitudes: [Double] = [-2.6, -1.2, -3.2, 0.8]
         tilt = amplitudes[index % amplitudes.count]
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        Haptics.tap()
     }
 }

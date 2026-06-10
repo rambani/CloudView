@@ -57,6 +57,21 @@ struct CaptureFlowView: View {
         ZStack {
             Color.black.ignoresSafeArea()
             phaseContent
+
+            // Gallery slides in from the leading edge — the same
+            // in-hierarchy overlay presentation today's view uses, so
+            // the gesture means the same motion from either surface.
+            if showGallery {
+                JournalGalleryView(
+                    onClose: {
+                        withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+                            showGallery = false
+                        }
+                    }
+                )
+                .transition(.move(edge: .leading))
+                .zIndex(50)
+            }
         }
         .ignoresSafeArea()
         .task {
@@ -64,9 +79,6 @@ struct CaptureFlowView: View {
             await loadViewfinderWeather()
         }
         .sheet(isPresented: $showSettings) { SettingsView() }
-        .fullScreenCover(isPresented: $showGallery) {
-            JournalGalleryView()
-        }
         .alert("The sky's asleep", isPresented: $darkSkyAlert) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -254,7 +266,12 @@ struct CaptureFlowView: View {
                     ViewfinderLayer(
                         camera: camera,
                         onSettings: { showSettings = true },
-                        onGallery: { showGallery = true },
+                        onGallery: {
+                            Haptics.tap()
+                            withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+                                showGallery = true
+                            }
+                        },
                         onCancel: onCancel,
                         onCapture: { Task { await capture() } }
                     )
@@ -345,13 +362,16 @@ struct CaptureFlowView: View {
                 let commit = value.translation.width > 100
                     || value.predictedEndTranslation.width > 200
                 if commit {
+                    Haptics.soft()
                     withAnimation(.easeOut(duration: 0.18)) {
                         viewfinderDragOffset = UIScreen.main.bounds.width
                     }
                     Task {
                         try? await Task.sleep(for: .milliseconds(160))
-                        showGallery = true
-                        try? await Task.sleep(for: .milliseconds(50))
+                        withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+                            showGallery = true
+                        }
+                        try? await Task.sleep(for: .milliseconds(80))
                         viewfinderDragOffset = 0
                     }
                 } else {
@@ -424,7 +444,7 @@ struct CaptureFlowView: View {
         if !seenFirstCaptureGuide {
             seenFirstCaptureGuide = true
         }
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        Haptics.shutter()
         do {
             let image = try await camera.capturePhoto()
 
@@ -436,7 +456,7 @@ struct CaptureFlowView: View {
             // it only trips on genuinely dark frames (night sky,
             // lens against a pocket).
             if let luminance = image.averageLuminance, luminance < 0.10 {
-                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                Haptics.warning()
                 darkSkyAlert = true
                 return
             }
@@ -479,7 +499,7 @@ struct CaptureFlowView: View {
         } while Date().timeIntervalSince(start) < scanDuration
 
         capturedWeather = await weatherTask
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        Haptics.success()
 
         startDevelop(originalImage: image, crop: crop)
     }
