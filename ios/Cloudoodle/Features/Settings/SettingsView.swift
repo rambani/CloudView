@@ -322,9 +322,11 @@ struct SettingsView: View {
                 }
             }
 
-            // Forward-looking hint — sets expectations now while the
-            // backend aggregation isn't wired yet.
-            Text("Coming soon: when enough people near you spot the same shape, the reminder will say so.")
+            // Reminder source hint — explains why the wording the
+            // user sees depends on whether they're signed in.
+            Text(subscriptions.isSubscribed || SupabaseService.shared.isAuthenticated
+                 ? "Sign-in active: the reminder summarizes what people near you saw today."
+                 : "Sign in to get a reminder summarizing what people near you saw today; otherwise it's a warm-generic nudge.")
                 .font(.system(size: 11, design: .serif))
                 .italic()
                 .foregroundStyle(CV.Color.textTertiary)

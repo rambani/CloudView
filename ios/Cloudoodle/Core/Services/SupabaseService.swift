@@ -153,6 +153,9 @@ final class SupabaseService: ObservableObject {
         try await client.auth.signOut()
         currentUser = nil
         isAuthenticated = false
+        // Auth state flipped — local reminder is now canonical again
+        // for this device. Re-arm the local schedule.
+        await DailyReminderService.shared.rescheduleIfNeeded()
     }
 
     func resetPassword(email: String) async throws {
@@ -189,6 +192,10 @@ final class SupabaseService: ObservableObject {
             // would have early-returned (no currentUser). Sync it now
             // that we have one. Cheap no-op when the token isn't set yet.
             await NotificationService.shared.syncDeviceToken()
+            // Server push is now the canonical reminder sender — tell
+            // DailyReminderService to drop its local schedule (and to
+            // sync the current prefs up so the cron knows when to fire).
+            await DailyReminderService.shared.rescheduleIfNeeded()
         } catch {
             currentUser = nil
             isAuthenticated = false
