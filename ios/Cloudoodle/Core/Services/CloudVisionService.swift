@@ -2,87 +2,15 @@ import Vision
 import UIKit
 import CoreImage
 
-// On-device Vision passes that ground Gemini in the actual photo:
-//   • Saliency — finds where the eye goes, used for label placement.
-//   • Cloud-edge waypoints — extracts a sampled silhouette of the most
-//     prominent cloud cluster so Gemini snaps its strokes to real
-//     cloud edges instead of inventing coordinates.
-//
-// Both run on-device, ~100ms total on an iPhone 15. The waypoint pass
-// is the heavier-handed grounding mechanism described as "follow-up B"
-// in the prompt-engineering work; the prompt-only version is "A".
+// On-device Vision contour detection — the single piece of cloud
+// analysis Cloudoodle still does client-side. The output (a ranked
+// list of CandidateRegion) feeds SmartCrop, which picks a tight
+// square around the most "creature-like" cloud cluster before we
+// send it to the server-side AI proxy. The saliency + waypoint
+// extraction that used to live here is gone with the Gemini-direct
+// path it grounded.
 actor CloudVisionService {
     static let shared = CloudVisionService()
-
-    struct Result {
-        let salientRegion: CGRect  // normalized 0-1, may be .null if nothing found
-        let waypoints: [[Double]]  // sampled cloud-edge points, normalized 0-1, top-left origin
-        // Kept for interface compatibility; always empty — Gemini provides drawing paths now
-        let drawingElements: [CloudAnalysis.DrawingElement]
-    }
-
-    func analyzeCloudImage(_ image: UIImage) async throws -> Result {
-        guard let cgImage = image.cgImage else {
-            return Result(salientRegion: .null, waypoints: [], drawingElements: [])
-        }
-        // Saliency + contour run in parallel — both are pure on-device
-        // Vision passes and don't block each other on any shared state.
-        async let salient = findSalientRegion(cgImage: cgImage)
-        async let waypoints = extractCloudWaypoints(cgImage: cgImage)
-        return Result(
-            salientRegion: await salient,
-            waypoints: await waypoints,
-            drawingElements: []
-        )
-    }
-
-    // MARK: - Saliency: where does the eye go?
-
-    private func findSalientRegion(cgImage: CGImage) async -> CGRect {
-        await withCheckedContinuation { cont in
-            // Guard against double-resume: VNImageRequestHandler.perform might
-            // throw (low memory, malformed image), in which case the request's
-            // completion handler never fires. Without the explicit catch on
-            // perform, the continuation would never resume and the async task
-            // would hang indefinitely.
-            var hasResumed = false
-            func resumeOnce(with value: CGRect) {
-                guard !hasResumed else { return }
-                hasResumed = true
-                cont.resume(returning: value)
-            }
-
-            let request = VNGenerateAttentionBasedSaliencyImageRequest { req, _ in
-                guard
-                    let obs = req.results?.first as? VNSaliencyImageObservation,
-                    let objects = obs.salientObjects, !objects.isEmpty
-                else {
-                    resumeOnce(with: .null)
-                    return
-                }
-                // Union of all salient bounding boxes, flipping Y to SwiftUI space
-                let union = objects.reduce(CGRect.null) { acc, obj in
-                    let flipped = CGRect(
-                        x: obj.boundingBox.origin.x,
-                        y: 1.0 - obj.boundingBox.origin.y - obj.boundingBox.height,
-                        width: obj.boundingBox.width,
-                        height: obj.boundingBox.height
-                    )
-                    return acc.isNull ? flipped : acc.union(flipped)
-                }
-                resumeOnce(with: union)
-            }
-
-            let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
-            do {
-                try handler.perform([request])
-            } catch {
-                resumeOnce(with: .null)
-            }
-        }
-    }
-
-    // MARK: - Cloud-edge waypoint extraction
 
     /// A single candidate cloud region found by contour detection,
     /// scored by how "creature-like" its silhouette looks.
@@ -114,14 +42,6 @@ actor CloudVisionService {
               let preprocessed = preprocessForContours(cg)
         else { return [] }
         return await contourCandidates(cgImage: preprocessed, topK: topK)
-    }
-
-    /// Extract a sampled silhouette of the brightest cloud cluster in
-    /// the photo as ~18 normalized waypoints. Kept for back-compat —
-    /// returns the top-scored candidate's waypoints if any, else [].
-    private func extractCloudWaypoints(cgImage: CGImage) async -> [[Double]] {
-        let candidates = await contourCandidates(cgImage: cgImage, topK: 1)
-        return candidates.first?.waypoints ?? []
     }
 
     /// Score every contour in the image and return the top K. Scoring

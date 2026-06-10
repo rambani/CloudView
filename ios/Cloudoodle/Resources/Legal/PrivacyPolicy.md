@@ -34,8 +34,8 @@ Most of what Cloudoodle holds about you never leaves your phone:
 ## Information sent to third parties when you scan
 
 To turn a captured photo into a Polaroid, the cropped region around
-the cloud is sent to two AI services on the request that produces
-each Polaroid:
+the cloud is sent to our backend, which forwards it to two AI
+services for processing within the same request:
 
 - **Google Gemini Flash** — analyzes the cropped image to identify a
   shape name, cloud type, and watchability score. Google's data-use
@@ -45,35 +45,38 @@ each Polaroid:
   a version with delicate ink overlays tracing the identified shape.
   OpenAI's enterprise data-use policy applies to that single request.
 
-Neither service receives your name, account information, location,
-or note text. They receive only the cropped image bytes and our
-in-prompt instructions.
+Neither service receives your name, account information, exact
+location, or note text. They receive only the cropped image bytes
+and our in-prompt instructions. Our backend keeps no copy of the
+cropped image — it's discarded once the response is returned to
+your device.
 
 We use Apple's **WeatherKit** to read the current weather and
 hourly forecast at your location. Those queries are made directly
 from your device to Apple — we do not see them or proxy them.
 
-## Account (optional)
+## Account
 
-You can use Cloudoodle without ever creating an account. The full
-daily-Polaroid loop works entirely offline-and-on-device. The
-subscription works through Apple.
+Cloudoodle uses a Supabase-backed account to call our `develop-
+polaroid` backend (which holds the AI API keys server-side so you
+don't have to). There are two flavors:
 
-If you do create an account (in Settings → Sign In), we collect:
+- **Anonymous account** — created automatically the first time you
+  scan. No email, no password, no name. We get a UUID we can use
+  to attribute a scan to a stable identity, and that's it.
+- **Linked account** — at any time in Settings → Sign In you can
+  attach an email/password or Sign In with Apple to your existing
+  anonymous account. We then also collect:
+    - Your email address (the sign-in identifier).
+    - A username you pick (used internally; not displayed to anyone
+      else in this version of the app).
+    - For Sign In with Apple users: the name and email Apple returns
+      to us on first sign-in. Apple's "Hide My Email" private relay
+      address is supported.
 
-- Your email address (the sign-in identifier).
-- A username you pick (used internally; not displayed to anyone
-  else in this version of the app).
-- For Sign In with Apple users: the name and email Apple returns to
-  us on first sign-in. Apple's "Hide My Email" private relay address
-  is supported.
-
-The account currently powers two things:
-
-- **Cross-device data continuity** if we ship sync in a future
-  version.
-- **Optional metadata contribution** (see below) so future versions
-  of the daily reminder can show what people near you are seeing.
+Linking lets us preserve your Polaroid stack across device
+reinstalls (when we ship sync) and powers the personalized
+regional-summary daily reminder (see below).
 
 ## Optional metadata contribution
 

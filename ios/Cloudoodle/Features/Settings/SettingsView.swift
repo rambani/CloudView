@@ -86,52 +86,43 @@ struct SettingsView: View {
                             reminderSection
                         }
 
-                        // Gemini section
-                        SettingsSection(title: "AI Analysis", icon: "brain") {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Google AI Studio API Key")
+                        // Gemini + OpenAI API keys are now held as
+                        // secrets on the server (Supabase edge function
+                        // `develop-polaroid`). Users no longer need to
+                        // bring their own keys. The legacy DEBUG fields
+                        // below let developers override the key on a
+                        // dev build, but the production app never reads
+                        // them — calls go through the proxy regardless.
+                        #if DEBUG
+                        SettingsSection(title: "AI Keys (DEBUG)", icon: "key") {
+                            VStack(alignment: .leading, spacing: 12) {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Gemini API Key — unused at runtime")
+                                        .font(CV.Font.caption)
+                                        .foregroundStyle(CV.Color.textTertiary)
+                                    SecureRevealField(
+                                        text: $geminiKey,
+                                        isRevealed: $showAnthropicKey,
+                                        placeholder: "AIza..."
+                                    )
+                                }
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("OpenAI API Key — unused at runtime")
+                                        .font(CV.Font.caption)
+                                        .foregroundStyle(CV.Color.textTertiary)
+                                    SecureRevealField(
+                                        text: $openaiKey,
+                                        isRevealed: $showOpenAIKey,
+                                        placeholder: "sk-..."
+                                    )
+                                }
+                                Text("Both keys are held as Supabase secrets by the develop-polaroid edge function. The fields above are kept for legacy reference only.")
                                     .font(CV.Font.caption)
                                     .foregroundStyle(CV.Color.textTertiary)
-                                SecureRevealField(
-                                    text: $geminiKey,
-                                    isRevealed: $showAnthropicKey,
-                                    placeholder: "AIza..."
-                                )
-                                HStack(spacing: 4) {
-                                    Image(systemName: geminiKey.isEmpty ? "exclamationmark.circle" : "checkmark.circle")
-                                        .foregroundStyle(geminiKey.isEmpty ? .orange : .green)
-                                    Text(geminiKey.isEmpty
-                                         ? "Free at aistudio.google.com — 1,500 scans/day"
-                                         : "Gemini Flash active · quips generated on-device")
-                                        .foregroundStyle(CV.Color.textTertiary)
-                                }
-                                .font(CV.Font.caption)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
                         }
-
-                        // OpenAI section — required for the Polaroid
-                        // develop step (every scan goes through it).
-                        SettingsSection(title: "Polaroid Develop", icon: "wand.and.sparkles") {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("OpenAI API Key")
-                                    .font(CV.Font.caption)
-                                    .foregroundStyle(CV.Color.textTertiary)
-                                SecureRevealField(
-                                    text: $openaiKey,
-                                    isRevealed: $showOpenAIKey,
-                                    placeholder: "sk-..."
-                                )
-                                HStack(spacing: 4) {
-                                    Image(systemName: openaiKey.isEmpty ? "exclamationmark.circle" : "checkmark.circle")
-                                        .foregroundStyle(openaiKey.isEmpty ? .orange : .green)
-                                    Text(openaiKey.isEmpty
-                                         ? "Required to develop Polaroids · ~$0.04 per image"
-                                         : "Developing every Polaroid · gpt-image-1 active")
-                                        .foregroundStyle(CV.Color.textTertiary)
-                                }
-                                .font(CV.Font.caption)
-                            }
-                        }
+                        #endif
 
                         #if DEBUG
                         // Supabase URL + anon key are normally baked

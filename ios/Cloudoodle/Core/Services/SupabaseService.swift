@@ -239,6 +239,88 @@ final class SupabaseService: ObservableObject {
             .execute()
     }
 
+    /// Ensures we have an authenticated user before calling
+    /// `developPolaroid`. If the user hasn't signed in (anonymous
+    /// or real) yet, create an anonymous Supabase user — they get
+    /// a stable user_id we can attribute scans + metadata to, and
+    /// they can later "upgrade" to a real account via Sign In with
+    /// Apple or email/password without losing their stack.
+    ///
+    /// Requires Anonymous Sign-Ins to be enabled in the Supabase
+    /// Dashboard under Authentication → Providers → Anonymous.
+    func signInAnonymouslyIfNeeded() async throws {
+        guard let client else { throw SupabaseError.notConfigured }
+        if currentUser != nil { return }
+        do {
+            let session = try await client.auth.signInAnonymously()
+            let profile = (try? await fetchProfile(id: session.user.id))
+                ?? AppUser(
+                    id: session.user.id,
+                    username: "",
+                    avatarURL: nil,
+                    city: nil,
+                    totalSightings: 0,
+                    streakDays: 0,
+                    createdAt: Date()
+                )
+            currentUser = profile
+            isAuthenticated = true
+            await DailyReminderService.shared.rescheduleIfNeeded()
+        } catch {
+            throw SupabaseError.notAuthenticated
+        }
+    }
+
+    /// Result returned by the `develop-polaroid` edge function.
+    /// Matches the JSON shape the function emits one-to-one.
+    struct DevelopResult: Decodable {
+        let shapeName: String
+        let cloudType: String
+        let weatherMood: String
+        let watchabilityScore: Int
+        let developedImageBase64: String
+
+        enum CodingKeys: String, CodingKey {
+            case shapeName            = "shape_name"
+            case cloudType            = "cloud_type"
+            case weatherMood          = "weather_mood"
+            case watchabilityScore    = "watchability_score"
+            case developedImageBase64 = "developed_image_base64"
+        }
+    }
+
+    /// Server-side AI proxy. The cropped image goes to our edge
+    /// function (`develop-polaroid`) which holds the Gemini and
+    /// OpenAI keys as Supabase secrets and returns the developed
+    /// PNG plus the shape metadata in a single response.
+    ///
+    /// This is the canonical scan path. The previous direct-to-
+    /// Gemini + direct-to-OpenAI client code is gone; users no
+    /// longer need to bring their own API keys.
+    ///
+    /// `crop` is the smart-cropped image (typically 1024×1024).
+    /// `city` is best-effort — passed through to the metadata row
+    /// the function inserts on the user's behalf, and reflected
+    /// onto `profiles.city` for the daily-reminders aggregation.
+    func developPolaroid(crop: UIImage, city: String?) async throws -> DevelopResult {
+        try await signInAnonymouslyIfNeeded()
+        guard let client else { throw SupabaseError.notConfigured }
+        guard let jpegData = crop.jpegData(compressionQuality: 0.88) else {
+            throw SupabaseError.uploadFailed(URLError(.badURL))
+        }
+        let body: [String: AnyJSON] = [
+            "image_base64": .string(jpegData.base64EncodedString()),
+            "city": city.map { .string($0) } ?? .null,
+        ]
+        do {
+            let response: DevelopResult = try await client.functions
+                .invoke("develop-polaroid", options: .init(body: body))
+            return response
+        } catch {
+            throw SupabaseError.uploadFailed(error)
+        }
+    }
+
     /// Fires off a minimal aggregation payload after each developed
     /// Polaroid — three fields only: the AI's shape description, the
     /// city name (for regional roll-ups), and the captured timestamp.
