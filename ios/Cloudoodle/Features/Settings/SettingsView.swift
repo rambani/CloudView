@@ -133,8 +133,14 @@ struct SettingsView: View {
                             }
                         }
 
-                        // Supabase section
-                        SettingsSection(title: "Community Backend", icon: "server.rack") {
+                        #if DEBUG
+                        // Supabase URL + anon key are normally baked
+                        // in at build time via Config.xcconfig — no
+                        // user should ever see these fields. Kept
+                        // behind DEBUG so devs can point a test build
+                        // at a different Supabase project without
+                        // rebuilding.
+                        SettingsSection(title: "Backend (DEBUG)", icon: "server.rack") {
                             VStack(alignment: .leading, spacing: 12) {
                                 LabeledField(label: "Supabase URL", placeholder: "https://xxx.supabase.co", text: $supabaseURL)
                                 VStack(alignment: .leading, spacing: 8) {
@@ -155,6 +161,7 @@ struct SettingsView: View {
                                 .disabled(!supabase.isConfigured)
                             }
                         }
+                        #endif
 
                         // Auth section
                         SettingsSection(title: supabase.isAuthenticated ? "Account" : "Sign In", icon: "person.circle") {

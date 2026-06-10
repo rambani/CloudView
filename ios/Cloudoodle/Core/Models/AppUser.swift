@@ -18,13 +18,3 @@ struct AppUser: Identifiable, Codable, Sendable {
         case createdAt = "created_at"
     }
 }
-
-struct CityStats: Identifiable, Sendable {
-    let id: String
-    let city: String
-    let country: String
-    let count: Int
-    let latitude: Double
-    let longitude: Double
-    let recentShapes: [String]
-}

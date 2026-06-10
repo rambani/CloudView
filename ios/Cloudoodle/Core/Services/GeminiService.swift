@@ -77,39 +77,12 @@ actor GeminiService {
     /// Mark-vocabulary analysis. Given the photo and an extracted
     /// cloud silhouette, Gemini identifies what creature the
     /// silhouette suggests and returns a list of character marks
-    /// (eye, mouth, ear-tip, etc.) anchored to specific waypoints.
-    /// MarkRenderer turns those marks + the silhouette into the
-    /// actual drawing elements.
-    ///
-    /// This is the architecture that replaced "Gemini generates
-    /// stroke coordinates" — it puts the semantic understanding in
-    /// Gemini's hands and the visual style in ours.
-    func analyzeWithMarks(
-        image: UIImage,
-        silhouette: [[Double]]
-    ) async throws -> GeminiMarkAnalysis {
-        guard !apiKey.isEmpty else { throw GeminiError.missingAPIKey }
-        guard silhouette.count >= 6 else {
-            throw GeminiError.parseError("Silhouette needs at least 6 waypoints")
-        }
-        guard let imageData = image.preparedForAnalysis() else {
-            throw GeminiError.imageEncodingFailed
-        }
-        do {
-            return try await callGeminiForMarks(imageData: imageData, silhouette: silhouette)
-        } catch let error as GeminiError where Self.isTransient(error) {
-            try? await Task.sleep(for: .seconds(1))
-            return try await callGeminiForMarks(imageData: imageData, silhouette: silhouette)
-        }
-    }
-
-    private static func isTransient(_ error: GeminiError) -> Bool {
-        if case .invalidResponse(let code, _) = error {
-            return code == 429 || (500...599).contains(code)
-        }
-        if case .networkError = error { return true }
-        return false
-    }
+    // The "mark vocabulary" path (analyzeWithMarks + GeminiMarkAnalysis
+    // + the on-device MarkRenderer that turned semantic marks into
+    // strokes) was removed when the develop flow moved fully to
+    // OpenAI's image-edit. Gemini now only contributes the shape
+    // metadata via analyzeCloud above; the developed image comes
+    // from gpt-image-1.
 
     private func callGemini(
         imageData: Data,
@@ -196,151 +169,6 @@ actor GeminiService {
             throw GeminiError.parseError("Decode failed: \(error). Raw: \(jsonString.prefix(300))")
         }
     }
-
-    // MARK: - Mark-vocabulary path
-
-    private func callGeminiForMarks(
-        imageData: Data,
-        silhouette: [[Double]]
-    ) async throws -> GeminiMarkAnalysis {
-        let urlString = "\(baseURL)/\(model):generateContent"
-        guard let url = URL(string: urlString) else { throw GeminiError.missingAPIKey }
-
-        let prompt = Self.marksPrompt + Self.silhouetteSection(silhouette)
-
-        let body: [String: Any] = [
-            "contents": [[
-                "parts": [
-                    ["inlineData": ["mimeType": "image/jpeg", "data": imageData.base64EncodedString()]],
-                    ["text": prompt]
-                ]
-            ]],
-            "generationConfig": [
-                "responseMimeType": "application/json",
-                "temperature": 0.45,
-                "maxOutputTokens": 1500
-            ]
-        ]
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-        let (data, response): (Data, URLResponse)
-        do {
-            (data, response) = try await URLSession.shared.data(for: request)
-        } catch {
-            throw GeminiError.networkError(error)
-        }
-        guard let http = response as? HTTPURLResponse else {
-            throw GeminiError.networkError(URLError(.badServerResponse))
-        }
-        guard http.statusCode == 200 else {
-            let bodyStr = String(data: data, encoding: .utf8) ?? ""
-            throw GeminiError.invalidResponse(http.statusCode, bodyStr)
-        }
-        return try parseMarkResponse(data: data)
-    }
-
-    private func parseMarkResponse(data: Data) throws -> GeminiMarkAnalysis {
-        guard
-            let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-            let candidates = root["candidates"] as? [[String: Any]],
-            let first = candidates.first,
-            let content = first["content"] as? [String: Any],
-            let parts = content["parts"] as? [[String: Any]],
-            let text = parts.first?["text"] as? String
-        else {
-            throw GeminiError.parseError("Unexpected response structure")
-        }
-        let jsonString = extractJSON(from: text)
-        guard let jsonData = jsonString.data(using: .utf8) else {
-            throw GeminiError.parseError("Couldn't convert response to data")
-        }
-        do {
-            return try JSONDecoder().decode(GeminiMarkAnalysis.self, from: jsonData)
-        } catch {
-            throw GeminiError.parseError("Mark decode failed: \(error). Raw: \(jsonString.prefix(300))")
-        }
-    }
-
-    /// Pretty-print the silhouette waypoints with explicit indices so
-    /// Gemini can reference them by number in its mark specs.
-    private static func silhouetteSection(_ silhouette: [[Double]]) -> String {
-        let lines = silhouette.enumerated().map { idx, p -> String in
-            String(format: "  %2d: [%.3f, %.3f]", idx, p.first ?? 0, p.dropFirst().first ?? 0)
-        }.joined(separator: "\n")
-        return """
-
-
-        CLOUD SILHOUETTE (extracted from this photo, indices 0…\(silhouette.count - 1)):
-        \(lines)
-        """
-    }
-
-    private static let marksPrompt = """
-    You are a cloud-watcher. We've extracted the silhouette of a small \
-    cloud region as numbered waypoints (top-left origin, normalized 0-1, \
-    clockwise). Your job is TWO steps:
-
-    Step 1 — Identify the creature: look at the silhouette outline AND \
-    the photo. What does the shape suggest? Pick something concrete and \
-    a little playful. If nothing leaps out, "Soft cumulus" with just an \
-    eye is the honest fallback.
-
-    Step 2 — Specify character marks to add to the silhouette. Each mark \
-    anchors to one or more waypoints by index. The renderer draws each \
-    type in a consistent visual style; your job is WHERE.
-
-    AVAILABLE MARK TYPES:
-
-    • eye           — bold dot inset slightly from the silhouette inward.
-                      params: near_waypoint, inset (0.015–0.04)
-    • mouth_arc     — gentle curve over a few consecutive waypoints,
-                      indented inward to read as a mouth/jaw.
-                      params: from_waypoint, to_waypoint, inset (0.008–0.020)
-    • teeth_zigzag  — sawtooth alternating in/out, t-rex jaw vibe.
-                      params: from_waypoint, to_waypoint, amplitude (0.010–0.020)
-    • ear_tip      — triangular point sticking OUT of the silhouette.
-                      params: near_waypoint, height (0.03–0.07), base_width (0.025–0.05)
-    • tail_flick    — curving line extending outward from the silhouette.
-                      params: near_waypoint, length (0.04–0.10), curve (-1 or 1)
-    • spike_row     — row of small perpendicular spikes along a stretch.
-                      params: from_waypoint, to_waypoint, count (3–6), height (0.012–0.022)
-    • whisker       — short tangent-ish line extending outward.
-                      params: near_waypoint, length (0.03–0.07), angle (-15…15)
-    • claw          — short pointed line at a waypoint.
-                      params: near_waypoint, length (0.025–0.05)
-    • fin           — slanted asymmetric triangle, fish-fin shape.
-                      params: near_waypoint, size (0.04–0.07)
-
-    RULES:
-    1. Use 3–8 marks total. Less is more — fewer deliberate marks beat
-       a cluttered creature.
-    2. Always include exactly one or two eyes.
-    3. Pick mark types that match the creature anatomy: ears for a
-       cat/rabbit/bear, teeth for a t-rex/croc, fins for a fish, etc.
-    4. Reference waypoints by their index (integer). Indices are
-       0…N-1; you may wrap around (to_waypoint < from_waypoint is
-       interpreted as going past the end and back to 0).
-    5. Place eyes near a bulge that reads as a "head"; place tails
-       and claws at protrusions away from the head.
-
-    Respond with ONLY valid JSON, no markdown:
-    {
-      "shape_name": "...",
-      "cloud_type": "Cumulus|Stratus|Cirrus|Cumulonimbus|Altocumulus|Stratocumulus",
-      "weather_mood": "one word, evocative",
-      "watchability_score": 1-10,
-      "quip": "one playful sentence",
-      "marks": [
-        {"type": "eye", "near_waypoint": 4, "inset": 0.025},
-        {"type": "ear_tip", "near_waypoint": 2, "height": 0.05, "base_width": 0.04}
-      ]
-    }
-    """
 
     private func extractJSON(from text: String) -> String {
         let s = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -508,25 +336,5 @@ struct GeminiDrawingElement: Codable {
             strokeWidth: strokeWidth ?? 2.0,
             label: label
         )
-    }
-}
-
-// What Gemini returns under the mark-vocabulary path — semantic
-// interpretation only, no stroke coordinates.
-struct GeminiMarkAnalysis: Codable {
-    let shapeName: String
-    let cloudType: String
-    let weatherMood: String
-    let watchabilityScore: Int
-    let quip: String?
-    let marks: [CharacterMark]
-
-    enum CodingKeys: String, CodingKey {
-        case shapeName        = "shape_name"
-        case cloudType        = "cloud_type"
-        case weatherMood      = "weather_mood"
-        case watchabilityScore = "watchability_score"
-        case quip
-        case marks
     }
 }
