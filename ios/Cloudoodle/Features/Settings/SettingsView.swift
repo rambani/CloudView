@@ -23,6 +23,18 @@ struct SettingsView: View {
     @State private var reminderTime = DailyReminderService.shared.reminderTime
     @State private var reminderPermissionDenied = false
 
+    // Journal export
+    @State private var isExporting = false
+    @State private var exportURL: ExportArchive?
+    @State private var exportError: String?
+
+    /// Identifiable wrapper so the share sheet presents from an
+    /// optional binding.
+    struct ExportArchive: Identifiable {
+        let url: URL
+        var id: String { url.path }
+    }
+
     // Auth form
     @State private var email = ""
     @State private var password = ""
@@ -84,6 +96,41 @@ struct SettingsView: View {
                         // Daily reminder
                         SettingsSection(title: "Daily Reminder", icon: "bell") {
                             reminderSection
+                        }
+
+                        // Your data — the journal lives only on this
+                        // device until cloud sync exists; export is the
+                        // way out (zip of every photo + a journal.txt).
+                        SettingsSection(title: "Your Data", icon: "square.and.arrow.up.on.square") {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("Your Polaroids and notes are stored on this device. Export a .zip with every photo (developed + original) and a text file of your notes.")
+                                    .font(CV.Font.caption)
+                                    .foregroundStyle(CV.Color.textSecondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                Button {
+                                    Task { await exportJournal() }
+                                } label: {
+                                    HStack(spacing: 6) {
+                                        if isExporting {
+                                            ProgressView().tint(.black).scaleEffect(0.7)
+                                        } else {
+                                            Image(systemName: "square.and.arrow.up")
+                                        }
+                                        Text(isExporting ? "Preparing…" : "Export Journal")
+                                            .scaledFont(size: 14, weight: .semibold)
+                                    }
+                                    .foregroundStyle(.black)
+                                    .padding(.horizontal, 14).padding(.vertical, 9)
+                                    .background(Capsule().fill(CV.Color.accent))
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(isExporting)
+                                if let exportError {
+                                    Text(exportError)
+                                        .font(CV.Font.caption)
+                                        .foregroundStyle(.red)
+                                }
+                            }
                         }
 
                         // The Gemini API key is now held as a
@@ -257,6 +304,9 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showUpgrade) {
                 UpgradeSheetView()
+            }
+            .sheet(item: $exportURL) { archive in
+                ActivityViewSheet(items: [archive.url])
             }
         }
         .preferredColorScheme(.dark)
@@ -434,6 +484,18 @@ struct SettingsView: View {
             authError = error.localizedDescription
         }
         isAuthLoading = false
+    }
+
+    private func exportJournal() async {
+        isExporting = true
+        exportError = nil
+        do {
+            let url = try await JournalStore.shared.exportArchive()
+            exportURL = ExportArchive(url: url)
+        } catch {
+            exportError = "Couldn't build the export: \(error.localizedDescription)"
+        }
+        isExporting = false
     }
 
     private func deleteAccount() async {
