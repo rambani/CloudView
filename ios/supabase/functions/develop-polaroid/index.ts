@@ -42,11 +42,25 @@ const OPENAI_MODEL = "gpt-image-1";
 
 // ---------- Prompts ---------------------------------------------------------
 
-// Slimmer than the previous client-side Gemini prompt — we ask
-// only for the four scalar fields the Polaroid actually uses.
-// The stroke geometry the old prompt asked for is gone; OpenAI's
-// image-edit handles the drawing entirely.
-const GEMINI_PROMPT = `You are a cloud-watcher. Look at this sky photo and decide what creature or object the clouds suggest. Pick something concrete and a little playful — a whale, a sleeping dragon, a sailboat, a rabbit, a slice of cake. If nothing leaps out, "Soft cumulus" is the honest fallback.
+// Step 1 of the two-step pipeline: Gemini looks at the photo and
+// decides what the clouds suggest. Its shape_name is then injected
+// into the OpenAI prompt (step 2) so the caption on the Polaroid
+// and the ink on the photo always tell the SAME story — the
+// original parallel version let them disagree.
+//
+// `recentShapes` (the user's last few Polaroids, supplied by the
+// client) is woven in as variety pressure so a user doesn't get
+// "whale" four days in a row. It's a soft constraint: if the sky
+// genuinely IS a whale again, the model may still say whale.
+function buildGeminiPrompt(recentShapes: string[]): string {
+  const varietySection = recentShapes.length
+    ? `\n\nThe watcher's recent sightings were: ${recentShapes.join(", ")}. ` +
+      `Prefer something DIFFERENT from these if the sky plausibly allows it — ` +
+      `a fresh eye finds fresh shapes. But never force a bad fit: if the cloud ` +
+      `really does look like a recent shape again, honesty wins.`
+    : "";
+
+  return `You are a cloud-watcher. Look at this sky photo and decide what creature or object the clouds suggest. Pick something concrete and a little playful — a whale, a sleeping dragon, a sailboat, a rabbit, a slice of cake. Range widely: animals, vehicles, food, mythical beasts, everyday objects. If nothing leaps out, "Soft cumulus" is the honest fallback.${varietySection}
 
 Respond with ONLY valid JSON, no markdown:
 {
@@ -57,28 +71,56 @@ Respond with ONLY valid JSON, no markdown:
 }
 
 Lower watchability_score for plain blue sky (1-3), middle for soft cumulus (4-7), high for clouds that clearly look like a recognizable creature (8-10).`;
+}
 
-// Same OpenAI prompt as the previous client-side ImageGenerationService.
-const OPENAI_PROMPT = `Look at this cloud photo carefully. Find shapes the clouds ALREADY suggest on their own — a bump that already reads as a head, a curve that already reads as a wing, a vertical lobe that already reads as a castle turret. Not what you'd like to draw on them, but what the cloud forms genuinely look like.
+// Step 2: OpenAI develops the image, told explicitly WHAT to trace
+// (Gemini's shape) and HOW MUCH ink to use (scaled by watchability).
+// The restraint tiers keep a plain sky honest — a 2/10 sky gets a
+// single suggestive line or nothing, not a forced dragon.
+function buildOpenAIPrompt(shapeName: string, watchability: number): string {
+  let restraint: string;
+  if (watchability <= 3) {
+    restraint = `This sky is sparse (watchability ${watchability}/10). Restraint is everything: ` +
+      `add AT MOST one or two whisper-thin lines — or, if the clouds genuinely suggest ` +
+      `nothing, add only a single small eye dot on the most cloud-like puff. ` +
+      `An almost-empty sky with one knowing mark is the right outcome here.`;
+  } else if (watchability <= 6) {
+    restraint = `This sky is moderate (watchability ${watchability}/10). Use a light hand: ` +
+      `3-6 delicate lines total. Suggest the shape; don't illustrate it.`;
+  } else {
+    restraint = `This sky clearly suggests the shape (watchability ${watchability}/10). ` +
+      `You can be a touch more confident: up to 8-10 delicate lines, but every ` +
+      `one must still follow a real cloud edge.`;
+  }
 
-Add minimal white ink line-art that TRACES those existing patterns. Every line follows a real cloud edge. An eye dot lives on a cloud-bump that already looks like a head. A wing line runs along a cloud-edge that already has a wing-curve. A tail follows an existing cloud wisp.
+  return `A cloud-watcher looked at this photo and saw: "${shapeName}".
+
+Your job is to help everyone else see it too. Add minimal white ink line-art that TRACES the cloud edges that made the watcher see ${shapeName.toLowerCase()} — the bump that reads as its head, the curve that reads as its body. The clouds already contain the shape; your ink just points it out.
+
+${restraint}
 
 The viewer should look at the result and say "oh yes — I see it now", as if you helped them notice what was already there. Not "someone drew that on top."
 
 Style:
    • Delicate single-weight white ink. Like a careful architectural pencil sketch in white.
    • No fills, no cross-hatching, no shading.
-   • Use as FEW lines as possible. Less is more.
+   • Every line follows a real cloud edge — never draw across open sky.
+   • One eye dot placed on the cloud-bump that reads as the head (if the shape has a head).
+   • ONLY ${shapeName.toLowerCase()} — do not add other creatures or shapes.
    • Keep the photo's clouds, sky, colors entirely intact. The ink is the only addition.
-   • Pick 1-3 creatures or structures, no more. A cluttered sky kills the illusion.
 
 Return the photo with the ink overlay applied. Do not change anything else about the image.`;
+}
 
 // ---------- Types -----------------------------------------------------------
 
 interface RequestBody {
   image_base64: string;
   city?: string;
+  /// The user's most recent shape names (client supplies up to ~7,
+  /// newest first). Used as variety pressure in the Gemini prompt
+  /// so consecutive days don't repeat the same creature.
+  recent_shapes?: string[];
 }
 
 interface GeminiAnalysis {
@@ -124,14 +166,26 @@ Deno.serve(async (req) => {
     return json({ error: "Missing image_base64" }, 400);
   }
 
-  // 3. Parallel: Gemini analyze + OpenAI develop.
+  // 3. Sequenced: Gemini decides WHAT the clouds suggest, then
+  //    OpenAI is told to trace exactly that shape, with ink budget
+  //    scaled by the watchability score. Sequencing costs ~1s of
+  //    latency vs the old parallel version (Gemini Flash is fast),
+  //    and buys the one guarantee that matters: the caption on the
+  //    Polaroid and the ink on the photo always tell the same story.
+  const recentShapes = (body.recent_shapes ?? [])
+    .filter((s): s is string => typeof s === "string" && s.length > 0)
+    .slice(0, 7)
+    .map((s) => s.slice(0, 60));
+
   let gemini: GeminiAnalysis;
   let developedPng: string;
   try {
-    [gemini, developedPng] = await Promise.all([
-      callGemini(body.image_base64),
-      callOpenAI(body.image_base64),
-    ]);
+    gemini = await callGemini(body.image_base64, recentShapes);
+    developedPng = await callOpenAI(
+      body.image_base64,
+      gemini.shape_name,
+      gemini.watchability_score,
+    );
   } catch (e) {
     console.error("AI call failed", e);
     const message = e instanceof Error ? e.message : String(e);
@@ -171,7 +225,10 @@ Deno.serve(async (req) => {
 
 // ---------- AI helpers ------------------------------------------------------
 
-async function callGemini(imageBase64: string): Promise<GeminiAnalysis> {
+async function callGemini(
+  imageBase64: string,
+  recentShapes: string[],
+): Promise<GeminiAnalysis> {
   if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
@@ -179,7 +236,7 @@ async function callGemini(imageBase64: string): Promise<GeminiAnalysis> {
     contents: [{
       parts: [
         { inlineData: { mimeType: "image/jpeg", data: imageBase64 } },
-        { text: GEMINI_PROMPT },
+        { text: buildGeminiPrompt(recentShapes) },
       ],
     }],
     generationConfig: {
@@ -212,7 +269,11 @@ async function callGemini(imageBase64: string): Promise<GeminiAnalysis> {
   return parsed as GeminiAnalysis;
 }
 
-async function callOpenAI(imageBase64: string): Promise<string> {
+async function callOpenAI(
+  imageBase64: string,
+  shapeName: string,
+  watchability: number,
+): Promise<string> {
   if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not configured");
 
   // OpenAI's images/edits endpoint wants multipart/form-data with
@@ -225,7 +286,7 @@ async function callOpenAI(imageBase64: string): Promise<string> {
 
   const form = new FormData();
   form.append("model", OPENAI_MODEL);
-  form.append("prompt", OPENAI_PROMPT);
+  form.append("prompt", buildOpenAIPrompt(shapeName, watchability));
   form.append("n", "1");
   form.append("size", "1024x1024");
   form.append("input_fidelity", "high");

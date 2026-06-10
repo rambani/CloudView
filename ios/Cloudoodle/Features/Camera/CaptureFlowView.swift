@@ -113,7 +113,8 @@ struct CaptureFlowView: View {
             do {
                 let result = try await SupabaseService.shared.developPolaroid(
                     crop: crop.cropped,
-                    city: location.currentCity
+                    city: location.currentCity,
+                    recentShapes: await JournalStore.shared.recentShapeNames()
                 )
 
                 guard let developedData = Data(base64Encoded: result.developedImageBase64),

@@ -98,6 +98,14 @@ final class JournalStore {
         return entries.first(where: { cal.isDateInToday($0.createdAt) })
     }
 
+    /// The user's most recent shape names, newest first. Sent to the
+    /// develop-polaroid edge function as variety pressure so the AI
+    /// avoids repeating yesterday's creature when the sky plausibly
+    /// allows something fresh.
+    func recentShapeNames(limit: Int = 7) -> [String] {
+        entries.prefix(limit).map(\.shapeName).filter { !$0.isEmpty }
+    }
+
     /// Count of consecutive recent days (ending today or yesterday)
     /// that have at least one Polaroid. Used by the home view to
     /// quietly reward the daily ritual without becoming nagware:

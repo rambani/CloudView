@@ -302,7 +302,13 @@ final class SupabaseService: ObservableObject {
     /// `city` is best-effort — passed through to the metadata row
     /// the function inserts on the user's behalf, and reflected
     /// onto `profiles.city` for the daily-reminders aggregation.
-    func developPolaroid(crop: UIImage, city: String?) async throws -> DevelopResult {
+    /// `recentShapes` (newest first) gives the AI variety pressure
+    /// so it avoids repeating the user's recent creatures.
+    func developPolaroid(
+        crop: UIImage,
+        city: String?,
+        recentShapes: [String] = []
+    ) async throws -> DevelopResult {
         try await signInAnonymouslyIfNeeded()
         guard let client else { throw SupabaseError.notConfigured }
         guard let jpegData = crop.jpegData(compressionQuality: 0.88) else {
@@ -311,6 +317,7 @@ final class SupabaseService: ObservableObject {
         let body: [String: AnyJSON] = [
             "image_base64": .string(jpegData.base64EncodedString()),
             "city": city.map { .string($0) } ?? .null,
+            "recent_shapes": .array(recentShapes.prefix(7).map { .string($0) }),
         ]
         do {
             let response: DevelopResult = try await client.functions
