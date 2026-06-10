@@ -86,9 +86,14 @@ struct JournalGalleryView: View {
             ScrollView(showsIndicators: false) {
                 LazyVStack(spacing: 28) {
                     Color.clear.frame(height: 96)   // breathing room under topBar
-                    ForEach(Array(store.entries.enumerated()), id: \.element.id) { i, entry in
-                        cardRow(entry: entry, index: i)
-                            .id(entry.id)
+                    ForEach(stackItems) { item in
+                        switch item {
+                        case .header(let label):
+                            monthHeader(label)
+                        case .card(let index, let entry):
+                            cardRow(entry: entry, index: index)
+                                .id(entry.id)
+                        }
                     }
                     Color.clear.frame(height: 60)   // bottom breathing room
                 }
@@ -102,6 +107,51 @@ struct JournalGalleryView: View {
                 }
             }
         }
+    }
+
+    /// Stack contents with month dividers injected wherever the
+    /// month rolls over (entries are newest-first). Gives the stack
+    /// findability at 50+ entries without adding a search UI.
+    private enum StackItem: Identifiable {
+        case header(String)
+        case card(Int, JournalEntry)
+        var id: String {
+            switch self {
+            case .header(let label): return "header-\(label)"
+            case .card(_, let entry): return entry.id.uuidString
+            }
+        }
+    }
+
+    private var stackItems: [StackItem] {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "MMMM yyyy"
+        var items: [StackItem] = []
+        var lastLabel = ""
+        for (i, entry) in store.entries.enumerated() {
+            let label = fmt.string(from: entry.createdAt).uppercased()
+            if label != lastLabel {
+                items.append(.header(label))
+                lastLabel = label
+            }
+            items.append(.card(i, entry))
+        }
+        return items
+    }
+
+    private func monthHeader(_ label: String) -> some View {
+        HStack(spacing: 12) {
+            Rectangle().fill(.white.opacity(0.12)).frame(height: 0.5)
+            Text(label)
+                .scaledFont(size: 11, weight: .semibold, design: .monospaced)
+                .tracking(2)
+                .foregroundStyle(.white.opacity(0.45))
+                .fixedSize()
+            Rectangle().fill(.white.opacity(0.12)).frame(height: 0.5)
+        }
+        .padding(.horizontal, 32)
+        .padding(.top, 8)
+        .accessibilityAddTraits(.isHeader)
     }
 
     /// A single Polaroid in the stack. Slight tilt, generous shadow,
