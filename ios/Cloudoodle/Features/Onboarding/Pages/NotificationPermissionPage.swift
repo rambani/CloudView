@@ -47,25 +47,25 @@ private struct NotificationPreviewCard: View {
                 .frame(width: 30, height: 30)
                 .overlay(
                     Image(systemName: "cloud.fill")
-                        .font(.system(size: 14, weight: .semibold))
+                        .scaledFont(size: 14, weight: .semibold)
                         .foregroundStyle(.white)
                 )
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
                     Text("CLOUDOODLE")
-                        .font(.system(size: 11, weight: .semibold))
+                        .scaledFont(size: 11, weight: .semibold)
                         .foregroundStyle(.black.opacity(0.75))
                     Spacer()
                     Text("11:00 am")
-                        .font(.system(size: 11))
+                        .scaledFont(size: 11)
                         .foregroundStyle(.black.opacity(0.55))
                 }
                 Text("Today's sky is waiting ☁︎")
-                    .font(.system(size: 13, weight: .semibold))
+                    .scaledFont(size: 13, weight: .semibold)
                     .foregroundStyle(.black)
                 Text("Five minutes with the sky. That's the whole thing.")
-                    .font(.system(size: 12))
+                    .scaledFont(size: 12)
                     .foregroundStyle(.black.opacity(0.7))
                     .lineLimit(2)
             }

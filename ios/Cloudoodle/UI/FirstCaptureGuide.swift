@@ -25,11 +25,11 @@ struct FirstCaptureGuide: View {
 
             VStack(spacing: 8) {
                 Text("Tap to capture the sky")
-                    .font(.system(size: 16, weight: .regular, design: .serif))
+                    .scaledFont(size: 16, weight: .regular, design: .serif)
                     .italic()
                     .foregroundStyle(.white)
                 Image(systemName: "arrow.down")
-                    .font(.system(size: 22, weight: .semibold))
+                    .scaledFont(size: 22, weight: .semibold)
                     .foregroundStyle(.white.opacity(0.95))
                     .offset(y: arrowOffset)
             }

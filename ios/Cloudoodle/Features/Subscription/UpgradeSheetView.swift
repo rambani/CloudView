@@ -64,7 +64,7 @@ struct UpgradeSheetView: View {
                 dismiss()
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .semibold))
+                    .scaledFont(size: 14, weight: .semibold)
                     .foregroundStyle(.white.opacity(0.65))
                     .frame(width: 32, height: 32)
                     .background(Circle().fill(.white.opacity(0.08)))
@@ -77,17 +77,17 @@ struct UpgradeSheetView: View {
     private var hero: some View {
         VStack(spacing: 18) {
             Image(systemName: "cloud.sun.fill")
-                .font(.system(size: 44))
+                .scaledFont(size: 44)
                 .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(CV.Color.accent)
 
             VStack(spacing: 10) {
                 Text("Cloudoodle Unlimited")
-                    .font(.system(size: 26, weight: .regular, design: .serif))
+                    .scaledFont(size: 26, weight: .regular, design: .serif)
                     .foregroundStyle(.white)
 
                 Text("Capture as many skies as the day will give you.")
-                    .font(.system(size: 15, weight: .regular, design: .serif))
+                    .scaledFont(size: 15, weight: .regular, design: .serif)
                     .italic()
                     .foregroundStyle(.white.opacity(0.7))
                     .multilineTextAlignment(.center)
@@ -136,10 +136,10 @@ struct UpgradeSheetView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 8) {
                         Text(title)
-                            .font(.system(size: 16, weight: .semibold))
+                            .scaledFont(size: 16, weight: .semibold)
                         if let badge {
                             Text(badge)
-                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .scaledFont(size: 9, weight: .bold, design: .monospaced)
                                 .tracking(1)
                                 .padding(.horizontal, 6).padding(.vertical, 2)
                                 .background(
@@ -149,13 +149,13 @@ struct UpgradeSheetView: View {
                         }
                     }
                     Text(subtitle)
-                        .font(.system(size: 12, design: .serif))
+                        .scaledFont(size: 12, design: .serif)
                         .italic()
                         .foregroundStyle(primary ? .black.opacity(0.55) : .white.opacity(0.55))
                 }
                 Spacer()
                 Text(product.displayPrice)
-                    .font(.system(size: 19, weight: .semibold, design: .serif))
+                    .scaledFont(size: 19, weight: .semibold, design: .serif)
             }
             .foregroundStyle(primary ? .black : .white)
             .padding(.horizontal, 18)
@@ -178,15 +178,15 @@ struct UpgradeSheetView: View {
     private var loadFailed: some View {
         VStack(spacing: 10) {
             Image(systemName: "wifi.exclamationmark")
-                .font(.system(size: 22))
+                .scaledFont(size: 22)
                 .foregroundStyle(.white.opacity(0.6))
             Text("Couldn't load subscription options")
-                .font(.system(size: 14, weight: .medium))
+                .scaledFont(size: 14, weight: .medium)
                 .foregroundStyle(.white.opacity(0.8))
             Button("Try again") {
                 Task { await subscriptions.loadProducts() }
             }
-            .font(.system(size: 13, weight: .semibold))
+            .scaledFont(size: 13, weight: .semibold)
             .foregroundStyle(CV.Color.accent)
         }
         .padding(.top, 24)
@@ -197,11 +197,11 @@ struct UpgradeSheetView: View {
             Button("Restore Purchases") {
                 Task { await subscriptions.restorePurchases() }
             }
-            .font(.system(size: 13, weight: .medium))
+            .scaledFont(size: 13, weight: .medium)
             .foregroundStyle(.white.opacity(0.65))
 
             Text("Auto-renews until cancelled. Manage in Settings → Apple ID → Subscriptions.")
-                .font(.system(size: 10, design: .monospaced))
+                .scaledFont(size: 10, design: .monospaced)
                 .foregroundStyle(.white.opacity(0.4))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 10)
@@ -214,7 +214,7 @@ struct UpgradeSheetView: View {
                     Link("Privacy", destination: url)
                 }
             }
-            .font(.system(size: 11, design: .monospaced))
+            .scaledFont(size: 11, design: .monospaced)
             .foregroundStyle(.white.opacity(0.5))
         }
     }
@@ -257,11 +257,11 @@ private struct FeatureRow: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: icon)
-                .font(.system(size: 13, weight: .semibold))
+                .scaledFont(size: 13, weight: .semibold)
                 .foregroundStyle(CV.Color.accent)
                 .frame(width: 22, alignment: .leading)
             Text(text)
-                .font(.system(size: 14, weight: .regular, design: .serif))
+                .scaledFont(size: 14, weight: .regular, design: .serif)
                 .foregroundStyle(.white.opacity(0.85))
             Spacer()
         }

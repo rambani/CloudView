@@ -25,11 +25,11 @@ struct WelcomePage: View {
                     .tracking(2)
 
                 (Text("Cloud") + Text("oodle").italic())
-                    .font(.system(size: 44, weight: .regular, design: .serif))
+                    .scaledFont(size: 44, weight: .regular, design: .serif)
                     .foregroundStyle(CV.Color.textPrimary)
 
                 Text("A daily Polaroid of whatever's drifting overhead.")
-                    .font(.system(size: 16, weight: .regular, design: .serif))
+                    .scaledFont(size: 16, weight: .regular, design: .serif)
                     .italic()
                     .foregroundStyle(CV.Color.textSecondary)
                     .multilineTextAlignment(.center)
@@ -53,13 +53,13 @@ struct WelcomePage: View {
         VStack(spacing: 0) {
             HStack {
                 Text("THURSDAY")
-                    .font(.system(size: 8, weight: .regular, design: .serif))
+                    .scaledFont(size: 8, weight: .regular, design: .serif)
                     .italic()
                     .tracking(1.5)
                     .foregroundStyle(.black.opacity(0.55))
                 Spacer()
                 Text("JUN 6, 2026 · 4:18pm")
-                    .font(.system(size: 8, weight: .medium, design: .monospaced))
+                    .scaledFont(size: 8, weight: .medium, design: .monospaced)
                     .foregroundStyle(.black.opacity(0.6))
             }
             .padding(.horizontal, 10)
@@ -76,7 +76,7 @@ struct WelcomePage: View {
                     Spacer()
                     HStack {
                         Text("a whale, drifting")
-                            .font(.system(size: 11, weight: .regular, design: .serif))
+                            .scaledFont(size: 11, weight: .regular, design: .serif)
                             .italic()
                             .foregroundStyle(.white.opacity(0.92))
                             .shadow(color: .black.opacity(0.55), radius: 4, y: 1)
@@ -92,10 +92,10 @@ struct WelcomePage: View {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("72°")
-                        .font(.system(size: 17, weight: .regular, design: .serif))
+                        .scaledFont(size: 17, weight: .regular, design: .serif)
                         .foregroundStyle(.black.opacity(0.78))
                     Text("scattered cumulus · brooklyn")
-                        .font(.system(size: 9, weight: .regular, design: .serif))
+                        .scaledFont(size: 9, weight: .regular, design: .serif)
                         .italic()
                         .foregroundStyle(.black.opacity(0.55))
                 }

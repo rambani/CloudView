@@ -71,7 +71,7 @@ struct SettingsView: View {
                             Toggle(isOn: $showShapeCaption) {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("Show shape name on Polaroid")
-                                        .font(.system(size: 14, weight: .medium))
+                                        .scaledFont(size: 14, weight: .medium)
                                         .foregroundStyle(CV.Color.textPrimary)
                                     Text("Faint italic caption inside the photo.")
                                         .font(CV.Font.caption)
@@ -147,7 +147,7 @@ struct SettingsView: View {
                                 Button("Apply & Reconnect") {
                                     supabase.configure()
                                 }
-                                .font(.system(size: 14, weight: .semibold))
+                                .scaledFont(size: 14, weight: .semibold)
                                 .foregroundStyle(supabase.isConfigured ? CV.Color.accentBlue : CV.Color.textTertiary)
                                 .disabled(!supabase.isConfigured)
                             }
@@ -224,7 +224,7 @@ struct SettingsView: View {
                         // sync with whatever the xcconfig is building.
                         VStack(spacing: 4) {
                             Text("Cloudoodle")
-                                .font(.system(size: 13, weight: .semibold))
+                                .scaledFont(size: 13, weight: .semibold)
                                 .foregroundStyle(CV.Color.textTertiary)
                             Text("Find shapes in the sky")
                                 .font(CV.Font.caption)
@@ -273,7 +273,7 @@ struct SettingsView: View {
             Toggle(isOn: $reminderEnabled) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Remind me daily")
-                        .font(.system(size: 14, weight: .medium))
+                        .scaledFont(size: 14, weight: .medium)
                         .foregroundStyle(CV.Color.textPrimary)
                     Text("A quiet nudge to look up — only on days you haven't scanned.")
                         .font(CV.Font.caption)
@@ -292,7 +292,7 @@ struct SettingsView: View {
                     selection: $reminderTime,
                     displayedComponents: .hourAndMinute
                 )
-                .font(.system(size: 14))
+                .scaledFont(size: 14)
                 .foregroundStyle(CV.Color.textPrimary)
                 .tint(CV.Color.accent)
                 .onChange(of: reminderTime) { _, newValue in
@@ -318,7 +318,7 @@ struct SettingsView: View {
             Text(subscriptions.isSubscribed || SupabaseService.shared.isAuthenticated
                  ? "Sign-in active: the reminder summarizes what people near you saw today."
                  : "Sign in to get a reminder summarizing what people near you saw today; otherwise it's a warm-generic nudge.")
-                .font(.system(size: 11, design: .serif))
+                .scaledFont(size: 11, design: .serif)
                 .italic()
                 .foregroundStyle(CV.Color.textTertiary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -358,7 +358,7 @@ struct SettingsView: View {
                     Image(systemName: "checkmark.seal.fill")
                         .foregroundStyle(CV.Color.accent)
                     Text("Unlimited active")
-                        .font(.system(size: 14, weight: .semibold))
+                        .scaledFont(size: 14, weight: .semibold)
                         .foregroundStyle(CV.Color.textPrimary)
                     Spacer()
                 }
@@ -368,7 +368,7 @@ struct SettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
                 if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
                     Link("Manage subscription", destination: url)
-                        .font(.system(size: 13, weight: .medium))
+                        .scaledFont(size: 13, weight: .medium)
                         .foregroundStyle(CV.Color.accentBlue)
                         .padding(.top, 4)
                 }
@@ -376,7 +376,7 @@ struct SettingsView: View {
         } else {
             VStack(alignment: .leading, spacing: 10) {
                 Text("One free Polaroid per day. Upgrade for unlimited captures and to support a tiny indie app.")
-                    .font(.system(size: 13, design: .serif))
+                    .scaledFont(size: 13, design: .serif)
                     .foregroundStyle(CV.Color.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 Button {
@@ -385,7 +385,7 @@ struct SettingsView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "sparkles")
                         Text("See plans")
-                            .font(.system(size: 14, weight: .semibold))
+                            .scaledFont(size: 14, weight: .semibold)
                     }
                     .foregroundStyle(.black)
                     .padding(.horizontal, 14).padding(.vertical, 9)
@@ -472,11 +472,11 @@ private struct LegalRow: View {
     private var rowContent: some View {
         HStack(spacing: 8) {
             Text(title)
-                .font(.system(size: 14))
+                .scaledFont(size: 14)
                 .foregroundStyle(CV.Color.textPrimary)
             Spacer()
             Image(systemName: url == nil ? "doc.text" : "arrow.up.right")
-                .font(.system(size: 11, weight: .semibold))
+                .scaledFont(size: 11, weight: .semibold)
                 .foregroundStyle(CV.Color.textTertiary)
         }
         .padding(.vertical, 12)
@@ -498,7 +498,7 @@ private struct SettingsSection<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Label(title, systemImage: icon)
-                .font(.system(size: 13, weight: .semibold))
+                .scaledFont(size: 13, weight: .semibold)
                 .foregroundStyle(CV.Color.textSecondary)
                 .textCase(.uppercase)
 
@@ -577,7 +577,7 @@ private struct AuthenticatedView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(user.username)
-                        .font(.system(size: 15, weight: .semibold))
+                        .scaledFont(size: 15, weight: .semibold)
                         .foregroundStyle(CV.Color.textPrimary)
                     Text("\(user.totalSightings) sightings · \(user.streakDays) day streak")
                         .font(CV.Font.caption)
@@ -585,7 +585,7 @@ private struct AuthenticatedView: View {
                 }
                 Spacer()
                 Button("Sign Out", action: onSignOut)
-                    .font(.system(size: 14, weight: .medium))
+                    .scaledFont(size: 14, weight: .medium)
                     .foregroundStyle(CV.Color.accentBlue)
             }
 
@@ -599,7 +599,7 @@ private struct AuthenticatedView: View {
                         ProgressView().tint(.red).scaleEffect(0.7)
                     }
                     Text(isDeleting ? "Deleting account…" : "Delete Account")
-                        .font(.system(size: 13, weight: .medium))
+                        .scaledFont(size: 13, weight: .medium)
                         .foregroundStyle(.red.opacity(0.8))
                 }
             }
@@ -665,7 +665,7 @@ private struct AuthForm: View {
                 HStack {
                     if isLoading { ProgressView().tint(.black).scaleEffect(0.8) }
                     Text(isSignUp ? "Create Account" : "Sign In")
-                        .font(.system(size: 15, weight: .semibold))
+                        .scaledFont(size: 15, weight: .semibold)
                 }
                 .foregroundStyle(.black)
                 .frame(maxWidth: .infinity)

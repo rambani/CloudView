@@ -93,7 +93,7 @@ struct JournalEntryDetailView: View {
     private func toggleSegment(title: String, isActive: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .scaledFont(size: 12, weight: .semibold, design: .monospaced)
                 .tracking(0.5)
                 .foregroundStyle(isActive ? .black : .white.opacity(0.7))
                 .padding(.horizontal, 16)
@@ -110,7 +110,7 @@ struct JournalEntryDetailView: View {
     /// not just today's (the drawer peek only carries today's).
     private var quipLine: some View {
         Text(entry.quip)
-            .font(.system(size: 14, weight: .regular, design: .serif))
+            .scaledFont(size: 14, weight: .regular, design: .serif)
             .italic()
             .foregroundStyle(.white.opacity(0.75))
             .multilineTextAlignment(.center)
@@ -127,13 +127,13 @@ struct JournalEntryDetailView: View {
             if let note = entry.note, !note.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(note)
-                        .font(.system(size: 14, weight: .regular, design: .serif))
+                        .scaledFont(size: 14, weight: .regular, design: .serif)
                         .italic()
                         .foregroundStyle(.white.opacity(0.85))
                         .lineLimit(4)
                         .multilineTextAlignment(.leading)
                     Text("Tap to edit")
-                        .font(.system(size: 10, weight: .regular, design: .monospaced))
+                        .scaledFont(size: 10, weight: .regular, design: .monospaced)
                         .foregroundStyle(.white.opacity(0.35))
                         .tracking(1)
                 }
@@ -150,9 +150,9 @@ struct JournalEntryDetailView: View {
             } else {
                 HStack(spacing: 8) {
                     Image(systemName: "square.and.pencil")
-                        .font(.system(size: 14))
+                        .scaledFont(size: 14)
                     Text("Write a note about today")
-                        .font(.system(size: 13, weight: .medium, design: .serif))
+                        .scaledFont(size: 13, weight: .medium, design: .serif)
                         .italic()
                 }
                 .foregroundStyle(.white.opacity(0.7))
@@ -207,7 +207,7 @@ struct JournalEntryDetailView: View {
             }
             Spacer()
             Text(formattedDate)
-                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .scaledFont(size: 11, weight: .semibold, design: .monospaced)
                 .tracking(2)
                 .foregroundStyle(.white.opacity(0.55))
             Spacer()
@@ -232,7 +232,7 @@ struct JournalEntryDetailView: View {
     ) -> some View {
         Button(role: role, action: action) {
             Image(systemName: systemName)
-                .font(.system(size: 14, weight: .semibold))
+                .scaledFont(size: 14, weight: .semibold)
                 .foregroundStyle(.white.opacity(0.85))
                 .frame(width: 36, height: 36)
                 .background(Circle().fill(.white.opacity(0.10)))

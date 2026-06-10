@@ -20,7 +20,7 @@ struct OnboardingChrome: View {
                 store.goBack()
             } label: {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 14, weight: .semibold))
+                    .scaledFont(size: 14, weight: .semibold)
                     .foregroundStyle(CV.Color.textPrimary)
                     .frame(width: 36, height: 36)
                     .background(

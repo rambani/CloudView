@@ -86,7 +86,7 @@ struct TodaysPolaroidView: View {
                 showSettings = true
             } label: {
                 Image(systemName: "gearshape")
-                    .font(.system(size: 15, weight: .semibold))
+                    .scaledFont(size: 15, weight: .semibold)
                     .foregroundStyle(.white.opacity(0.85))
                     .frame(width: 36, height: 36)
                     .background(Circle().fill(.white.opacity(0.10)))
@@ -96,17 +96,17 @@ struct TodaysPolaroidView: View {
             Spacer()
             VStack(spacing: 2) {
                 Text("TODAY")
-                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    .scaledFont(size: 11, weight: .semibold, design: .monospaced)
                     .tracking(2)
                     .foregroundStyle(.white.opacity(0.55))
                 if store.currentStreak >= 2 {
                     Text("\(store.currentStreak)-DAY STREAK")
-                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                        .scaledFont(size: 10, weight: .semibold, design: .monospaced)
                         .tracking(1.5)
                         .foregroundStyle(CV.Color.accent.opacity(0.85))
                 } else {
                     Text(headerDate)
-                        .font(.system(size: 11, design: .monospaced))
+                        .scaledFont(size: 11, design: .monospaced)
                         .foregroundStyle(.white.opacity(0.40))
                 }
             }
@@ -115,7 +115,7 @@ struct TodaysPolaroidView: View {
                 showGallery = true
             } label: {
                 Image(systemName: "rectangle.stack")
-                    .font(.system(size: 15, weight: .semibold))
+                    .scaledFont(size: 15, weight: .semibold)
                     .foregroundStyle(.white.opacity(0.85))
                     .frame(width: 36, height: 36)
                     .background(Circle().fill(.white.opacity(0.10)))
@@ -141,7 +141,7 @@ struct TodaysPolaroidView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "camera.fill")
                     Text("Capture another sky")
-                        .font(.system(size: 15, weight: .semibold))
+                        .scaledFont(size: 15, weight: .semibold)
                 }
                 .foregroundStyle(.black)
                 .frame(maxWidth: .infinity)
@@ -152,12 +152,12 @@ struct TodaysPolaroidView: View {
         } else {
             VStack(alignment: .center, spacing: 6) {
                 Text("Tomorrow's sky awaits ☁︎")
-                    .font(.system(size: 14, weight: .regular, design: .serif))
+                    .scaledFont(size: 14, weight: .regular, design: .serif)
                     .italic()
                     .foregroundStyle(.white.opacity(0.75))
                 Button { showUpgrade = true } label: {
                     Text("Or unlock unlimited Polaroids")
-                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                        .scaledFont(size: 12, weight: .semibold, design: .monospaced)
                         .tracking(0.5)
                         .foregroundStyle(CV.Color.accent)
                 }

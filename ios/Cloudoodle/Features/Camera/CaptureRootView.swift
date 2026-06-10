@@ -107,20 +107,20 @@ struct CaptureRootView: View {
             .ignoresSafeArea()
             VStack(spacing: 18) {
                 Text("☁︎")
-                    .font(.system(size: 52))
+                    .scaledFont(size: 52)
                     .foregroundStyle(.white.opacity(0.55))
                 Text("Today's sky is already developed.")
-                    .font(.system(size: 17, weight: .regular, design: .serif))
+                    .scaledFont(size: 17, weight: .regular, design: .serif)
                     .foregroundStyle(.white.opacity(0.85))
                 Text(subscriptions.nextResetMessage)
-                    .font(.system(size: 12, design: .monospaced))
+                    .scaledFont(size: 12, design: .monospaced)
                     .foregroundStyle(.white.opacity(0.45))
                     .multilineTextAlignment(.center)
                 Button {
                     showUpgrade = true
                 } label: {
                     Text("Unlock unlimited Polaroids")
-                        .font(.system(size: 14, weight: .semibold))
+                        .scaledFont(size: 14, weight: .semibold)
                         .foregroundStyle(.black)
                         .padding(.horizontal, 20).padding(.vertical, 12)
                         .background(Capsule().fill(CV.Color.accent))

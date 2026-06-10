@@ -186,9 +186,9 @@ struct JournalGalleryView: View {
             } label: {
                 HStack(spacing: 4) {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 13, weight: .semibold))
+                        .scaledFont(size: 13, weight: .semibold)
                     Text("Today")
-                        .font(.system(size: 13, weight: .medium))
+                        .scaledFont(size: 13, weight: .medium)
                 }
                 .foregroundStyle(.white.opacity(0.85))
                 .padding(.horizontal, 12).padding(.vertical, 8)
@@ -199,12 +199,12 @@ struct JournalGalleryView: View {
             Spacer()
             VStack(spacing: 2) {
                 Text("YOUR CLOUDS")
-                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    .scaledFont(size: 11, weight: .semibold, design: .monospaced)
                     .tracking(2)
                     .foregroundStyle(.white.opacity(0.55))
                 if !store.entries.isEmpty {
                     Text("\(store.entries.count) Polaroid\(store.entries.count == 1 ? "" : "s")")
-                        .font(.system(size: 11, design: .monospaced))
+                        .scaledFont(size: 11, design: .monospaced)
                         .foregroundStyle(.white.opacity(0.40))
                 }
             }
@@ -219,13 +219,13 @@ struct JournalGalleryView: View {
     private var emptyState: some View {
         VStack(spacing: 16) {
             Text("☁︎")
-                .font(.system(size: 56))
+                .scaledFont(size: 56)
                 .foregroundStyle(.white.opacity(0.6))
             Text("Your Polaroids will live here")
-                .font(.system(size: 18, weight: .regular, design: .serif))
+                .scaledFont(size: 18, weight: .regular, design: .serif)
                 .foregroundStyle(.white.opacity(0.9))
             Text("Scan a sky · let it develop · write a few lines.\nA quiet daily ritual.")
-                .font(.system(size: 13, design: .serif))
+                .scaledFont(size: 13, design: .serif)
                 .italic()
                 .foregroundStyle(.white.opacity(0.55))
                 .multilineTextAlignment(.center)

@@ -48,11 +48,11 @@ struct DemoPage: View {
                     .foregroundStyle(CV.Color.accentBlue)
                     .tracking(1.5)
                 (Text("One frame. ") + Text("Stamped with the moment.").italic())
-                    .font(.system(size: 26, weight: .regular, design: .serif))
+                    .scaledFont(size: 26, weight: .regular, design: .serif)
                     .foregroundStyle(CV.Color.textPrimary)
                     .fixedSize(horizontal: false, vertical: true)
                 Text("Each Polaroid carries the date, the weather, the shape the AI noticed — and a line about how the two are getting along.")
-                    .font(.system(size: 14))
+                    .scaledFont(size: 14)
                     .foregroundStyle(CV.Color.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -97,19 +97,19 @@ struct DemoPage: View {
             // Top border — same date/time stamp pattern
             HStack(alignment: .firstTextBaseline) {
                 Text(dayOfWeek)
-                    .font(.system(size: 10, weight: .regular, design: .serif))
+                    .scaledFont(size: 10, weight: .regular, design: .serif)
                     .italic()
                     .tracking(1.5)
                     .foregroundStyle(.black.opacity(0.55))
                 Spacer(minLength: 6)
                 Text(dateStamp)
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .scaledFont(size: 11, weight: .medium, design: .monospaced)
                     .foregroundStyle(.black.opacity(0.6))
                 Text("·")
-                    .font(.system(size: 10, design: .monospaced))
+                    .scaledFont(size: 10, design: .monospaced)
                     .foregroundStyle(.black.opacity(0.3))
                 Text(timeStamp)
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .scaledFont(size: 11, weight: .medium, design: .monospaced)
                     .foregroundStyle(.black.opacity(0.6))
             }
             .padding(.horizontal, 16)
@@ -127,7 +127,7 @@ struct DemoPage: View {
                     Spacer()
                     HStack {
                         Text(demo.shapeName)
-                            .font(.system(size: 14, weight: .regular, design: .serif))
+                            .scaledFont(size: 14, weight: .regular, design: .serif)
                             .italic()
                             .foregroundStyle(.white.opacity(0.92))
                             .shadow(color: .black.opacity(0.55), radius: 6, y: 1)
@@ -146,10 +146,10 @@ struct DemoPage: View {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("\(demo.temperatureF)°")
-                        .font(.system(size: 22, weight: .regular, design: .serif))
+                        .scaledFont(size: 22, weight: .regular, design: .serif)
                         .foregroundStyle(.black.opacity(0.78))
                     Text("\(demo.conditions) · sample")
-                        .font(.system(size: 12, weight: .regular, design: .serif))
+                        .scaledFont(size: 12, weight: .regular, design: .serif)
                         .italic()
                         .foregroundStyle(.black.opacity(0.55))
                 }

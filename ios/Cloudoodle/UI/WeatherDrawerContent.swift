@@ -58,19 +58,19 @@ struct WeatherDrawerContent<ActionRow: View>: View {
         if let w = weather {
             HStack(alignment: .top, spacing: 14) {
                 Text("\(w.temperature)°")
-                    .font(.system(size: 48, weight: .regular, design: .serif))
+                    .scaledFont(size: 48, weight: .regular, design: .serif)
                     .foregroundStyle(CV.Color.textPrimary)
                 VStack(alignment: .leading, spacing: 4) {
                     if let quip, !quip.isEmpty {
                         Text(quip)
-                            .font(.system(size: 14, weight: .regular, design: .serif))
+                            .scaledFont(size: 14, weight: .regular, design: .serif)
                             .italic()
                             .foregroundStyle(CV.Color.textPrimary.opacity(0.9))
                             .lineLimit(3)
                             .fixedSize(horizontal: false, vertical: true)
                     } else {
                         Text(conditionsHeadline(w))
-                            .font(.system(size: 16, weight: .medium))
+                            .scaledFont(size: 16, weight: .medium)
                             .foregroundStyle(CV.Color.textPrimary)
                     }
                     Text(conditionsSubline(w))
@@ -133,7 +133,7 @@ struct WeatherDrawerContent<ActionRow: View>: View {
                                 .frame(height: max(4, 52 * h.score))
                         }
                         Text(h.label)
-                            .font(.system(size: 10, weight: isPeak ? .semibold : .regular, design: .monospaced))
+                            .scaledFont(size: 10, weight: isPeak ? .semibold : .regular, design: .monospaced)
                             .foregroundStyle(isPeak ? CV.Color.textPrimary : CV.Color.textTertiary)
                     }
                     .frame(maxWidth: .infinity)
@@ -171,7 +171,7 @@ struct WeatherDrawerContent<ActionRow: View>: View {
                 Spacer()
                 Text(fmt.string(from: w.sunset).lowercased())
             }
-            .font(.system(size: 11, design: .monospaced))
+            .scaledFont(size: 11, design: .monospaced)
             .foregroundStyle(CV.Color.textTertiary)
         }
     }
@@ -198,9 +198,9 @@ struct WeatherDrawerContent<ActionRow: View>: View {
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "arrow.up.right.square")
-                            .font(.system(size: 11))
+                            .scaledFont(size: 11)
                         Text("Open iOS Settings")
-                            .font(.system(size: 12, weight: .semibold))
+                            .scaledFont(size: 12, weight: .semibold)
                     }
                     .foregroundStyle(CV.Color.accentBlue)
                 }
@@ -228,7 +228,7 @@ struct WeatherDrawerContent<ActionRow: View>: View {
 
     private func sectionLabel(_ text: String) -> some View {
         Text(text.uppercased())
-            .font(.system(size: 10.5, weight: .medium, design: .monospaced))
+            .scaledFont(size: 10.5, weight: .medium, design: .monospaced)
             .foregroundStyle(CV.Color.textTertiary)
     }
 }

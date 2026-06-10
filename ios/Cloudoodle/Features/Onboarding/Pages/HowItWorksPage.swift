@@ -44,7 +44,7 @@ struct HowItWorksPage: View {
                     .tracking(2)
 
                 (Text("Five minutes with ") + Text("the sky.").italic())
-                    .font(.system(size: 30, weight: .regular, design: .serif))
+                    .scaledFont(size: 30, weight: .regular, design: .serif)
                     .foregroundStyle(CV.Color.textPrimary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -64,11 +64,11 @@ struct HowItWorksPage: View {
             HStack(alignment: .top, spacing: 10) {
                 Image(systemName: "infinity")
                     .foregroundStyle(CV.Color.accentBlue)
-                    .font(.system(size: 13))
+                    .scaledFont(size: 13)
                     .padding(.top, 2)
                 (Text("One Polaroid a day is free. ").italic()
                     + Text("Unlimited is a small monthly thing.").italic())
-                    .font(.system(size: 13, design: .serif))
+                    .scaledFont(size: 13, design: .serif)
                     .foregroundStyle(CV.Color.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -92,11 +92,11 @@ struct HowItWorksPage: View {
                         .font(CV.Font.mono)
                         .foregroundStyle(CV.Color.accentBlue)
                     Text(item.title)
-                        .font(.system(size: 15, weight: .semibold))
+                        .scaledFont(size: 15, weight: .semibold)
                         .foregroundStyle(CV.Color.textPrimary)
                 }
                 Text(item.body)
-                    .font(.system(size: 13))
+                    .scaledFont(size: 13)
                     .foregroundStyle(CV.Color.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }

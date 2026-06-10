@@ -399,7 +399,7 @@ struct CaptureFlowView: View {
                     .tint(.white.opacity(0.8))
                     .scaleEffect(1.1)
                 Text(scanningCaption(progress))
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .scaledFont(size: 12, weight: .medium, design: .monospaced)
                     .tracking(1)
                     .foregroundStyle(.white.opacity(0.7))
             }
@@ -526,7 +526,7 @@ private struct ViewfinderLayer: View {
                 HStack {
                     Button(action: onSettings) {
                         Image(systemName: "gearshape")
-                            .font(.system(size: 15, weight: .semibold))
+                            .scaledFont(size: 15, weight: .semibold)
                             .foregroundStyle(.white)
                             .frame(width: 36, height: 36)
                             .background(Circle().fill(.black.opacity(0.35)))
@@ -542,7 +542,7 @@ private struct ViewfinderLayer: View {
                     // button twin. Mirrors today's-view's stack icon.
                     Button(action: onGallery) {
                         Image(systemName: "rectangle.stack")
-                            .font(.system(size: 15, weight: .semibold))
+                            .scaledFont(size: 15, weight: .semibold)
                             .foregroundStyle(.white)
                             .frame(width: 36, height: 36)
                             .background(Circle().fill(.black.opacity(0.35)))
@@ -552,7 +552,7 @@ private struct ViewfinderLayer: View {
                     if let onCancel {
                         Button(action: onCancel) {
                             Image(systemName: "xmark")
-                                .font(.system(size: 14, weight: .semibold))
+                                .scaledFont(size: 14, weight: .semibold)
                                 .foregroundStyle(.white)
                                 .frame(width: 36, height: 36)
                                 .background(Circle().fill(.black.opacity(0.35)))
@@ -567,7 +567,7 @@ private struct ViewfinderLayer: View {
                 Spacer()
 
                 Text("Point at the sky")
-                    .font(.system(size: 13, weight: .regular, design: .rounded))
+                    .scaledFont(size: 13, weight: .regular, design: .rounded)
                     .foregroundStyle(.white.opacity(0.5))
                     .padding(.bottom, 18)
 
@@ -602,7 +602,7 @@ private struct CameraPermissionDeniedView: View {
                 HStack {
                     Button(action: onSettings) {
                         Image(systemName: "gearshape")
-                            .font(.system(size: 15, weight: .semibold))
+                            .scaledFont(size: 15, weight: .semibold)
                             .foregroundStyle(.white)
                             .frame(width: 36, height: 36)
                             .background(Circle().fill(.black.opacity(0.35)))
@@ -612,7 +612,7 @@ private struct CameraPermissionDeniedView: View {
                     if let onCancel {
                         Button(action: onCancel) {
                             Image(systemName: "xmark")
-                                .font(.system(size: 14, weight: .semibold))
+                                .scaledFont(size: 14, weight: .semibold)
                                 .foregroundStyle(.white)
                                 .frame(width: 36, height: 36)
                                 .background(Circle().fill(.black.opacity(0.35)))
@@ -627,16 +627,16 @@ private struct CameraPermissionDeniedView: View {
 
             VStack(spacing: 20) {
                 Image(systemName: "camera.slash")
-                    .font(.system(size: 42))
+                    .scaledFont(size: 42)
                     .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(.white.opacity(0.85))
 
                 VStack(spacing: 10) {
                     Text("Camera access needed")
-                        .font(.system(size: 22, weight: .regular, design: .serif))
+                        .scaledFont(size: 22, weight: .regular, design: .serif)
                         .foregroundStyle(.white)
                     Text("Cloudoodle needs the camera to capture the sky. Enable it in iOS Settings → Cloudoodle → Camera, then come back.")
-                        .font(.system(size: 14, design: .serif))
+                        .scaledFont(size: 14, design: .serif)
                         .italic()
                         .foregroundStyle(.white.opacity(0.7))
                         .multilineTextAlignment(.center)
@@ -648,7 +648,7 @@ private struct CameraPermissionDeniedView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "arrow.up.right.square")
                         Text("Open iOS Settings")
-                            .font(.system(size: 15, weight: .semibold))
+                            .scaledFont(size: 15, weight: .semibold)
                     }
                     .foregroundStyle(.black)
                     .padding(.horizontal, 22).padding(.vertical, 13)
@@ -668,8 +668,8 @@ private struct LocationChip: View {
     let city: String
     var body: some View {
         HStack(spacing: 5) {
-            Image(systemName: "location.fill").font(.system(size: 10, weight: .medium))
-            Text(city).font(.system(size: 12, weight: .medium, design: .rounded))
+            Image(systemName: "location.fill").scaledFont(size: 10, weight: .medium)
+            Text(city).scaledFont(size: 12, weight: .medium, design: .rounded)
         }
         .foregroundStyle(.white)
         .padding(.horizontal, 12).padding(.vertical, 7)

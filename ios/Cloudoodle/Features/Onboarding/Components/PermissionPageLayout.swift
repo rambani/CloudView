@@ -35,12 +35,12 @@ struct PermissionPageLayout: View {
                     .tracking(1.5)
 
                 headlineView
-                    .font(.system(size: 32, weight: .regular, design: .serif))
+                    .scaledFont(size: 32, weight: .regular, design: .serif)
                     .foregroundStyle(CV.Color.textPrimary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Text(bodyText)
-                    .font(.system(size: 16, weight: .regular))
+                    .scaledFont(size: 16, weight: .regular)
                     .foregroundStyle(CV.Color.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 2)
