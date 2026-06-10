@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// "Polaroid developing" reveal. Plays while the OpenAI image-edit
+/// "Polaroid developing" reveal. Plays while the server-side image-edit
 /// API call is in flight (typically 10–25 s) and then transitions
 /// to the developed result.
 ///

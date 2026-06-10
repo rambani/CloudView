@@ -17,10 +17,10 @@ SUPABASE_ANON_KEY = eyJ...
 // Leave blank to disable crash reporting
 SENTRY_DSN =
 
-// Note: Gemini + OpenAI API keys are NOT in the client anymore. They live
-// as secrets on the `develop-polaroid` Supabase edge function:
+// Note: AI keys are NOT in the client anymore. The entire AI pipeline
+// (analysis + image develop) runs on Google Gemini via the
+// `develop-polaroid` Supabase edge function:
 //   supabase secrets set GEMINI_API_KEY=<key>
-//   supabase secrets set OPENAI_API_KEY=sk-...
 //
-// Earlier builds bundled them into Info.plist via Config.xcconfig; that
-// path is removed in favor of the server-side proxy.
+// Earlier builds bundled Gemini/OpenAI keys into Info.plist via
+// Config.xcconfig; that path is removed in favor of the proxy.

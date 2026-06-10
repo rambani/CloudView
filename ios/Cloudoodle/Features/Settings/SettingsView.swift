@@ -86,7 +86,7 @@ struct SettingsView: View {
                             reminderSection
                         }
 
-                        // Gemini + OpenAI API keys are now held as
+                        // The Gemini API key is now held as a
                         // secrets on the server (Supabase edge function
                         // `develop-polaroid`). Users no longer need to
                         // bring their own keys. The legacy DEBUG fields
@@ -107,7 +107,7 @@ struct SettingsView: View {
                                     )
                                 }
                                 VStack(alignment: .leading, spacing: 8) {
-                                    Text("OpenAI API Key — unused at runtime")
+                                    Text("OpenAI API Key — fully retired (Gemini handles the develop now)")
                                         .font(CV.Font.caption)
                                         .foregroundStyle(CV.Color.textTertiary)
                                     SecureRevealField(

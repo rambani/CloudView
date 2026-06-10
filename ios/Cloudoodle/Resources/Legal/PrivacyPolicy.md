@@ -34,22 +34,19 @@ Most of what Cloudoodle holds about you never leaves your phone:
 ## Information sent to third parties when you scan
 
 To turn a captured photo into a Polaroid, the cropped region around
-the cloud is sent to our backend, which forwards it to two AI
-services for processing within the same request:
+the cloud is sent to our backend, which forwards it to **Google
+Gemini** for processing within the same request:
 
-- **Google Gemini Flash** — analyzes the cropped image to identify a
-  shape name, cloud type, and watchability score. Google's data-use
-  policy applies to that single request; the image is not retained
-  by Google beyond the response.
-- **OpenAI `gpt-image-1`** — receives the cropped image and returns
-  a version with delicate ink overlays tracing the identified shape.
-  OpenAI's enterprise data-use policy applies to that single request.
+- Gemini analyzes the cropped image to identify a shape name, cloud
+  type, and watchability score, then produces the developed version
+  with delicate ink overlays tracing the identified shape. Google's
+  data-use policy applies to those requests; the image is not
+  retained by Google beyond the responses.
 
-Neither service receives your name, account information, exact
-location, or note text. They receive only the cropped image bytes
-and our in-prompt instructions. Our backend keeps no copy of the
-cropped image — it's discarded once the response is returned to
-your device.
+Google does not receive your name, account information, exact
+location, or note text — only the cropped image bytes and our
+in-prompt instructions. Our backend keeps no copy of the cropped
+image; it's discarded once the response is returned to your device.
 
 We use Apple's **WeatherKit** to read the current weather and
 hourly forecast at your location. Those queries are made directly
@@ -150,8 +147,8 @@ not include your photos, location, account details, or note text.
 
 - **Backend (only if you're signed in):** Supabase (Postgres). Hosted
   in the US region.
-- **Cloud analysis (per-Polaroid):** Google Gemini Flash, OpenAI
-  `gpt-image-1`. Both are single-request use with no retention.
+- **Cloud analysis + develop (per-Polaroid):** Google Gemini.
+  Single-request use with no retention.
 - **Weather:** Apple WeatherKit, queried from your device.
 - **Crash reports:** Sentry.
 

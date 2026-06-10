@@ -291,11 +291,11 @@ final class SupabaseService: ObservableObject {
 
     /// Server-side AI proxy. The cropped image goes to our edge
     /// function (`develop-polaroid`) which holds the Gemini and
-    /// OpenAI keys as Supabase secrets and returns the developed
+    /// Gemini API key as a Supabase secret and returns the developed
     /// PNG plus the shape metadata in a single response.
     ///
     /// This is the canonical scan path. The previous direct-to-
-    /// Gemini + direct-to-OpenAI client code is gone; users no
+    /// Gemini + OpenAI client code is gone; users no
     /// longer need to bring their own API keys.
     ///
     /// `crop` is the smart-cropped image (typically 1024×1024).

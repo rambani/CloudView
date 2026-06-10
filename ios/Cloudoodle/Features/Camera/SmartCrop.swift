@@ -3,7 +3,7 @@ import CoreGraphics
 
 /// Crops the input photo to a 1024×1024 square centered on the most
 /// shape-suggestive cloud region. Sending the crop instead of the
-/// full photo to the OpenAI image-edit API cuts cost meaningfully
+/// full photo to the image-edit API cuts cost meaningfully
 /// (smaller image = fewer tokens) and focuses the model on the
 /// region that actually has visual interest.
 ///

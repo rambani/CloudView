@@ -6,7 +6,7 @@ import AVFoundation
 ///
 /// The old hand-drawn reveal path (HandDrawingView, ScanLayer beam,
 /// AI-drawn doodle) has been retired — every scan now goes straight
-/// into the OpenAI "Develop" call and produces a Polaroid. Gemini
+/// into the server-side develop call and produces a Polaroid. Gemini
 /// still runs in the background to populate the shape name + cloud
 /// type + weather mood metadata that the Polaroid + journal use.
 ///
@@ -86,7 +86,7 @@ struct CaptureFlowView: View {
             set: { if !$0 { polaroidError = nil } }
         )) {
             // Most develop failures the user can act on involve the
-            // OpenAI key — surface the Settings sheet right from the
+            // backend configuration — surface Settings right from the
             // alert so they don't have to hunt for the gear icon.
             Button("Open Settings") { showSettings = true }
             Button("OK", role: .cancel) {}
@@ -99,7 +99,7 @@ struct CaptureFlowView: View {
 
     /// Kicks off the AI develop via the server-side `develop-polaroid`
     /// edge function. One round trip returns both the shape metadata
-    /// (Gemini) and the developed PNG with ink overlay (OpenAI). The
+    /// and the developed PNG with ink overlay (all Gemini). The
     /// previous client-side direct calls to those APIs — and the
     /// associated user-supplied API keys — are gone.
     private func startDevelop(originalImage: UIImage, crop: SmartCrop.Result) {

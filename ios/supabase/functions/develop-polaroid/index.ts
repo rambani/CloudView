@@ -2,57 +2,55 @@
  * develop-polaroid
  *
  * Triggered by: client POST after every shutter press.
- * Purpose: The canonical server-side replacement for the
- *          previously client-side direct calls to Gemini and
- *          OpenAI's image-edit. Holds both API keys as Supabase
- *          secrets so end users never have to bring their own.
+ * Purpose: The canonical server-side scan path. Holds the Gemini
+ *          API key as a Supabase secret so end users never have
+ *          to bring their own.
  *
- * Auth: required. The function verifies the Supabase JWT on
- *       Authorization: Bearer <token>. Anonymous Supabase users
- *       (signInAnonymously) work fine here — they have a stable
- *       user_id we can attribute metadata to.
+ * Single-provider pipeline (Gemini only — three steps):
  *
- * Flow:
- *   1. Verify JWT, extract user_id.
- *   2. In parallel: Gemini analyzes the cropped image for shape
- *      metadata; OpenAI gpt-image-1 returns a developed PNG
- *      with delicate white ink lines tracing the shape.
- *   3. Insert sighting_metadata for the user.
- *   4. Update profiles.city if a city was sent.
- *   5. Return { shape_name, cloud_type, weather_mood,
- *      watchability_score, developed_image_base64 }.
+ *   1. IDENTIFY  (gemini-2.5-flash, text out)
+ *      Look at the cropped sky photo, decide what the clouds
+ *      suggest. Variety pressure from the user's recent shapes.
+ *      Produces the watchability score that sets the ink budget.
+ *
+ *   2. DEVELOP   (gemini-2.5-flash-image, image out)
+ *      Instruction-based edit: add delicate white ink tracing the
+ *      identified shape, restraint scaled by watchability. Flash
+ *      Image preserves the source photo's pixels far better than
+ *      a full-regeneration model — important because the product
+ *      promise is "your sky, with ink pointing out what's already
+ *      there," not a repainted sky.
+ *
+ *   3. RE-CAPTION (gemini-2.5-flash, text out)
+ *      Look at the FINISHED image and name what the ink actually
+ *      traces (planned shape passed as a hint). The stored caption
+ *      is therefore guaranteed to describe what's on the Polaroid,
+ *      even if the edit deviated from the plan.
+ *
+ * Auth: required. Verifies the Supabase JWT on Authorization:
+ *       Bearer <token>. Anonymous Supabase users work fine.
  *
  * Setup:
  *   1. Deploy: supabase functions deploy develop-polaroid
- *   2. Set secrets:
+ *   2. Set secret:
  *        supabase secrets set GEMINI_API_KEY=<key>
- *        supabase secrets set OPENAI_API_KEY=sk-...
  *   3. Enable Anonymous Sign-Ins in the Supabase Dashboard
- *      under Authentication → Providers → Anonymous (so the
- *      client doesn't have to force users through an account
- *      flow to make a single Polaroid).
+ *      under Authentication → Providers → Anonymous.
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") ?? "";
-const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") ?? "";
-const GEMINI_MODEL = "gemini-2.5-flash";
-const OPENAI_MODEL = "gpt-image-1";
+const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
+const TEXT_MODEL = "gemini-2.5-flash";
+const IMAGE_MODEL = "gemini-2.5-flash-image";
 
 // ---------- Prompts ---------------------------------------------------------
 
-// Step 1 of the two-step pipeline: Gemini looks at the photo and
-// decides what the clouds suggest. Its shape_name is then injected
-// into the OpenAI prompt (step 2) so the caption on the Polaroid
-// and the ink on the photo always tell the SAME story — the
-// original parallel version let them disagree.
-//
-// `recentShapes` (the user's last few Polaroids, supplied by the
-// client) is woven in as variety pressure so a user doesn't get
-// "whale" four days in a row. It's a soft constraint: if the sky
-// genuinely IS a whale again, the model may still say whale.
-function buildGeminiPrompt(recentShapes: string[]): string {
+// Step 1 — identify. `recentShapes` is soft variety pressure so a
+// user doesn't get "whale" four days in a row; never overrides what
+// the sky actually shows.
+function buildIdentifyPrompt(recentShapes: string[]): string {
   const varietySection = recentShapes.length
     ? `\n\nThe watcher's recent sightings were: ${recentShapes.join(", ")}. ` +
       `Prefer something DIFFERENT from these if the sky plausibly allows it — ` +
@@ -73,11 +71,9 @@ Respond with ONLY valid JSON, no markdown:
 Lower watchability_score for plain blue sky (1-3), middle for soft cumulus (4-7), high for clouds that clearly look like a recognizable creature (8-10).`;
 }
 
-// Step 2: OpenAI develops the image, told explicitly WHAT to trace
-// (Gemini's shape) and HOW MUCH ink to use (scaled by watchability).
-// The restraint tiers keep a plain sky honest — a 2/10 sky gets a
-// single suggestive line or nothing, not a forced dragon.
-function buildOpenAIPrompt(shapeName: string, watchability: number): string {
+// Step 2 — develop. Ink budget scales with watchability so a plain
+// sky stays honest instead of getting a forced dragon.
+function buildDevelopPrompt(shapeName: string, watchability: number): string {
   let restraint: string;
   if (watchability <= 3) {
     restraint = `This sky is sparse (watchability ${watchability}/10). Restraint is everything: ` +
@@ -112,14 +108,24 @@ Style:
 Return the photo with the ink overlay applied. Do not change anything else about the image.`;
 }
 
+// Step 3 — re-caption from the finished image. The stored shape
+// name must describe what's actually drawn, not what was planned.
+function buildRecaptionPrompt(plannedShape: string): string {
+  return `This sky photo has delicate white ink line-art added by a cloud-watcher. The watcher intended to trace: "${plannedShape}".
+
+Look at the FINAL image. What does the ink actually trace? Usually it matches the intent — confirm it. If the ink clearly reads as something else, name what it actually shows instead.
+
+Respond with ONLY valid JSON, no markdown:
+{"shape_name": "short concrete phrase, max 6 words"}`;
+}
+
 // ---------- Types -----------------------------------------------------------
 
 interface RequestBody {
   image_base64: string;
   city?: string;
   /// The user's most recent shape names (client supplies up to ~7,
-  /// newest first). Used as variety pressure in the Gemini prompt
-  /// so consecutive days don't repeat the same creature.
+  /// newest first). Used as variety pressure in the identify prompt.
   recent_shapes?: string[];
 }
 
@@ -166,40 +172,39 @@ Deno.serve(async (req) => {
     return json({ error: "Missing image_base64" }, 400);
   }
 
-  // 3. Sequenced: Gemini decides WHAT the clouds suggest, then
-  //    OpenAI is told to trace exactly that shape, with ink budget
-  //    scaled by the watchability score. Sequencing costs ~1s of
-  //    latency vs the old parallel version (Gemini Flash is fast),
-  //    and buys the one guarantee that matters: the caption on the
-  //    Polaroid and the ink on the photo always tell the same story.
   const recentShapes = (body.recent_shapes ?? [])
     .filter((s): s is string => typeof s === "string" && s.length > 0)
     .slice(0, 7)
     .map((s) => s.slice(0, 60));
 
-  let gemini: GeminiAnalysis;
+  // 3. The three-step pipeline. Steps are sequential by design:
+  //    identify sets the develop instructions; re-caption needs the
+  //    developed image. ~1s per text step, the image step dominates.
+  let analysis: GeminiAnalysis;
   let developedPng: string;
+  let finalShapeName: string;
   try {
-    gemini = await callGemini(body.image_base64, recentShapes);
-    developedPng = await callOpenAI(
+    analysis = await identify(body.image_base64, recentShapes);
+    developedPng = await develop(
       body.image_base64,
-      gemini.shape_name,
-      gemini.watchability_score,
+      analysis.shape_name,
+      analysis.watchability_score,
     );
+    finalShapeName = await recaption(developedPng, analysis.shape_name);
   } catch (e) {
-    console.error("AI call failed", e);
+    console.error("AI pipeline failed", e);
     const message = e instanceof Error ? e.message : String(e);
     return json({ error: message }, 502);
   }
 
-  // 4. Insert sighting_metadata (fire-and-forget — the AI work is
-  //    the user-visible bit; analytics rows aren't worth blocking
-  //    the response if the insert errors out).
+  // 4. Insert sighting_metadata (fire-and-forget). Uses the FINAL
+  //    shape name — the aggregation should reflect what users
+  //    actually saw on their Polaroids.
   const captureTs = new Date().toISOString();
   const cityTrimmed = body.city?.trim().slice(0, 60) || null;
   void supabase.from("sighting_metadata").insert({
     user_id: userId,
-    shape_name: gemini.shape_name.slice(0, 80),
+    shape_name: finalShapeName.slice(0, 80),
     city: cityTrimmed,
     captured_at: captureTs,
   });
@@ -213,36 +218,126 @@ Deno.serve(async (req) => {
       .eq("id", userId);
   }
 
-  // 6. Respond.
+  // 6. Respond. cloud_type / weather_mood / watchability describe
+  //    the SKY (unchanged by the ink), so they come from step 1;
+  //    only the shape name is re-derived from the finished image.
   return json({
-    shape_name: gemini.shape_name,
-    cloud_type: gemini.cloud_type,
-    weather_mood: gemini.weather_mood,
-    watchability_score: gemini.watchability_score,
+    shape_name: finalShapeName,
+    cloud_type: analysis.cloud_type,
+    weather_mood: analysis.weather_mood,
+    watchability_score: analysis.watchability_score,
     developed_image_base64: developedPng,
   });
 });
 
-// ---------- AI helpers ------------------------------------------------------
+// ---------- Pipeline steps --------------------------------------------------
 
-async function callGemini(
+async function identify(
   imageBase64: string,
   recentShapes: string[],
 ): Promise<GeminiAnalysis> {
+  const text = await geminiText({
+    imageBase64,
+    imageMime: "image/jpeg",
+    prompt: buildIdentifyPrompt(recentShapes),
+    maxTokens: 500,
+  });
+  const parsed = JSON.parse(stripCodeFences(text));
+  if (!parsed.shape_name || !parsed.cloud_type) {
+    throw new Error("Identify response missing required fields");
+  }
+  return parsed as GeminiAnalysis;
+}
+
+async function develop(
+  imageBase64: string,
+  shapeName: string,
+  watchability: number,
+): Promise<string> {
   if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+  const url = `${GEMINI_BASE}/${IMAGE_MODEL}:generateContent`;
   const body = {
     contents: [{
       parts: [
         { inlineData: { mimeType: "image/jpeg", data: imageBase64 } },
-        { text: buildGeminiPrompt(recentShapes) },
+        { text: buildDevelopPrompt(shapeName, watchability) },
+      ],
+    }],
+    generationConfig: {
+      responseModalities: ["IMAGE"],
+    },
+  };
+
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": GEMINI_API_KEY,
+    },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`Gemini image edit ${resp.status}: ${text.slice(0, 200)}`);
+  }
+  const data = await resp.json();
+  // The image arrives as an inlineData part. There may also be text
+  // parts; scan for the first image.
+  const parts = data?.candidates?.[0]?.content?.parts ?? [];
+  for (const part of parts) {
+    const inline = part?.inlineData;
+    if (inline?.data && String(inline?.mimeType ?? "").startsWith("image/")) {
+      return inline.data as string;
+    }
+  }
+  throw new Error("Gemini image edit returned no image");
+}
+
+async function recaption(
+  developedImageBase64: string,
+  plannedShape: string,
+): Promise<string> {
+  try {
+    const text = await geminiText({
+      imageBase64: developedImageBase64,
+      imageMime: "image/png",
+      prompt: buildRecaptionPrompt(plannedShape),
+      maxTokens: 100,
+    });
+    const parsed = JSON.parse(stripCodeFences(text));
+    const name = String(parsed?.shape_name ?? "").trim();
+    return name || plannedShape;
+  } catch (e) {
+    // Re-caption is a truthfulness upgrade, not a hard dependency —
+    // if it fails, the planned shape is still a good caption.
+    console.warn("Recaption failed; falling back to planned shape", e);
+    return plannedShape;
+  }
+}
+
+// ---------- Gemini helpers --------------------------------------------------
+
+async function geminiText({ imageBase64, imageMime, prompt, maxTokens }: {
+  imageBase64: string;
+  imageMime: string;
+  prompt: string;
+  maxTokens: number;
+}): Promise<string> {
+  if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
+
+  const url = `${GEMINI_BASE}/${TEXT_MODEL}:generateContent`;
+  const body = {
+    contents: [{
+      parts: [
+        { inlineData: { mimeType: imageMime, data: imageBase64 } },
+        { text: prompt },
       ],
     }],
     generationConfig: {
       responseMimeType: "application/json",
       temperature: 0.5,
-      maxOutputTokens: 500,
+      maxOutputTokens: maxTokens,
     },
   };
 
@@ -258,57 +353,10 @@ async function callGemini(
     const text = await resp.text();
     throw new Error(`Gemini ${resp.status}: ${text.slice(0, 200)}`);
   }
-  const json = await resp.json();
-  const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+  const data = await resp.json();
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) throw new Error("Gemini returned no text");
-
-  const parsed = JSON.parse(stripCodeFences(text));
-  if (!parsed.shape_name || !parsed.cloud_type) {
-    throw new Error("Gemini response missing required fields");
-  }
-  return parsed as GeminiAnalysis;
-}
-
-async function callOpenAI(
-  imageBase64: string,
-  shapeName: string,
-  watchability: number,
-): Promise<string> {
-  if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not configured");
-
-  // OpenAI's images/edits endpoint wants multipart/form-data with
-  // a PNG file. We accept JPEG from the client (smaller upload)
-  // but OpenAI's PNG-only requirement means we need to send bytes
-  // with the .png extension and image/png mime. gpt-image-1 is
-  // lenient about the actual encoding — what matters is that the
-  // model receives raw bytes it can process.
-  const imageBytes = Uint8Array.from(atob(imageBase64), (c) => c.charCodeAt(0));
-
-  const form = new FormData();
-  form.append("model", OPENAI_MODEL);
-  form.append("prompt", buildOpenAIPrompt(shapeName, watchability));
-  form.append("n", "1");
-  form.append("size", "1024x1024");
-  form.append("input_fidelity", "high");
-  form.append(
-    "image",
-    new Blob([imageBytes], { type: "image/png" }),
-    "cloud.png",
-  );
-
-  const resp = await fetch("https://api.openai.com/v1/images/edits", {
-    method: "POST",
-    headers: { "Authorization": `Bearer ${OPENAI_API_KEY}` },
-    body: form,
-  });
-  if (!resp.ok) {
-    const text = await resp.text();
-    throw new Error(`OpenAI ${resp.status}: ${text.slice(0, 200)}`);
-  }
-  const json = await resp.json();
-  const b64 = json?.data?.[0]?.b64_json;
-  if (!b64) throw new Error("OpenAI returned no image");
-  return b64;
+  return text;
 }
 
 // ---------- Small helpers ---------------------------------------------------
