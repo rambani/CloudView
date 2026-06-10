@@ -15,6 +15,7 @@ struct CaptureRootView: View {
     @State private var subscriptions = SubscriptionService.shared
     @State private var mode: Mode = .resolving
     @State private var showUpgrade = false
+    @Environment(\.scenePhase) private var scenePhase
 
     enum Mode {
         case resolving        // initial state until JournalStore loads
@@ -32,11 +33,7 @@ struct CaptureRootView: View {
                 // cancel back to (i.e., a subscriber who already has
                 // today's Polaroid and tapped "Capture another").
                 CaptureFlowView(
-                    onCompleted: {
-                        subscriptions.recordScan()
-                        Task { await DailyReminderService.shared.notifyDidScan() }
-                        mode = .today
-                    },
+                    onCompleted: { mode = .today },
                     onCancel: store.todaysEntry != nil ? { mode = .today } : nil
                 )
             case .today:
@@ -49,12 +46,10 @@ struct CaptureRootView: View {
                     // No today's entry, but quota is available — either
                     // a fresh day rolled in while the view was alive,
                     // or the user deleted today's entry. Either way,
-                    // back to the camera.
+                    // back to the camera. (Quota + reminder reschedule
+                    // are now handled inside CaptureFlowView on save.)
                     CaptureFlowView(
-                        onCompleted: {
-                            subscriptions.recordScan()
-                            mode = .today
-                        },
+                        onCompleted: { mode = .today },
                         onCancel: nil
                     )
                 } else {
@@ -69,6 +64,19 @@ struct CaptureRootView: View {
             await subscriptions.refreshEntitlements()
             if mode == .resolving {
                 mode = store.todaysEntry != nil ? .today : .camera
+            }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            // Catch the midnight rollover: if the user has the app
+            // open past 00:00 local, the cached `mode` would keep
+            // showing yesterday's Polaroid as TODAY forever. Each
+            // foreground tick, ask the store fresh and re-route.
+            guard newPhase == .active else { return }
+            let hasToday = store.todaysEntry != nil
+            if mode == .today && !hasToday {
+                mode = subscriptions.hasQuotaToday ? .camera : .today
+            } else if mode == .camera && hasToday {
+                mode = .today
             }
         }
         .sheet(isPresented: $showUpgrade) {

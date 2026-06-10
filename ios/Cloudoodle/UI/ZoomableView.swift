@@ -17,6 +17,12 @@ struct ZoomableView<Content: View>: View {
     @ViewBuilder var content: () -> Content
     var maxScale: CGFloat = 4.0
     var doubleTapScale: CGFloat = 2.0
+    /// Optional callback for a confirmed single tap (one finger,
+    /// brief, no double-tap follow-up). Owned by this view so
+    /// SwiftUI can sequence it after the double-tap detection
+    /// window — putting `.onTapGesture(count: 1)` on an ancestor
+    /// fires both handlers on a double-tap.
+    var onSingleTap: (() -> Void)? = nil
 
     @State private var committedScale: CGFloat = 1.0
     @State private var committedOffset: CGSize = .zero
@@ -35,11 +41,24 @@ struct ZoomableView<Content: View>: View {
     private var isZoomed: Bool { committedScale > 1.01 }
 
     var body: some View {
+        // SwiftUI ordering: when both `.onTapGesture(count: 2)` and
+        // `.onTapGesture(count: 1)` are attached to the same view,
+        // the double-tap recognizer runs first and the single-tap
+        // waits for the double-tap window to expire. That gives us
+        // the iOS Photos-app behavior: tap-to-edit-note doesn't
+        // fire on the first tap of a zoom double-tap.
         let core = content()
             .scaleEffect(liveScale, anchor: .center)
             .offset(liveOffset)
             .gesture(pinchGesture)
             .onTapGesture(count: 2) { toggleZoom() }
+            .onTapGesture(count: 1) {
+                // Suppress the single-tap callback while zoomed —
+                // a tap then is more naturally read as "let me look
+                // at this," not "open the note editor."
+                guard !isZoomed else { return }
+                onSingleTap?()
+            }
             .animation(.spring(response: 0.35, dampingFraction: 0.85), value: committedScale)
             .animation(.spring(response: 0.35, dampingFraction: 0.85), value: committedOffset)
 

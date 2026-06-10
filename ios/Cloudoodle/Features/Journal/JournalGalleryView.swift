@@ -180,7 +180,7 @@ struct JournalGalleryView: View {
     private func page(for entry: JournalEntry, index: Int) -> some View {
         VStack(spacing: 18) {
             Spacer()
-            ZoomableView {
+            ZoomableView(onSingleTap: { editingNoteFor = entry.id }) {
                 PolaroidCard(
                     entry: entry,
                     showShapeCaption: showShapeCaption,
@@ -188,7 +188,6 @@ struct JournalGalleryView: View {
                 )
             }
             .padding(.horizontal, 36)
-            .onTapGesture { editingNoteFor = entry.id }
             .contextMenu {
                 // Long-press menu — discoverable via the iOS-standard
                 // gesture, invisible chrome otherwise.

@@ -27,6 +27,7 @@ struct CaptureFlowView: View {
     var onCancel: (() -> Void)? = nil
 
     @StateObject private var camera = CameraService()
+    @State private var subscriptions = SubscriptionService.shared
     @State private var phase: CapturePhase = .viewfinder
     @State private var capturedWeather: WeatherSnapshot?
     @State private var capturedSighting: CloudSighting?
@@ -150,11 +151,22 @@ struct CaptureFlowView: View {
                     cloudCoverPct: capturedWeather?.cloudCoverPct
                 )
                 let saved = await JournalStore.shared.add(entry)
+                // Spend the daily quota the moment the entry is on
+                // disk — NOT in the onCompleted callback below. The
+                // previous order let a free user force-quit during
+                // the develop reveal: the entry was already saved
+                // but `recordScan()` never ran, so they could scan
+                // again on relaunch.
                 await MainActor.run {
+                    subscriptions.recordScan()
                     polaroidDeveloped = composited
                     polaroidProgress = 1.0
                     polaroidJournalEntryId = saved.id
                 }
+                // Cancel today's pending local reminder (if any) and
+                // queue tomorrow's. Same reason as quota: do this on
+                // commit, not on tap-through.
+                await DailyReminderService.shared.notifyDidScan()
                 // Send a minimal aggregation payload — shape, city,
                 // timestamp. Never the image, never the note, never
                 // the precise coordinates. Fire-and-forget; if the

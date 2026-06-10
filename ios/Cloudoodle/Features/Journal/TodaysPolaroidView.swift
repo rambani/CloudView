@@ -42,12 +42,11 @@ struct TodaysPolaroidView: View {
             VStack(spacing: 0) {
                 topBar
                 Spacer(minLength: 8)
-                ZoomableView { polaroid }
+                ZoomableView(onSingleTap: { showNoteEditor = true }) { polaroid }
                     .padding(.horizontal, 36)
                     .offset(x: dragOffset)
                     .rotationEffect(.degrees(-1.2 + dragOffset / 80))
                     .gesture(swipeToGallery)
-                    .onTapGesture { showNoteEditor = true }
                 Spacer(minLength: 8)
                 Color.clear.frame(height: 260)   // reserve space for drawer peek
             }
