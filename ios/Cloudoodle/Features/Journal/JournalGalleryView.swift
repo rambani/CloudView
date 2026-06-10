@@ -44,7 +44,6 @@ struct JournalGalleryView: View {
         .fullScreenCover(item: $detailEntry) { entry in
             JournalEntryDetailView(
                 entry: entry,
-                onShare: { Task { await shareEntry(entry) } },
                 onDelete: { deleteConfirmFor = entry }
             )
         }
@@ -130,6 +129,15 @@ struct JournalGalleryView: View {
                 Task { await shareEntry(entry) }
             } label: {
                 Label("Share Polaroid", systemImage: "square.and.arrow.up")
+            }
+            Button {
+                // The user's own photograph, full capture resolution,
+                // no frame and no ink.
+                if let img = UIImage(data: entry.originalImageData) {
+                    shareImage = img
+                }
+            } label: {
+                Label("Share Original Photo", systemImage: "photo")
             }
             Button(role: .destructive) {
                 deleteConfirmFor = entry
@@ -256,22 +264,5 @@ struct JournalGalleryView: View {
     }
 }
 
-/// Identifiable wrapper so the share sheet can present from a
-/// nil-able binding. The id encodes the image itself by reference.
-private struct SharePayload: Identifiable {
-    let image: UIImage
-    var id: ObjectIdentifier { ObjectIdentifier(image) }
-}
-
-/// UIKit bridge for `UIActivityViewController`. SwiftUI's `ShareLink`
-/// is fine for text/URLs, but image sharing from arbitrary callsites
-/// is more reliable through the activity controller — it correctly
-/// previews the image and supports Messages/Mail/Instagram/etc.
-private struct ActivityViewSheet: UIViewControllerRepresentable {
-    let items: [Any]
-
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: items, applicationActivities: nil)
-    }
-    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
-}
+// SharePayload + ActivityViewSheet live in UI/ShareSheet.swift —
+// shared with JournalEntryDetailView.

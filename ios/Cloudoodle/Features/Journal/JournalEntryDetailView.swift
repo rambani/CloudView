@@ -3,19 +3,22 @@ import SwiftUI
 /// Detail view for a single Polaroid — presented full-screen when
 /// the user taps a card in the gallery stack. Layout:
 ///   • Top: chrome (back, share, delete)
-///   • Middle: the Polaroid at large size, pinch-to-zoom
-///   • Bottom: the user's note (read in italic if set; tap to edit)
+///   • Middle: the Polaroid at large size, pinch-to-zoom, with an
+///     Ink / Original toggle underneath (the user's photo is theirs
+///     — the AI's overlay never replaces it)
+///   • The day's quip, then the user's note (tap to edit)
 ///
 /// The note editor opens as a sheet over this view so the user
 /// can see the Polaroid above their typing — the "writing on the
 /// back of a print" metaphor continues without losing the picture.
 struct JournalEntryDetailView: View {
     let entry: JournalEntry
-    var onShare: () -> Void = {}
     var onDelete: () -> Void = {}
 
     @Environment(\.dismiss) private var dismiss
     @State private var showNoteEditor = false
+    @State private var showOriginal = false
+    @State private var shareImage: UIImage?
     @AppStorage("polaroid_show_shape_caption") private var showShapeCaption = true
 
     var body: some View {
@@ -23,10 +26,19 @@ struct JournalEntryDetailView: View {
             backdrop
             VStack(spacing: 0) {
                 topBar
-                Spacer(minLength: 12)
+                Spacer(minLength: 10)
                 polaroid
                     .padding(.horizontal, 36)
-                Spacer(minLength: 12)
+                if hasDevelopedVersion {
+                    inkToggle
+                        .padding(.top, 14)
+                }
+                if !entry.quip.isEmpty {
+                    quipLine
+                        .padding(.horizontal, 32)
+                        .padding(.top, 12)
+                }
+                Spacer(minLength: 10)
                 noteRow
                     .padding(.horizontal, 24)
                     .padding(.bottom, 36)
@@ -35,6 +47,12 @@ struct JournalEntryDetailView: View {
         .preferredColorScheme(.dark)
         .sheet(isPresented: $showNoteEditor) {
             NoteEditorSheet(entry: entry)
+        }
+        .sheet(item: Binding(
+            get: { shareImage.map { SharePayload(image: $0) } },
+            set: { if $0 == nil { shareImage = nil } }
+        )) { payload in
+            ActivityViewSheet(items: [payload.image])
         }
     }
 
@@ -45,14 +63,62 @@ struct JournalEntryDetailView: View {
             PolaroidCard(
                 entry: entry,
                 showShapeCaption: showShapeCaption,
-                tilt: 0
+                tilt: 0,
+                showOriginal: showOriginal
             )
         }
     }
 
+    private var hasDevelopedVersion: Bool {
+        entry.developedImageData != nil
+    }
+
+    /// Ink / Original segmented chip. Only shown when there IS a
+    /// developed version to toggle away from.
+    private var inkToggle: some View {
+        HStack(spacing: 0) {
+            toggleSegment(title: "Ink", isActive: !showOriginal) {
+                withAnimation(.easeInOut(duration: 0.2)) { showOriginal = false }
+            }
+            toggleSegment(title: "Original", isActive: showOriginal) {
+                withAnimation(.easeInOut(duration: 0.2)) { showOriginal = true }
+            }
+        }
+        .background(Capsule().fill(.white.opacity(0.08)))
+        .overlay(Capsule().strokeBorder(.white.opacity(0.12), lineWidth: 0.5))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Photo version")
+    }
+
+    private func toggleSegment(title: String, isActive: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .tracking(0.5)
+                .foregroundStyle(isActive ? .black : .white.opacity(0.7))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 7)
+                .background(
+                    Capsule().fill(isActive ? CV.Color.accent : .clear)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isActive ? .isSelected : [])
+    }
+
+    /// The day's weather-aware quip — readable for every past entry,
+    /// not just today's (the drawer peek only carries today's).
+    private var quipLine: some View {
+        Text(entry.quip)
+            .font(.system(size: 14, weight: .regular, design: .serif))
+            .italic()
+            .foregroundStyle(.white.opacity(0.75))
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
     /// Note preview / call-to-action. If the entry has a note, show
     /// it inline (a tap opens the editor); otherwise show a prompt.
-    /// Either way the Polaroid above remains visible.
     @ViewBuilder
     private var noteRow: some View {
         Button {
@@ -102,6 +168,36 @@ struct JournalEntryDetailView: View {
         .buttonStyle(.plain)
     }
 
+    // MARK: - Share
+
+    /// Shares whatever's currently displayed:
+    ///   • Ink view → the rendered Polaroid card (printable artifact)
+    ///   • Original view → the raw photo at full capture resolution,
+    ///     no frame, no ink — the user's own photograph back.
+    @MainActor
+    private func share() {
+        if showOriginal {
+            if let img = UIImage(data: entry.originalImageData) {
+                shareImage = img
+            }
+            return
+        }
+        let card = PolaroidCard(
+            entry: entry,
+            showShapeCaption: showShapeCaption,
+            tilt: 0
+        )
+        .frame(width: 720)
+        .padding(28)
+        .background(Color(red: 0.10, green: 0.07, blue: 0.09))
+
+        let renderer = ImageRenderer(content: card)
+        renderer.scale = 3.0
+        if let image = renderer.uiImage {
+            shareImage = image
+        }
+    }
+
     // MARK: - Chrome
 
     private var topBar: some View {
@@ -117,7 +213,7 @@ struct JournalEntryDetailView: View {
             Spacer()
             HStack(spacing: 8) {
                 chromeButton(systemName: "square.and.arrow.up", label: "Share") {
-                    onShare()
+                    share()
                 }
                 chromeButton(systemName: "trash", label: "Delete", role: .destructive) {
                     onDelete()

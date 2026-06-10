@@ -17,6 +17,11 @@ struct PolaroidCard: View {
     /// Subtle stack-tilt for the gallery. Defaults to a hair off-axis
     /// so the card never reads as a digital tile.
     var tilt: Double = -1.2
+    /// When true, the photo stage shows the ORIGINAL un-inked photo
+    /// instead of the developed version. The user's photo is theirs;
+    /// the detail view offers a toggle so the AI's ink never feels
+    /// like it replaced the original.
+    var showOriginal: Bool = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -94,7 +99,7 @@ struct PolaroidCard: View {
     @ViewBuilder
     private var photoStage: some View {
         ZStack {
-            if let developedImage {
+            if !showOriginal, let developedImage {
                 Image(uiImage: developedImage)
                     .resizable()
                     .scaledToFill()
@@ -113,7 +118,9 @@ struct PolaroidCard: View {
             )
             .allowsHitTesting(false)
 
-            if showShapeCaption, !entry.shapeName.isEmpty {
+            // Shape caption belongs to the developed reading; the
+            // original view is the user's photo, unannotated.
+            if showShapeCaption, !showOriginal, !entry.shapeName.isEmpty {
                 shapeCaption
             }
         }

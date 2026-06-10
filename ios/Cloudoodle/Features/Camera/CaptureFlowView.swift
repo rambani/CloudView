@@ -36,6 +36,7 @@ struct CaptureFlowView: View {
     @State private var viewfinderWeather: WeatherSnapshot?
     @State private var showSettings = false
     @State private var showGallery = false
+    @State private var darkSkyAlert = false
     @State private var viewfinderDragOffset: CGFloat = 0
     @State private var viewfinderDrawerPosition: GlassDrawer<WeatherDrawerContent<EmptyView>>.DrawerPosition = .peek
 
@@ -65,6 +66,11 @@ struct CaptureFlowView: View {
         .sheet(isPresented: $showSettings) { SettingsView() }
         .fullScreenCover(isPresented: $showGallery) {
             JournalGalleryView()
+        }
+        .alert("The sky's asleep", isPresented: $darkSkyAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("It's too dark out for cloud shapes — Cloudoodle needs daylight to find them. Your daily Polaroid is untouched; catch the sky tomorrow.")
         }
         .fullScreenCover(isPresented: $showPolaroid, onDismiss: {
             // User tapped through the developed Polaroid.
@@ -420,6 +426,20 @@ struct CaptureFlowView: View {
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         do {
             let image = try await camera.capturePhoto()
+
+            // Night guard — a black frame produces a garbage Polaroid
+            // AND burns the free user's daily quota on it. Catch it
+            // here, before the camera stops or anything commits, and
+            // bounce back to the viewfinder with a friendly note.
+            // Threshold 0.10 lets dusk and moody overcast through;
+            // it only trips on genuinely dark frames (night sky,
+            // lens against a pocket).
+            if let luminance = image.averageLuminance, luminance < 0.10 {
+                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                darkSkyAlert = true
+                return
+            }
+
             camera.stop()
             withAnimation(.easeIn(duration: 0.06)) { phase = .captured(image) }
             try? await Task.sleep(for: .milliseconds(100))
