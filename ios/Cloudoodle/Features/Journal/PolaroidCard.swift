@@ -51,11 +51,7 @@ struct PolaroidCard: View {
         if let city = entry.city, !city.isEmpty {
             parts.append("in \(city)")
         }
-        var description = parts.joined(separator: ", ") + "."
-        if !entry.quip.isEmpty {
-            description += " \(entry.quip)"
-        }
-        return description
+        return parts.joined(separator: ", ") + "."
     }
 
     // MARK: - Top border: date + time, old-timey stamp
@@ -146,26 +142,16 @@ struct PolaroidCard: View {
     // MARK: - Bottom border: weather
 
     /// The big white margin of a Polaroid where people used to write
-    /// notes in pen. We print the moment's weather there: temperature
-    /// as the headline number, a short italic conditions line, and —
-    /// when present — the quip, the one-liner tying the shape to the
-    /// day's weather ("Better find shelter, dragon — rain in 30").
-    /// The quip IS the handwritten-note feel; it gets the most
-    /// character-rich treatment of the three lines.
+    /// notes in pen. Stays deliberately minimal — temperature as the
+    /// headline, then a short italic conditions line. The weather-
+    /// aware quip lives in the drawer peek (where temperature lives
+    /// twice over by design); the Polaroid is the artifact, not the
+    /// commentary.
     private var bottomBorder: some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 4) {
                 temperatureLine
                 conditionsLine
-                if !entry.quip.isEmpty {
-                    Text(entry.quip)
-                        .font(.system(size: 12.5, weight: .regular, design: .serif))
-                        .italic()
-                        .foregroundStyle(.black.opacity(0.68))
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, 3)
-                }
             }
             Spacer(minLength: 4)
         }

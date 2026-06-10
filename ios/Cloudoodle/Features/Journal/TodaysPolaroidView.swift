@@ -51,8 +51,10 @@ struct TodaysPolaroidView: View {
                 Color.clear.frame(height: 260)   // reserve space for drawer peek
             }
 
-            GlassDrawer(position: $drawerPosition, peekHeight: 200, halfFraction: 0.55) {
-                WeatherDrawerContent(weather: weather) {
+            GlassDrawer(position: $drawerPosition, peekHeight: 160, halfFraction: 0.55) {
+                // Peek surfaces today's quip + temperature; expand
+                // shows action row + watchability + sun arc.
+                WeatherDrawerContent(weather: weather, quip: entry.quip) {
                     AnyView(drawerActionRow)
                 }
             }

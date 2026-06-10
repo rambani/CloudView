@@ -6,11 +6,14 @@ import CoreLocation
 /// today's Polaroid view and the camera viewfinder so the swipe-up
 /// gesture means the same thing everywhere.
 ///
-/// Layout (peek → expanded):
-///   • Optional action row at the very top (caller-supplied)
-///   • "Right now" — current temperature + conditions phrase
-///   • "Watchability · next 8h" — bar chart with peak hour highlighted
-///   • "Light today" — sun position bar with sunrise/sunset stamps
+/// Layout:
+///   • PEEK (always visible) — the temperature as the headline
+///     number paired with the weather-aware quip when one exists,
+///     or the short conditions phrase otherwise. This is the TL;DR
+///     of the moment, sized to read at a glance without expanding.
+///   • EXPANDED (swipe up) — caller-supplied action row, full
+///     watchability chart for the next 8 hours, sunrise/sunset arc,
+///     and a fall-back conditions row.
 ///
 /// The action row is a `@ViewBuilder` slot so callers can drop in
 /// whatever's appropriate (a "Capture another" CTA for subscribers,
@@ -18,6 +21,11 @@ import CoreLocation
 /// from the camera viewfinder).
 struct WeatherDrawerContent<ActionRow: View>: View {
     let weather: WeatherSnapshot?
+    /// Optional weather-aware quip from the most recent Polaroid.
+    /// nil from the camera viewfinder (nothing developed yet); set
+    /// from today's view to whatever the AI wrote about today's
+    /// shape against the conditions.
+    var quip: String? = nil
     @ViewBuilder let actionRow: () -> ActionRow
 
     @EnvironmentObject private var location: LocationService
@@ -25,13 +33,11 @@ struct WeatherDrawerContent<ActionRow: View>: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 18) {
+                peekRow
                 actionRow()
                 if let w = weather {
-                    conditionsRow(w)
                     watchabilityChart(w)
                     sunBar(w)
-                } else {
-                    weatherUnavailable
                 }
                 Color.clear.frame(height: 24)
             }
@@ -40,34 +46,65 @@ struct WeatherDrawerContent<ActionRow: View>: View {
         }
     }
 
-    private func conditionsRow(_ w: WeatherSnapshot) -> some View {
-        let cloudDesc: String
-        let cloudQual: String
-        switch w.cloudCoverPct {
-        case ..<20:  cloudDesc = "Clear sky";         cloudQual = "few shapes to find"
-        case ..<50:  cloudDesc = "Scattered cumulus"; cloudQual = "ideal for shapes"
-        case ..<80:  cloudDesc = "Broken cloud";      cloudQual = "good canvas overhead"
-        default:     cloudDesc = "Overcast";          cloudQual = "catch it quick"
-        }
+    // MARK: - Peek row (the always-visible TL;DR)
 
-        return VStack(alignment: .leading, spacing: 10) {
-            sectionLabel("Right now")
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
+    /// Big temperature + the quip (or a short conditions phrase if
+    /// there's no quip yet). This is what fits inside the drawer's
+    /// resting peek height — by design, the user can read the
+    /// "what's the sky like right now, and what does it mean" line
+    /// without lifting a finger.
+    @ViewBuilder
+    private var peekRow: some View {
+        if let w = weather {
+            HStack(alignment: .top, spacing: 14) {
                 Text("\(w.temperature)°")
-                    .font(.system(size: 38, weight: .regular, design: .serif))
+                    .font(.system(size: 48, weight: .regular, design: .serif))
                     .foregroundStyle(CV.Color.textPrimary)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(cloudDesc)
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(CV.Color.textPrimary)
-                    Text("\(w.cloudCoverPct)% cover · \(cloudQual)")
+                VStack(alignment: .leading, spacing: 4) {
+                    if let quip, !quip.isEmpty {
+                        Text(quip)
+                            .font(.system(size: 14, weight: .regular, design: .serif))
+                            .italic()
+                            .foregroundStyle(CV.Color.textPrimary.opacity(0.9))
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } else {
+                        Text(conditionsHeadline(w))
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundStyle(CV.Color.textPrimary)
+                    }
+                    Text(conditionsSubline(w))
                         .font(CV.Font.caption)
                         .foregroundStyle(CV.Color.textSecondary)
                 }
-                Spacer()
+                Spacer(minLength: 0)
             }
+        } else {
+            weatherUnavailable
         }
     }
+
+    private func conditionsHeadline(_ w: WeatherSnapshot) -> String {
+        switch w.cloudCoverPct {
+        case ..<20:  return "Clear sky"
+        case ..<50:  return "Scattered cumulus"
+        case ..<80:  return "Broken cloud"
+        default:     return "Overcast"
+        }
+    }
+
+    private func conditionsSubline(_ w: WeatherSnapshot) -> String {
+        let qual: String
+        switch w.cloudCoverPct {
+        case ..<20:  qual = "few shapes to find"
+        case ..<50:  qual = "ideal for shapes"
+        case ..<80:  qual = "good canvas overhead"
+        default:     qual = "catch it quick"
+        }
+        return "\(w.cloudCoverPct)% cover · \(qual)"
+    }
+
+    // MARK: - Expanded sections
 
     private func watchabilityChart(_ w: WeatherSnapshot) -> some View {
         let hours = w.hourlyWatchability

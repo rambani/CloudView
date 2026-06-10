@@ -35,6 +35,8 @@ struct CaptureFlowView: View {
     // comes from the develop step and shows up in polaroidError.
     @State private var viewfinderWeather: WeatherSnapshot?
     @State private var showSettings = false
+    @State private var showGallery = false
+    @State private var viewfinderDragOffset: CGFloat = 0
     @State private var viewfinderDrawerPosition: GlassDrawer<WeatherDrawerContent<EmptyView>>.DrawerPosition = .peek
 
     /// First-launch capture hint. Stays true until the user's first
@@ -61,6 +63,9 @@ struct CaptureFlowView: View {
             await loadViewfinderWeather()
         }
         .sheet(isPresented: $showSettings) { SettingsView() }
+        .fullScreenCover(isPresented: $showGallery) {
+            JournalGalleryView()
+        }
         .fullScreenCover(isPresented: $showPolaroid, onDismiss: {
             // User tapped through the developed Polaroid.
             // Only signal completion if the develop actually
@@ -263,6 +268,11 @@ struct CaptureFlowView: View {
                         })
                     }
                 }
+                // Same swipe-right-to-gallery that today's view has,
+                // so the gesture means the same thing from either
+                // main state (camera-or-Polaroid).
+                .offset(x: viewfinderDragOffset)
+                .gesture(swipeToGallery)
             }
 
         case .captured(let image):
@@ -311,6 +321,38 @@ struct CaptureFlowView: View {
             parts.append("sunset at \(f.string(from: w.sunset)) (~\(Int(untilSunset / 60)) min away)")
         }
         return parts.joined(separator: ", ")
+    }
+
+    /// Swipe-right gesture that opens the gallery — matches the
+    /// same gesture on today's view so users learn one mental model
+    /// regardless of which main state they're in. Card-style
+    /// follow-the-finger with mild resistance, springs back if the
+    /// user releases below the commit threshold.
+    private var swipeToGallery: some Gesture {
+        DragGesture(minimumDistance: 18)
+            .onChanged { value in
+                guard value.translation.width > 0 else { return }
+                viewfinderDragOffset = value.translation.width * 0.5
+            }
+            .onEnded { value in
+                let commit = value.translation.width > 100
+                    || value.predictedEndTranslation.width > 200
+                if commit {
+                    withAnimation(.easeOut(duration: 0.18)) {
+                        viewfinderDragOffset = UIScreen.main.bounds.width
+                    }
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(160))
+                        showGallery = true
+                        try? await Task.sleep(for: .milliseconds(50))
+                        viewfinderDragOffset = 0
+                    }
+                } else {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                        viewfinderDragOffset = 0
+                    }
+                }
+            }
     }
 
     /// Deep-links into iOS Settings → Cloudoodle. The only reliable

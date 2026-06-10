@@ -140,8 +140,9 @@ struct DemoPage: View {
             .aspectRatio(1, contentMode: .fit)
             .clipped()
 
-            // Bottom border — temp + conditions + weather-aware quip
-            // (same three-line layout as the real PolaroidCard)
+            // Bottom border — temp + conditions (matches the real
+            // PolaroidCard; the weather-aware quip lives in the
+            // drawer peek, not on the print).
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("\(demo.temperatureF)°")
@@ -151,13 +152,6 @@ struct DemoPage: View {
                         .font(.system(size: 12, weight: .regular, design: .serif))
                         .italic()
                         .foregroundStyle(.black.opacity(0.55))
-                    Text(demo.quip)
-                        .font(.system(size: 12.5, weight: .regular, design: .serif))
-                        .italic()
-                        .foregroundStyle(.black.opacity(0.68))
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, 3)
                 }
                 Spacer(minLength: 4)
             }
