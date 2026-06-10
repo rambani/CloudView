@@ -254,6 +254,7 @@ struct CaptureFlowView: View {
                     ViewfinderLayer(
                         camera: camera,
                         onSettings: { showSettings = true },
+                        onGallery: { showGallery = true },
                         onCancel: onCancel,
                         onCapture: { Task { await capture() } }
                     )
@@ -498,6 +499,7 @@ private enum CapturePhase {
 private struct ViewfinderLayer: View {
     let camera: CameraService
     let onSettings: () -> Void
+    let onGallery: () -> Void
     /// nil when the user has no fallback — first-of-day capture.
     /// Set only when they came from "Capture another" on today's view.
     let onCancel: (() -> Void)?
@@ -534,6 +536,19 @@ private struct ViewfinderLayer: View {
                     if let city = location.currentCity {
                         LocationChip(city: city)
                     }
+                    // Visible alternative to the swipe-right gesture —
+                    // gestures are undiscoverable for a chunk of users
+                    // (and unusable for some); every swipe needs a
+                    // button twin. Mirrors today's-view's stack icon.
+                    Button(action: onGallery) {
+                        Image(systemName: "rectangle.stack")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 36, height: 36)
+                            .background(Circle().fill(.black.opacity(0.35)))
+                    }
+                    .accessibilityLabel("Open your stack of Polaroids")
+                    .padding(.leading, 8)
                     if let onCancel {
                         Button(action: onCancel) {
                             Image(systemName: "xmark")
