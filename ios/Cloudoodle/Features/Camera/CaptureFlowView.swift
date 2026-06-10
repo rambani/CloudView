@@ -6,7 +6,7 @@ import AVFoundation
 ///
 /// The old hand-drawn reveal path (HandDrawingView, ScanLayer beam,
 /// AI-drawn doodle) has been retired — every scan now goes straight
-/// into the OpenAI "Develop" call and produces a Polaroid. Gemini
+/// into the server-side develop call and produces a Polaroid. Gemini
 /// still runs in the background to populate the shape name + cloud
 /// type + weather mood metadata that the Polaroid + journal use.
 ///
@@ -27,12 +27,17 @@ struct CaptureFlowView: View {
     var onCancel: (() -> Void)? = nil
 
     @StateObject private var camera = CameraService()
+    @State private var subscriptions = SubscriptionService.shared
     @State private var phase: CapturePhase = .viewfinder
     @State private var capturedWeather: WeatherSnapshot?
-    @State private var capturedSighting: CloudSighting?
-    @State private var scanError: String?
+    // scanError used to surface Gemini-call failures during the
+    // pre-develop beat. With the server-side proxy, every failure
+    // comes from the develop step and shows up in polaroidError.
     @State private var viewfinderWeather: WeatherSnapshot?
     @State private var showSettings = false
+    @State private var showGallery = false
+    @State private var darkSkyAlert = false
+    @State private var viewfinderDragOffset: CGFloat = 0
     @State private var viewfinderDrawerPosition: GlassDrawer<WeatherDrawerContent<EmptyView>>.DrawerPosition = .peek
 
     /// First-launch capture hint. Stays true until the user's first
@@ -52,6 +57,21 @@ struct CaptureFlowView: View {
         ZStack {
             Color.black.ignoresSafeArea()
             phaseContent
+
+            // Gallery slides in from the leading edge — the same
+            // in-hierarchy overlay presentation today's view uses, so
+            // the gesture means the same motion from either surface.
+            if showGallery {
+                JournalGalleryView(
+                    onClose: {
+                        withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+                            showGallery = false
+                        }
+                    }
+                )
+                .transition(.move(edge: .leading))
+                .zIndex(50)
+            }
         }
         .ignoresSafeArea()
         .task {
@@ -59,15 +79,10 @@ struct CaptureFlowView: View {
             await loadViewfinderWeather()
         }
         .sheet(isPresented: $showSettings) { SettingsView() }
-        .alert("Couldn't read that sky", isPresented: Binding(
-            get: { scanError != nil },
-            set: { if !$0 { scanError = nil } }
-        )) {
-            Button("Try Again") { scanError = nil }
-            Button("Open Settings") { showSettings = true }
-            Button("Cancel", role: .cancel) { onCancel?() }
+        .alert("The sky's asleep", isPresented: $darkSkyAlert) {
+            Button("OK", role: .cancel) {}
         } message: {
-            Text(scanError ?? "")
+            Text("It's too dark out for cloud shapes — Cloudoodle needs daylight to find them. Your daily Polaroid is untouched; catch the sky tomorrow.")
         }
         .fullScreenCover(isPresented: $showPolaroid, onDismiss: {
             // User tapped through the developed Polaroid.
@@ -94,7 +109,7 @@ struct CaptureFlowView: View {
             set: { if !$0 { polaroidError = nil } }
         )) {
             // Most develop failures the user can act on involve the
-            // OpenAI key — surface the Settings sheet right from the
+            // backend configuration — surface Settings right from the
             // alert so they don't have to hunt for the gear icon.
             Button("Open Settings") { showSettings = true }
             Button("OK", role: .cancel) {}
@@ -105,71 +120,83 @@ struct CaptureFlowView: View {
 
     // MARK: - Develop flow
 
-    /// Kicks off the AI develop using the captured photo. Runs as
-    /// soon as the scan completes so the Polaroid reveal feels like
-    /// one continuous moment instead of "scan, then tap a second
-    /// button to actually get the thing."
-    private func startDevelop(originalImage: UIImage, sighting: CloudSighting) {
+    /// Kicks off the AI develop via the server-side `develop-polaroid`
+    /// edge function. One round trip returns both the shape metadata
+    /// and the developed PNG with ink overlay (all Gemini). The
+    /// previous client-side direct calls to those APIs — and the
+    /// associated user-supplied API keys — are gone.
+    private func startDevelop(originalImage: UIImage, crop: SmartCrop.Result) {
         polaroidOriginal = originalImage
         polaroidDeveloped = nil
         polaroidProgress = 0
         polaroidJournalEntryId = nil
         showPolaroid = true
 
-        let originalData = sighting.localImageData ?? Data()
-
         Task {
             do {
-                // Smart-crop around the top Vision candidate — the
-                // crop is what we actually send to the API, saving
-                // ~40% on the image-token cost.
-                let candidates = await CloudVisionService.shared.findCandidateRegions(in: originalImage, topK: 1)
-                let crop = SmartCrop.crop(photo: originalImage, around: candidates.first)
-                let pngData = try await ImageGenerationService.shared.develop(crop: crop.cropped)
-                guard let img = UIImage(data: pngData) else {
-                    throw ImageGenerationError.parseError("Empty image bytes")
+                let result = try await SupabaseService.shared.developPolaroid(
+                    crop: crop.cropped,
+                    city: location.currentCity,
+                    recentShapes: await JournalStore.shared.recentShapeNames(),
+                    weatherSummary: Self.weatherSummary(from: capturedWeather)
+                )
+
+                guard let developedData = Data(base64Encoded: result.developedImageBase64),
+                      let developedImage = UIImage(data: developedData) else {
+                    throw SupabaseError.uploadFailed(URLError(.cannotParseResponse))
                 }
+
                 // Composite developed crop back into the original
                 // frame so the surrounding photo stays intact — the
                 // viewer sees the full sky with ink in the right spot.
                 let composited = await Self.composite(
                     base: originalImage,
-                    overlay: img,
+                    overlay: developedImage,
                     in: crop.normalizedRect
                 )
+
+                // Server quip is weather-aware ("Better find shelter,
+                // dragon — rain in 30"). The on-device generator only
+                // knows shape + cloud type, so it's strictly a fallback.
+                var quip = result.quip ?? ""
+                if quip.isEmpty {
+                    quip = await QuipGenerationService.shared.generateQuip(
+                        shapeName: result.shapeName,
+                        cloudType: result.cloudType
+                    )
+                }
+
                 let entry = JournalEntry(
-                    originalImageData: originalImage.jpegData(compressionQuality: 0.85) ?? originalData,
+                    originalImageData: originalImage.jpegData(compressionQuality: 0.85) ?? Data(),
                     developedImageData: composited.jpegData(compressionQuality: 0.88),
-                    shapeName: sighting.shapeName,
-                    quip: sighting.quip,
-                    cloudType: sighting.cloudType,
-                    weatherMood: sighting.weatherMood,
-                    city: sighting.city,
-                    country: sighting.country,
+                    shapeName: result.shapeName,
+                    quip: quip,
+                    cloudType: result.cloudType,
+                    weatherMood: result.weatherMood,
+                    city: location.currentCity,
+                    country: location.currentCountry,
                     temperatureF: capturedWeather?.temperature,
                     cloudCoverPct: capturedWeather?.cloudCoverPct
                 )
                 let saved = await JournalStore.shared.add(entry)
+
                 await MainActor.run {
+                    subscriptions.recordScan()
                     polaroidDeveloped = composited
                     polaroidProgress = 1.0
                     polaroidJournalEntryId = saved.id
                 }
-                // Send a minimal aggregation payload — shape, city,
-                // timestamp. Never the image, never the note, never
-                // the precise coordinates. Fire-and-forget; if the
-                // user isn't signed in this is a silent no-op.
-                await SupabaseService.shared.recordSightingMetadata(
-                    shapeName: sighting.shapeName,
-                    city: sighting.city,
-                    capturedAt: saved.createdAt
-                )
+                await DailyReminderService.shared.notifyDidScan()
+                // The edge function inserts sighting_metadata + updates
+                // profiles.city on the server side, so no separate
+                // recordSightingMetadata call is needed here.
+                Telemetry.scanSuccess(shapeName: result.shapeName)
             } catch {
+                Telemetry.scanFailure(error: error)
                 await MainActor.run {
                     polaroidError = (error as? LocalizedError)?.errorDescription
                         ?? error.localizedDescription
                     showPolaroid = false
-                    // Reset to viewfinder so the user can try again
                     phase = .viewfinder
                     Task { try? await camera.requestPermissionAndSetup() }
                 }
@@ -239,6 +266,12 @@ struct CaptureFlowView: View {
                     ViewfinderLayer(
                         camera: camera,
                         onSettings: { showSettings = true },
+                        onGallery: {
+                            Haptics.tap()
+                            withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+                                showGallery = true
+                            }
+                        },
                         onCancel: onCancel,
                         onCapture: { Task { await capture() } }
                     )
@@ -259,6 +292,11 @@ struct CaptureFlowView: View {
                         })
                     }
                 }
+                // Same swipe-right-to-gallery that today's view has,
+                // so the gesture means the same thing from either
+                // main state (camera-or-Polaroid).
+                .offset(x: viewfinderDragOffset)
+                .gesture(swipeToGallery)
             }
 
         case .captured(let image):
@@ -271,6 +309,77 @@ struct CaptureFlowView: View {
                 scanningOverlay(progress: progress)
             }
         }
+    }
+
+    /// Compact human-readable conditions line for the quip prompt.
+    /// Leads with the most quip-worthy fact (incoming precipitation),
+    /// then temperature/wind/UV. Example output:
+    /// "Rain in ~30m. 72°F (feels like 70°), wind 12 mph SW, UV 8,
+    /// sunset 7:42 PM."
+    private static func weatherSummary(from snapshot: WeatherSnapshot?) -> String? {
+        guard let w = snapshot else { return nil }
+        var parts: [String] = []
+        if let alert = w.precipAlert {
+            parts.append(alert)
+        }
+        var tempPart = "\(w.temperature)°F"
+        if abs(w.feelsLike - w.temperature) >= 5 {
+            tempPart += " (feels like \(w.feelsLike)°)"
+        }
+        parts.append(tempPart)
+        if w.windSpeed >= 10 {
+            parts.append("wind \(w.windSpeed) mph \(w.windDirection)")
+        }
+        if w.uvIndex >= 8 {
+            parts.append("UV index \(w.uvIndex) (very high)")
+        }
+        if w.humidity >= 80 {
+            parts.append("humidity \(w.humidity)%")
+        }
+        let f = DateFormatter()
+        f.dateFormat = "h:mm a"
+        // Sunset within ~90 minutes is quip-worthy ("the dragon has
+        // an hour of golden light left").
+        let untilSunset = w.sunset.timeIntervalSince(Date())
+        if untilSunset > 0 && untilSunset < 90 * 60 {
+            parts.append("sunset at \(f.string(from: w.sunset)) (~\(Int(untilSunset / 60)) min away)")
+        }
+        return parts.joined(separator: ", ")
+    }
+
+    /// Swipe-right gesture that opens the gallery — matches the
+    /// same gesture on today's view so users learn one mental model
+    /// regardless of which main state they're in. Card-style
+    /// follow-the-finger with mild resistance, springs back if the
+    /// user releases below the commit threshold.
+    private var swipeToGallery: some Gesture {
+        DragGesture(minimumDistance: 18)
+            .onChanged { value in
+                guard value.translation.width > 0 else { return }
+                viewfinderDragOffset = value.translation.width * 0.5
+            }
+            .onEnded { value in
+                let commit = value.translation.width > 100
+                    || value.predictedEndTranslation.width > 200
+                if commit {
+                    Haptics.soft()
+                    withAnimation(.easeOut(duration: 0.18)) {
+                        viewfinderDragOffset = UIScreen.main.bounds.width
+                    }
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(160))
+                        withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+                            showGallery = true
+                        }
+                        try? await Task.sleep(for: .milliseconds(80))
+                        viewfinderDragOffset = 0
+                    }
+                } else {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                        viewfinderDragOffset = 0
+                    }
+                }
+            }
     }
 
     /// Deep-links into iOS Settings → Cloudoodle. The only reliable
@@ -310,7 +419,7 @@ struct CaptureFlowView: View {
                     .tint(.white.opacity(0.8))
                     .scaleEffect(1.1)
                 Text(scanningCaption(progress))
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .scaledFont(size: 12, weight: .medium, design: .monospaced)
                     .tracking(1)
                     .foregroundStyle(.white.opacity(0.7))
             }
@@ -335,9 +444,23 @@ struct CaptureFlowView: View {
         if !seenFirstCaptureGuide {
             seenFirstCaptureGuide = true
         }
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        Haptics.shutter()
         do {
             let image = try await camera.capturePhoto()
+
+            // Night guard — a black frame produces a garbage Polaroid
+            // AND burns the free user's daily quota on it. Catch it
+            // here, before the camera stops or anything commits, and
+            // bounce back to the viewfinder with a friendly note.
+            // Threshold 0.10 lets dusk and moody overcast through;
+            // it only trips on genuinely dark frames (night sky,
+            // lens against a pocket).
+            if let luminance = image.averageLuminance, luminance < 0.10 {
+                Haptics.warning()
+                darkSkyAlert = true
+                return
+            }
+
             camera.stop()
             withAnimation(.easeIn(duration: 0.06)) { phase = .captured(image) }
             try? await Task.sleep(for: .milliseconds(100))
@@ -356,24 +479,16 @@ struct CaptureFlowView: View {
 
         async let weatherTask = WeatherService.shared.fetch(for: captureLocation)
 
-        // Vision extracts cloud-edge waypoints + salient region.
-        let visionResultEarly: CloudVisionService.Result =
-            (try? await CloudVisionService.shared.analyzeCloudImage(image))
-            ?? CloudVisionService.Result(salientRegion: .null, waypoints: [], drawingElements: [])
+        // Smart-crop client-side: Vision is free + on-device, and the
+        // tighter crop halves the upload size to the AI proxy.
+        let candidates = await CloudVisionService.shared.findCandidateRegions(in: image, topK: 1)
+        let crop = SmartCrop.crop(photo: image, around: candidates.first)
 
-        // Gemini gives us the shape name + cloud type + weather mood
-        // metadata. We don't render its strokes anymore — the
-        // doodle reveal was retired — but the text fields are still
-        // used by the Polaroid + journal.
-        async let geminiTask = GeminiService.shared.analyzeCloud(
-            image: image,
-            cloudWaypoints: visionResultEarly.waypoints
-        )
-
-        // Brief "reading the sky" beat — short enough to feel
-        // responsive, long enough that the Gemini call (~1-2 s) has
-        // almost always returned by the time we transition.
-        let scanDuration: Double = 1.6
+        // Brief "reading the sky" beat for visual continuity with the
+        // shutter tap. The actual AI work happens in startDevelop;
+        // this overlap just absorbs the moment of "did anything
+        // happen?" while the develop call gets going.
+        let scanDuration: Double = 1.0
         let start = Date()
         withAnimation(.easeOut(duration: 0.12)) { phase = .scanning(image, 0) }
         repeat {
@@ -384,73 +499,11 @@ struct CaptureFlowView: View {
         } while Date().timeIntervalSince(start) < scanDuration
 
         capturedWeather = await weatherTask
-        do {
-            let geminiResult = try await geminiTask
-            let quip = await QuipGenerationService.shared.generateQuip(
-                shapeName: geminiResult.shapeName,
-                cloudType: geminiResult.cloudType
-            )
-            let analysis = CloudAnalysis(
-                shapeName: geminiResult.shapeName,
-                quip: quip,
-                cloudType: geminiResult.cloudType,
-                weatherMood: geminiResult.weatherMood,
-                watchabilityScore: geminiResult.watchabilityScore
-            )
-            // Drawing elements stay in the data model for backwards
-            // compat with serialised sightings, but nothing renders
-            // them anymore.
-            let sighting = CloudSighting(
-                localImageData: image.preparedForAnalysis(),
-                analysis: analysis,
-                drawingElements: [],
-                drawingLabelX: 0.5,
-                drawingLabelY: 0.2,
-                latitude: captureLocation?.coordinate.latitude,
-                longitude: captureLocation?.coordinate.longitude,
-                city: location.currentCity,
-                country: location.currentCountry
-            )
-            capturedSighting = sighting
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
-            Telemetry.scanSuccess(shapeName: geminiResult.shapeName)
+        Haptics.success()
 
-            // Straight into developing — no intermediate reveal.
-            startDevelop(originalImage: image, sighting: sighting)
-        } catch {
-            Telemetry.scanFailure(error: error)
-            scanError = Self.scanErrorMessage(for: error)
-            withAnimation { phase = .viewfinder }
-            try? await camera.requestPermissionAndSetup()
-        }
+        startDevelop(originalImage: image, crop: crop)
     }
 
-    private static func scanErrorMessage(for error: Error) -> String {
-        if let gemini = error as? GeminiError {
-            switch gemini {
-            case .missingAPIKey:
-                return "Add your Gemini API key in Settings to scan clouds. It's free at aistudio.google.com."
-            case .imageEncodingFailed:
-                return "Couldn't read that photo. Try capturing again."
-            case .networkError:
-                return "Network hiccup — check your connection and try again."
-            case .invalidResponse(let code, _):
-                switch code {
-                case 401, 403: return "Gemini rejected the request — your API key may be invalid."
-                case 429:      return "Too many scans this minute. Take a breath and try again."
-                case 500...599: return "Gemini is having a moment. Try again in a few seconds."
-                default:       return "Gemini returned an error (\(code)). Try again."
-                }
-            case .parseError:
-                return "AI couldn't identify a shape this time. Try an area of sky with more distinct cloud formations."
-            }
-        }
-        let ns = error as NSError
-        if ns.domain == NSURLErrorDomain {
-            return "Network hiccup — check your connection and try again."
-        }
-        return "AI couldn't identify a shape this time. Try an area of sky with more distinct cloud formations."
-    }
 }
 
 // MARK: - Phase enum
@@ -466,6 +519,7 @@ private enum CapturePhase {
 private struct ViewfinderLayer: View {
     let camera: CameraService
     let onSettings: () -> Void
+    let onGallery: () -> Void
     /// nil when the user has no fallback — first-of-day capture.
     /// Set only when they came from "Capture another" on today's view.
     let onCancel: (() -> Void)?
@@ -492,7 +546,7 @@ private struct ViewfinderLayer: View {
                 HStack {
                     Button(action: onSettings) {
                         Image(systemName: "gearshape")
-                            .font(.system(size: 15, weight: .semibold))
+                            .scaledFont(size: 15, weight: .semibold)
                             .foregroundStyle(.white)
                             .frame(width: 36, height: 36)
                             .background(Circle().fill(.black.opacity(0.35)))
@@ -502,10 +556,23 @@ private struct ViewfinderLayer: View {
                     if let city = location.currentCity {
                         LocationChip(city: city)
                     }
+                    // Visible alternative to the swipe-right gesture —
+                    // gestures are undiscoverable for a chunk of users
+                    // (and unusable for some); every swipe needs a
+                    // button twin. Mirrors today's-view's stack icon.
+                    Button(action: onGallery) {
+                        Image(systemName: "rectangle.stack")
+                            .scaledFont(size: 15, weight: .semibold)
+                            .foregroundStyle(.white)
+                            .frame(width: 36, height: 36)
+                            .background(Circle().fill(.black.opacity(0.35)))
+                    }
+                    .accessibilityLabel("Open your stack of Polaroids")
+                    .padding(.leading, 8)
                     if let onCancel {
                         Button(action: onCancel) {
                             Image(systemName: "xmark")
-                                .font(.system(size: 14, weight: .semibold))
+                                .scaledFont(size: 14, weight: .semibold)
                                 .foregroundStyle(.white)
                                 .frame(width: 36, height: 36)
                                 .background(Circle().fill(.black.opacity(0.35)))
@@ -520,7 +587,7 @@ private struct ViewfinderLayer: View {
                 Spacer()
 
                 Text("Point at the sky")
-                    .font(.system(size: 13, weight: .regular, design: .rounded))
+                    .scaledFont(size: 13, weight: .regular, design: .rounded)
                     .foregroundStyle(.white.opacity(0.5))
                     .padding(.bottom, 18)
 
@@ -555,7 +622,7 @@ private struct CameraPermissionDeniedView: View {
                 HStack {
                     Button(action: onSettings) {
                         Image(systemName: "gearshape")
-                            .font(.system(size: 15, weight: .semibold))
+                            .scaledFont(size: 15, weight: .semibold)
                             .foregroundStyle(.white)
                             .frame(width: 36, height: 36)
                             .background(Circle().fill(.black.opacity(0.35)))
@@ -565,7 +632,7 @@ private struct CameraPermissionDeniedView: View {
                     if let onCancel {
                         Button(action: onCancel) {
                             Image(systemName: "xmark")
-                                .font(.system(size: 14, weight: .semibold))
+                                .scaledFont(size: 14, weight: .semibold)
                                 .foregroundStyle(.white)
                                 .frame(width: 36, height: 36)
                                 .background(Circle().fill(.black.opacity(0.35)))
@@ -580,16 +647,16 @@ private struct CameraPermissionDeniedView: View {
 
             VStack(spacing: 20) {
                 Image(systemName: "camera.slash")
-                    .font(.system(size: 42))
+                    .scaledFont(size: 42)
                     .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(.white.opacity(0.85))
 
                 VStack(spacing: 10) {
                     Text("Camera access needed")
-                        .font(.system(size: 22, weight: .regular, design: .serif))
+                        .scaledFont(size: 22, weight: .regular, design: .serif)
                         .foregroundStyle(.white)
                     Text("Cloudoodle needs the camera to capture the sky. Enable it in iOS Settings → Cloudoodle → Camera, then come back.")
-                        .font(.system(size: 14, design: .serif))
+                        .scaledFont(size: 14, design: .serif)
                         .italic()
                         .foregroundStyle(.white.opacity(0.7))
                         .multilineTextAlignment(.center)
@@ -601,7 +668,7 @@ private struct CameraPermissionDeniedView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "arrow.up.right.square")
                         Text("Open iOS Settings")
-                            .font(.system(size: 15, weight: .semibold))
+                            .scaledFont(size: 15, weight: .semibold)
                     }
                     .foregroundStyle(.black)
                     .padding(.horizontal, 22).padding(.vertical, 13)
@@ -621,8 +688,8 @@ private struct LocationChip: View {
     let city: String
     var body: some View {
         HStack(spacing: 5) {
-            Image(systemName: "location.fill").font(.system(size: 10, weight: .medium))
-            Text(city).font(.system(size: 12, weight: .medium, design: .rounded))
+            Image(systemName: "location.fill").scaledFont(size: 10, weight: .medium)
+            Text(city).scaledFont(size: 12, weight: .medium, design: .rounded)
         }
         .foregroundStyle(.white)
         .padding(.horizontal, 12).padding(.vertical, 7)

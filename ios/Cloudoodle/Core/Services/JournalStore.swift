@@ -98,6 +98,14 @@ final class JournalStore {
         return entries.first(where: { cal.isDateInToday($0.createdAt) })
     }
 
+    /// The user's most recent shape names, newest first. Sent to the
+    /// develop-polaroid edge function as variety pressure so the AI
+    /// avoids repeating yesterday's creature when the sky plausibly
+    /// allows something fresh.
+    func recentShapeNames(limit: Int = 7) -> [String] {
+        entries.prefix(limit).map(\.shapeName).filter { !$0.isEmpty }
+    }
+
     /// Count of consecutive recent days (ending today or yesterday)
     /// that have at least one Polaroid. Used by the home view to
     /// quietly reward the daily ritual without becoming nagware:
@@ -135,6 +143,96 @@ final class JournalStore {
             cursor = prev
         }
         return streak
+    }
+
+    // MARK: - Export
+
+    /// Builds a .zip of the entire journal for the user to take with
+    /// them: per-entry JPEGs (developed + original) named by date and
+    /// shape, plus a journal.txt with every date / shape / quip /
+    /// weather line / note. This is the data-permanence stopgap until
+    /// cloud sync exists — the journal lives only on this device, and
+    /// users with a year of daily ritual need a way out that isn't
+    /// "hope the iCloud device backup works."
+    ///
+    /// Zipping uses the NSFileCoordinator `.forUploading` trick — the
+    /// coordinator produces a zip of a folder URL without needing a
+    /// compression library. Heavy work runs detached off-main.
+    func exportArchive() async throws -> URL {
+        await loadIfNeeded()
+        let snapshot = entries.sorted { $0.createdAt < $1.createdAt }
+
+        return try await Task.detached(priority: .userInitiated) {
+            let fm = FileManager.default
+            let staging = fm.temporaryDirectory
+                .appendingPathComponent("Cloudoodle Journal", isDirectory: true)
+            try? fm.removeItem(at: staging)
+            try fm.createDirectory(at: staging, withIntermediateDirectories: true)
+
+            let dayFormat = DateFormatter()
+            dayFormat.dateFormat = "yyyy-MM-dd"
+            let prettyFormat = DateFormatter()
+            prettyFormat.dateStyle = .full
+            prettyFormat.timeStyle = .short
+
+            var journalText = "Cloudoodle Journal\n==================\n"
+            for entry in snapshot {
+                let day = dayFormat.string(from: entry.createdAt)
+                // Filesystem-safe slug from the shape name.
+                let slug = entry.shapeName.lowercased()
+                    .components(separatedBy: CharacterSet.alphanumerics.inverted)
+                    .filter { !$0.isEmpty }
+                    .joined(separator: "-")
+                    .prefix(40)
+                let base = slug.isEmpty ? day : "\(day)-\(slug)"
+
+                if let dev = entry.developedImageData {
+                    try? dev.write(to: staging.appendingPathComponent("\(base)-polaroid.jpg"))
+                }
+                try? entry.originalImageData.write(
+                    to: staging.appendingPathComponent("\(base)-original.jpg"))
+
+                journalText += "\n\(prettyFormat.string(from: entry.createdAt))\n"
+                journalText += "Shape: \(entry.shapeName)\n"
+                if !entry.quip.isEmpty { journalText += "Quip: \(entry.quip)\n" }
+                if let t = entry.temperatureF {
+                    journalText += "Weather: \(t)°F, \(entry.conditionsSummary)"
+                    if let city = entry.city, !city.isEmpty { journalText += " — \(city)" }
+                    journalText += "\n"
+                }
+                if let note = entry.note, !note.isEmpty {
+                    journalText += "Note: \(note)\n"
+                }
+            }
+            try journalText.write(
+                to: staging.appendingPathComponent("journal.txt"),
+                atomically: true, encoding: .utf8)
+
+            // NSFileCoordinator's .forUploading option zips folder
+            // reads transparently. The zip is only valid inside the
+            // accessor block, so copy it out before returning.
+            var zipURL: URL?
+            var coordinatorError: NSError?
+            NSFileCoordinator().coordinate(
+                readingItemAt: staging,
+                options: .forUploading,
+                error: &coordinatorError
+            ) { tempZip in
+                let dest = fm.temporaryDirectory
+                    .appendingPathComponent("Cloudoodle-Journal-\(dayFormat.string(from: Date())).zip")
+                try? fm.removeItem(at: dest)
+                if (try? fm.copyItem(at: tempZip, to: dest)) != nil {
+                    zipURL = dest
+                }
+            }
+            try? fm.removeItem(at: staging)
+
+            if let error = coordinatorError { throw error }
+            guard let zip = zipURL else {
+                throw CocoaError(.fileWriteUnknown)
+            }
+            return zip
+        }.value
     }
 
     /// Write `entries` back to disk. Off-main since JSON encoding

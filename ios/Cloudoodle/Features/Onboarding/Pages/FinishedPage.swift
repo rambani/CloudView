@@ -17,7 +17,7 @@ struct FinishedPage: View {
                     .frame(width: 88, height: 88)
                     .overlay(
                         Image(systemName: "cloud.fill")
-                            .font(.system(size: 36, weight: .light))
+                            .scaledFont(size: 36, weight: .light)
                             .foregroundStyle(CV.Color.accentBlue)
                     )
                     .shadow(color: .black.opacity(0.08), radius: 10, y: 4)
@@ -28,11 +28,11 @@ struct FinishedPage: View {
                     .tracking(2)
 
                 Text("The sky's waiting.")
-                    .font(.system(size: 28, weight: .regular, design: .serif))
+                    .scaledFont(size: 28, weight: .regular, design: .serif)
                     .foregroundStyle(.black)
 
                 Text("Step outside or point at a window. One frame, that's the whole ritual.")
-                    .font(.system(size: 14, design: .serif))
+                    .scaledFont(size: 14, design: .serif)
                     .italic()
                     .foregroundStyle(.black.opacity(0.65))
                     .multilineTextAlignment(.center)

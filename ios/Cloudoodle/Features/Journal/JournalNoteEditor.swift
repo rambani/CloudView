@@ -20,25 +20,25 @@ struct JournalNoteEditor: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("HOW WAS YOUR DAY?")
-                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .scaledFont(size: 10, weight: .medium, design: .monospaced)
                     .tracking(1.2)
                     .foregroundStyle(.black.opacity(0.45))
                 Spacer()
                 Text("\(remaining)")
-                    .font(.system(size: 10, weight: .regular, design: .monospaced))
+                    .scaledFont(size: 10, weight: .regular, design: .monospaced)
                     .foregroundStyle(remaining < 30 ? .orange : .black.opacity(0.35))
             }
 
             TextEditor(text: $draft)
                 .focused($focused)
-                .font(.system(size: 14, weight: .regular, design: .serif))
+                .scaledFont(size: 14, weight: .regular, design: .serif)
                 .foregroundStyle(.black.opacity(0.82))
                 .scrollContentBackground(.hidden)
                 .background(Color(red: 0.99, green: 0.98, blue: 0.95))
                 .overlay(alignment: .topLeading) {
                     if draft.isEmpty {
                         Text("A few lines about today — the sky, the light, what you were thinking about…")
-                            .font(.system(size: 14, weight: .regular, design: .serif))
+                            .scaledFont(size: 14, weight: .regular, design: .serif)
                             .italic()
                             .foregroundStyle(.black.opacity(0.32))
                             .padding(.top, 10)

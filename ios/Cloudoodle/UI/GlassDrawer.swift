@@ -51,7 +51,10 @@ struct GlassDrawer<Content: View>: View {
             let expandedOpacity = min(1, drawerFraction * 2)
 
             VStack(spacing: 0) {
-                // Handle — always responds to drag
+                // Handle — always responds to drag. Also the drawer's
+                // VoiceOver element: a drag-only control is invisible
+                // to screen readers, so the handle exposes explicit
+                // expand/collapse actions (and adjustable up/down).
                 Capsule()
                     .fill(Color.white.opacity(0.3))
                     .frame(width: 36, height: 4)
@@ -59,6 +62,24 @@ struct GlassDrawer<Content: View>: View {
                     .padding(.bottom, 14)
                     .frame(maxWidth: .infinity)
                     .contentShape(Rectangle())
+                    .accessibilityElement()
+                    .accessibilityLabel("Weather drawer")
+                    .accessibilityValue(accessibilityPositionName)
+                    .accessibilityHint("Swipe up or down with one finger, or use the actions, to show more or less weather detail")
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityAction(named: "Expand") {
+                        position = nextUp(from: position)
+                    }
+                    .accessibilityAction(named: "Collapse") {
+                        position = nextDown(from: position)
+                    }
+                    .accessibilityAdjustableAction { direction in
+                        switch direction {
+                        case .increment: position = nextUp(from: position)
+                        case .decrement: position = nextDown(from: position)
+                        @unknown default: break
+                        }
+                    }
 
                 content
                     .environment(\.drawerFraction, drawerFraction)
@@ -96,6 +117,36 @@ struct GlassDrawer<Content: View>: View {
             .onPreferenceChange(DrawerScrollAtTopKey.self) { atTop in
                 contentScrollAtTop = atTop
             }
+            // One selection tick whenever the drawer settles into a
+            // new position — drag snap, accessibility action, or a
+            // programmatic change all read the same to the hand.
+            .onChange(of: position) { _, _ in
+                Haptics.selection()
+            }
+        }
+    }
+
+    // MARK: - Accessibility helpers
+
+    private var accessibilityPositionName: String {
+        switch position {
+        case .peek: return "Collapsed"
+        case .half: return "Half open"
+        case .full: return "Fully open"
+        }
+    }
+
+    private func nextUp(from p: DrawerPosition) -> DrawerPosition {
+        switch p {
+        case .peek: return .half
+        case .half, .full: return .full
+        }
+    }
+
+    private func nextDown(from p: DrawerPosition) -> DrawerPosition {
+        switch p {
+        case .full: return .half
+        case .half, .peek: return .peek
         }
     }
 

@@ -1,13 +1,19 @@
 import SwiftUI
+import UIKit
 
 enum CV {
     // MARK: - Typography
+    //
+    // All tokens scale with the user's Dynamic Type setting. Fixed
+    // sizes are mapped to the nearest semantic text style (caption =
+    // 12pt, footnote = 13pt, title3 = 20pt at default size); the
+    // quip font scales relative to body via Font.custom(relativeTo:).
     enum Font {
         static let ui = SwiftUI.Font.system(.body, design: .default, weight: .regular)
-        static let quip = SwiftUI.Font.custom("Georgia-Italic", size: 17)
-        static let shapeName = SwiftUI.Font.system(size: 13, weight: .medium, design: .monospaced)
-        static let headline = SwiftUI.Font.system(size: 20, weight: .semibold)
-        static let caption = SwiftUI.Font.system(size: 12, weight: .regular)
+        static let quip = SwiftUI.Font.custom("Georgia-Italic", size: 17, relativeTo: .body)
+        static let shapeName = SwiftUI.Font.system(.footnote, design: .monospaced, weight: .medium)
+        static let headline = SwiftUI.Font.system(.title3, design: .default, weight: .semibold)
+        static let caption = SwiftUI.Font.system(.caption, design: .default, weight: .regular)
         static let mono = SwiftUI.Font.system(.caption, design: .monospaced)
     }
 
@@ -61,6 +67,39 @@ enum CV {
 extension View {
     func glassCard() -> some View {
         modifier(CV.GlassModifier())
+    }
+}
+
+// MARK: - Dynamic Type support for point-sized fonts
+
+/// `Font.system(size:)` is FIXED — it ignores the user's Dynamic
+/// Type setting entirely. This modifier wraps the same parameters
+/// but scales the point size through UIFontMetrics, and reads the
+/// size category from the environment so it re-renders live when
+/// the user changes their text size.
+///
+/// UI chrome should use `.scaledFont(...)`; the Polaroid print's
+/// stamp text intentionally stays fixed (it's part of the artifact,
+/// like text inside a photograph — see PolaroidCard).
+private struct ScaledFont: ViewModifier {
+    @Environment(\.sizeCategory) private var sizeCategory
+    let size: CGFloat
+    let weight: Font.Weight
+    let design: Font.Design
+
+    func body(content: Content) -> some View {
+        let scaled = UIFontMetrics(forTextStyle: .body).scaledValue(for: size)
+        content.font(.system(size: scaled, weight: weight, design: design))
+    }
+}
+
+extension View {
+    func scaledFont(
+        size: CGFloat,
+        weight: Font.Weight = .regular,
+        design: Font.Design = .default
+    ) -> some View {
+        modifier(ScaledFont(size: size, weight: weight, design: design))
     }
 }
 

@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// "Polaroid developing" reveal. Plays while the OpenAI image-edit
+/// "Polaroid developing" reveal. Plays while the server-side image-edit
 /// API call is in flight (typically 10–25 s) and then transitions
 /// to the developed result.
 ///
@@ -71,7 +71,7 @@ struct PolaroidDevelopView: View {
             // Shake after a beat
             Task {
                 try? await Task.sleep(for: .seconds(1.2))
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                Haptics.shutter()
                 withAnimation(.easeInOut(duration: 0.10).repeatCount(5, autoreverses: true)) {
                     shakeOffset = 12
                 }
@@ -84,7 +84,7 @@ struct PolaroidDevelopView: View {
             if isDone, !hasSettled {
                 Task {
                     try? await Task.sleep(for: .milliseconds(200))
-                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    Haptics.success()
                     withAnimation(.spring(response: 0.45, dampingFraction: 0.7)) {
                         hasSettled = true
                     }
@@ -186,7 +186,7 @@ struct PolaroidDevelopView: View {
     // MARK: - Caption
 
     private var developingCaption: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 10) {
             if let _ = developed, hasSettled {
                 Text("Tap to keep watching")
                     .font(.system(size: 13, weight: .regular, design: .monospaced))
@@ -202,6 +202,14 @@ struct PolaroidDevelopView: View {
                         .id(devText)
                         .transition(.opacity.animation(.easeInOut(duration: 0.35)))
                 }
+                // The guessing game — cloud-watchers (especially the
+                // small ones standing next to their parents) are
+                // already guessing out loud during the wait. Honor it.
+                // Turns 10-25s of dead air into the game itself.
+                Text("What do you think it is?")
+                    .font(.system(size: 14, weight: .regular, design: .serif))
+                    .italic()
+                    .foregroundStyle(.white.opacity(0.5))
             }
         }
         .frame(maxWidth: .infinity)

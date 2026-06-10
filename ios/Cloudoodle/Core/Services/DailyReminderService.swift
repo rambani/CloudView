@@ -84,7 +84,31 @@ final class DailyReminderService {
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: [requestID])
 
-        guard enabled else { return }
+        guard enabled else {
+            // Still sync the off state up to the profile so the
+            // server-side cron doesn't keep pushing for a user
+            // who's disabled their reminder.
+            await SupabaseService.shared.updateReminderPrefs(
+                enabled: false, hour: hour, minute: minute
+            )
+            return
+        }
+
+        // Sign-in flips the canonical sender: the `daily-reminders`
+        // edge function pushes signed-in users with the regional
+        // summary; signed-out users still get the local fire below.
+        // Skipping the local schedule when signed in prevents the
+        // user from receiving two pings at the same minute.
+        let signedIn = SupabaseService.shared.isAuthenticated
+
+        // Mirror the local schedule + IANA timezone to the profile
+        // so the server cron knows when to push. Silent no-op for
+        // signed-out users (the server has no row to update).
+        await SupabaseService.shared.updateReminderPrefs(
+            enabled: enabled, hour: hour, minute: minute
+        )
+
+        if signedIn { return }
 
         let settings = await center.notificationSettings()
         guard settings.authorizationStatus == .authorized
@@ -110,6 +134,9 @@ final class DailyReminderService {
         )
 
         do { try await center.add(request) } catch { /* best-effort */ }
+        // (Profile sync already happened above before we decided
+        // whether to schedule locally, so the server-side cron
+        // never goes stale even if we early-return here.)
     }
 
     /// Called after a successful scan. Cancels today's pending

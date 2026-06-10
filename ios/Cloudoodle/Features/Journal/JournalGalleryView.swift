@@ -1,29 +1,29 @@
 import SwiftUI
 
-/// The user's Polaroid stack — horizontal swipe-through of past
-/// developed cloud sightings, each with its caption and (optional)
-/// note about the day. Reached by swiping right from today's
-/// Polaroid view, or from the Profile tab.
+/// The user's Polaroid stack — a vertical scroll of past Polaroids
+/// arranged like a physical photo album: each card tilted a hair
+/// off-axis, the next card peeking above and below, so flipping
+/// through reads as leafing through a stack. Tap a card to open
+/// the full-screen detail view (large Polaroid + note editor).
 ///
-/// Design notes:
-///   • Same darkroom-red ambient backdrop as the develop view so
-///     the swipe transition feels continuous, not a context switch.
-///   • Each page is one Polaroid centered with a peek of the next
-///     and previous cards on either side (so the "stack" reads).
-///   • Tap a card to open the note editor.
-///   • Empty state explains the ritual: scan → develop → note.
+/// Reached by swiping right from today's home view. Same darkroom
+/// backdrop as the develop reveal so the swipe transition feels
+/// continuous, not a context switch.
 struct JournalGalleryView: View {
     @State private var store = JournalStore.shared
-    @State private var currentIndex: Int = 0
-    @State private var editingNoteFor: UUID?
+    @State private var detailEntry: JournalEntry?
     @State private var deleteConfirmFor: JournalEntry?
     @State private var shareImage: UIImage?
     @Environment(\.dismiss) private var dismiss
     @AppStorage("polaroid_show_shape_caption") private var showShapeCaption = true
 
-    /// When presented from today's Polaroid view or the develop
-    /// reveal, the entry that should be focused on appear.
+    /// When presented from today's home view or the develop reveal,
+    /// the entry the gallery should scroll to on appear.
     var focusEntryId: UUID? = nil
+    /// Set when the gallery is hosted as an in-hierarchy overlay
+    /// (the slide-in presentation) rather than a fullScreenCover.
+    /// nil falls back to the environment dismiss.
+    var onClose: (() -> Void)? = nil
 
     var body: some View {
         ZStack {
@@ -44,12 +44,26 @@ struct JournalGalleryView: View {
             }
         }
         .preferredColorScheme(.dark)
-        .task {
-            await store.loadIfNeeded()
-            if let focus = focusEntryId,
-               let idx = store.entries.firstIndex(where: { $0.id == focus }) {
-                currentIndex = idx
-            }
+        .task { await store.loadIfNeeded() }
+        // Mirror of the entry gesture: the user swiped right to slide
+        // the gallery in, so swiping left slides it back out. The
+        // vertical card scroll is unaffected (horizontal threshold).
+        .gesture(
+            DragGesture(minimumDistance: 30)
+                .onEnded { value in
+                    let horizontal = value.translation.width
+                    let vertical = abs(value.translation.height)
+                    if horizontal < -80, vertical < abs(horizontal) {
+                        Haptics.soft()
+                        close()
+                    }
+                }
+        )
+        .fullScreenCover(item: $detailEntry) { entry in
+            JournalEntryDetailView(
+                entry: entry,
+                onDelete: { deleteConfirmFor = entry }
+            )
         }
         .confirmationDialog(
             "Delete this Polaroid?",
@@ -82,19 +96,225 @@ struct JournalGalleryView: View {
         }
     }
 
+    // MARK: - Stack layout
+
+    @ViewBuilder
+    private var gallery: some View {
+        ScrollViewReader { proxy in
+            ScrollView(showsIndicators: false) {
+                LazyVStack(spacing: 28) {
+                    Color.clear.frame(height: 96)   // breathing room under topBar
+                    ForEach(stackItems) { item in
+                        switch item {
+                        case .header(let label):
+                            monthHeader(label)
+                        case .card(let index, let entry):
+                            cardRow(entry: entry, index: index)
+                                .id(entry.id)
+                        }
+                    }
+                    Color.clear.frame(height: 60)   // bottom breathing room
+                }
+            }
+            .task {
+                guard let focus = focusEntryId else { return }
+                // Brief delay so the scroll target has time to lay out.
+                try? await Task.sleep(for: .milliseconds(120))
+                withAnimation(.easeOut(duration: 0.3)) {
+                    proxy.scrollTo(focus, anchor: .center)
+                }
+            }
+        }
+    }
+
+    /// Stack contents with month dividers injected wherever the
+    /// month rolls over (entries are newest-first). Gives the stack
+    /// findability at 50+ entries without adding a search UI.
+    private enum StackItem: Identifiable {
+        case header(String)
+        case card(Int, JournalEntry)
+        var id: String {
+            switch self {
+            case .header(let label): return "header-\(label)"
+            case .card(_, let entry): return entry.id.uuidString
+            }
+        }
+    }
+
+    private var stackItems: [StackItem] {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "MMMM yyyy"
+        var items: [StackItem] = []
+        var lastLabel = ""
+        for (i, entry) in store.entries.enumerated() {
+            let label = fmt.string(from: entry.createdAt).uppercased()
+            if label != lastLabel {
+                items.append(.header(label))
+                lastLabel = label
+            }
+            items.append(.card(i, entry))
+        }
+        return items
+    }
+
+    private func monthHeader(_ label: String) -> some View {
+        HStack(spacing: 12) {
+            Rectangle().fill(.white.opacity(0.12)).frame(height: 0.5)
+            Text(label)
+                .scaledFont(size: 11, weight: .semibold, design: .monospaced)
+                .tracking(2)
+                .foregroundStyle(.white.opacity(0.45))
+                .fixedSize()
+            Rectangle().fill(.white.opacity(0.12)).frame(height: 0.5)
+        }
+        .padding(.horizontal, 32)
+        .padding(.top, 8)
+        .accessibilityAddTraits(.isHeader)
+    }
+
+    /// A single Polaroid in the stack. Slight tilt, generous shadow,
+    /// scaled down a touch from full-width so two cards can ALMOST
+    /// fit on screen at once — communicating "there's more under
+    /// this one" without needing an explicit affordance.
+    private func cardRow(entry: JournalEntry, index: Int) -> some View {
+        let polaroidWidth: CGFloat = UIScreen.main.bounds.width * 0.72
+        return Button {
+            Haptics.tap()
+            detailEntry = entry
+        } label: {
+            PolaroidCard(
+                entry: entry,
+                showShapeCaption: showShapeCaption,
+                tilt: tilt(forIndex: index)
+            )
+            .frame(width: polaroidWidth)
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
+            // iOS-standard long-press menu: share + delete without
+            // visible chrome on the card itself.
+            Button {
+                Task { await shareEntry(entry) }
+            } label: {
+                Label("Share Polaroid", systemImage: "square.and.arrow.up")
+            }
+            Button {
+                // The user's own photograph, full capture resolution,
+                // no frame and no ink.
+                if let img = UIImage(data: entry.originalImageData) {
+                    shareImage = img
+                }
+            } label: {
+                Label("Share Original Photo", systemImage: "photo")
+            }
+            Button(role: .destructive) {
+                deleteConfirmFor = entry
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        } preview: {
+            // Tap-and-hold preview: untilted, centered.
+            PolaroidCard(entry: entry, showShapeCaption: showShapeCaption, tilt: 0)
+                .frame(width: 320)
+                .padding(20)
+        }
+        .accessibilityLabel("Polaroid from \(accessibleDate(entry.createdAt))")
+        .accessibilityHint("Opens the Polaroid in detail")
+    }
+
+    /// Alternating subtle tilt — keeps the stack looking like
+    /// thumbs-shuffled prints, not a flat grid. Amplitudes are small
+    /// enough that the cards still read as legible.
+    private func tilt(forIndex idx: Int) -> Double {
+        let amplitudes: [Double] = [-2.0, 1.3, -1.0, 2.2, -1.6, 0.7, -2.6, 1.0]
+        return amplitudes[idx % amplitudes.count]
+    }
+
+    private func accessibleDate(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.dateStyle = .long
+        return f.string(from: date)
+    }
+
+    // MARK: - Chrome
+
+    private var backdrop: some View {
+        LinearGradient(
+            colors: [Color(red: 0.10, green: 0.07, blue: 0.09),
+                     Color(red: 0.04, green: 0.02, blue: 0.03)],
+            startPoint: .top, endPoint: .bottom
+        )
+        .ignoresSafeArea()
+    }
+
+    /// Overlay-hosted galleries close via the parent's callback so
+    /// the slide-out transition runs in the parent's hierarchy;
+    /// cover-hosted ones use the environment dismiss.
+    private func close() {
+        if let onClose { onClose() } else { dismiss() }
+    }
+
+    private var topBar: some View {
+        HStack {
+            Button {
+                close()
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "chevron.left")
+                        .scaledFont(size: 13, weight: .semibold)
+                    Text("Today")
+                        .scaledFont(size: 13, weight: .medium)
+                }
+                .foregroundStyle(.white.opacity(0.85))
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .background(Capsule().fill(.white.opacity(0.10)))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Back to today's Polaroid")
+            Spacer()
+            VStack(spacing: 2) {
+                Text("YOUR CLOUDS")
+                    .scaledFont(size: 11, weight: .semibold, design: .monospaced)
+                    .tracking(2)
+                    .foregroundStyle(.white.opacity(0.55))
+                if !store.entries.isEmpty {
+                    Text("\(store.entries.count) Polaroid\(store.entries.count == 1 ? "" : "s")")
+                        .scaledFont(size: 11, design: .monospaced)
+                        .foregroundStyle(.white.opacity(0.40))
+                }
+            }
+            Spacer()
+            // Mirror the back chip's width so the title stays centered.
+            Color.clear.frame(width: 80, height: 32)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 60)
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 16) {
+            Text("☁︎")
+                .scaledFont(size: 56)
+                .foregroundStyle(.white.opacity(0.6))
+            Text("Your Polaroids will live here")
+                .scaledFont(size: 18, weight: .regular, design: .serif)
+                .foregroundStyle(.white.opacity(0.9))
+            Text("Scan a sky · let it develop · write a few lines.\nA quiet daily ritual.")
+                .scaledFont(size: 13, design: .serif)
+                .italic()
+                .foregroundStyle(.white.opacity(0.55))
+                .multilineTextAlignment(.center)
+        }
+        .padding(.horizontal, 36)
+    }
+
     // MARK: - Share + delete handlers
 
     private func deleteEntry(_ entry: JournalEntry) async {
-        // Step out of the page that's about to vanish so SwiftUI
-        // doesn't fight a vanishing TabView selection.
-        if store.entries.count <= 1 {
-            await store.delete(entry.id)
-            dismiss()
-            return
-        }
-        let nextIndex = max(0, currentIndex - 1)
+        let wasShowingDetail = (detailEntry?.id == entry.id)
         await store.delete(entry.id)
-        currentIndex = nextIndex
+        if wasShowingDetail { detailEntry = nil }
     }
 
     /// Renders the Polaroid card to a UIImage for the iOS share sheet.
@@ -118,198 +338,7 @@ struct JournalGalleryView: View {
             shareImage = image
         }
     }
-
-    private var backdrop: some View {
-        LinearGradient(
-            colors: [Color(red: 0.10, green: 0.07, blue: 0.09),
-                     Color(red: 0.04, green: 0.02, blue: 0.03)],
-            startPoint: .top, endPoint: .bottom
-        )
-        .ignoresSafeArea()
-    }
-
-    private var topBar: some View {
-        HStack {
-            Button {
-                dismiss()
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 13, weight: .semibold))
-                    Text("Today")
-                        .font(.system(size: 13, weight: .medium))
-                }
-                .foregroundStyle(.white.opacity(0.85))
-                .padding(.horizontal, 12).padding(.vertical, 8)
-                .background(Capsule().fill(.white.opacity(0.10)))
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Back to today's Polaroid")
-            Spacer()
-            VStack(spacing: 2) {
-                Text("YOUR CLOUDS")
-                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                    .tracking(2)
-                    .foregroundStyle(.white.opacity(0.55))
-                if !store.entries.isEmpty {
-                    Text("\(currentIndex + 1) of \(store.entries.count)")
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.40))
-                }
-            }
-            Spacer()
-            // Balance the back chip on the right so the title stays
-            // centered. Same dimensions, invisible.
-            Color.clear.frame(width: 80, height: 32)
-        }
-        .padding(.horizontal, 20)
-        .padding(.top, 60)
-    }
-
-    @ViewBuilder
-    private var gallery: some View {
-        TabView(selection: $currentIndex) {
-            ForEach(Array(store.entries.enumerated()), id: \.element.id) { i, entry in
-                page(for: entry, index: i).tag(i)
-            }
-        }
-        .tabViewStyle(.page(indexDisplayMode: .never))
-        .ignoresSafeArea()
-    }
-
-    private func page(for entry: JournalEntry, index: Int) -> some View {
-        VStack(spacing: 18) {
-            Spacer()
-            ZoomableView {
-                PolaroidCard(
-                    entry: entry,
-                    showShapeCaption: showShapeCaption,
-                    tilt: tilt(forIndex: index)
-                )
-            }
-            .padding(.horizontal, 36)
-            .onTapGesture { editingNoteFor = entry.id }
-            .contextMenu {
-                // Long-press menu — discoverable via the iOS-standard
-                // gesture, invisible chrome otherwise.
-                Button {
-                    Task { await shareEntry(entry) }
-                } label: {
-                    Label("Share Polaroid", systemImage: "square.and.arrow.up")
-                }
-                Button(role: .destructive) {
-                    deleteConfirmFor = entry
-                } label: {
-                    Label("Delete", systemImage: "trash")
-                }
-            }
-            noteRow(for: entry)
-                .padding(.horizontal, 28)
-            Spacer()
-        }
-        .sheet(isPresented: Binding(
-            get: { editingNoteFor == entry.id },
-            set: { if !$0 { editingNoteFor = nil } }
-        )) {
-            NoteEditorSheet(entry: entry)
-        }
-    }
-
-    @ViewBuilder
-    private func noteRow(for entry: JournalEntry) -> some View {
-        if let note = entry.note, !note.isEmpty {
-            Button {
-                editingNoteFor = entry.id
-            } label: {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(note)
-                        .font(.system(size: 14, weight: .regular, design: .serif))
-                        .italic()
-                        .foregroundStyle(.white.opacity(0.85))
-                        .lineLimit(4)
-                        .multilineTextAlignment(.leading)
-                    Text("Tap to edit")
-                        .font(.system(size: 10, weight: .regular, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.35))
-                        .tracking(1)
-                }
-                .padding(14)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(.white.opacity(0.06))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .strokeBorder(.white.opacity(0.10), lineWidth: 0.5)
-                        )
-                )
-            }
-            .buttonStyle(.plain)
-        } else {
-            Button {
-                editingNoteFor = entry.id
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "square.and.pencil")
-                        .font(.system(size: 14))
-                    Text("Write a note about today")
-                        .font(.system(size: 13, weight: .medium, design: .serif))
-                        .italic()
-                }
-                .foregroundStyle(.white.opacity(0.7))
-                .padding(.vertical, 12)
-                .padding(.horizontal, 18)
-                .background(
-                    Capsule().fill(.white.opacity(0.10))
-                        .overlay(Capsule().strokeBorder(.white.opacity(0.12), lineWidth: 0.5))
-                )
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    private var emptyState: some View {
-        VStack(spacing: 16) {
-            Text("☁︎")
-                .font(.system(size: 56))
-                .foregroundStyle(.white.opacity(0.6))
-            Text("Your Polaroids will live here")
-                .font(.system(size: 18, weight: .regular, design: .serif))
-                .foregroundStyle(.white.opacity(0.9))
-            Text("Scan a sky · let it develop · write a few lines.\nA quiet daily ritual.")
-                .font(.system(size: 13, design: .serif))
-                .italic()
-                .foregroundStyle(.white.opacity(0.55))
-                .multilineTextAlignment(.center)
-        }
-        .padding(.horizontal, 36)
-    }
-
-    /// Subtle alternating tilt per index — gives the stack feel
-    /// without making everything wobble identically.
-    private func tilt(forIndex idx: Int) -> Double {
-        let amplitudes: [Double] = [-1.4, -0.6, -2.0, 0.8, -1.0, 1.6]
-        return amplitudes[idx % amplitudes.count]
-    }
 }
 
-/// Identifiable wrapper so the share sheet can present from a
-/// nil-able binding without re-presenting whenever currentIndex
-/// flips. The id encodes the image itself by reference.
-private struct SharePayload: Identifiable {
-    let image: UIImage
-    var id: ObjectIdentifier { ObjectIdentifier(image) }
-}
-
-/// UIKit bridge for `UIActivityViewController`. SwiftUI's `ShareLink`
-/// is fine for text/URLs, but image sharing from arbitrary callsites
-/// is more reliable through the activity controller — it correctly
-/// previews the image and supports Messages/Mail/Instagram/etc.
-private struct ActivityViewSheet: UIViewControllerRepresentable {
-    let items: [Any]
-
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: items, applicationActivities: nil)
-    }
-    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
-}
+// SharePayload + ActivityViewSheet live in UI/ShareSheet.swift —
+// shared with JournalEntryDetailView.

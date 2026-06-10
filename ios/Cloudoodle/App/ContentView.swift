@@ -40,6 +40,12 @@ struct ContentView: View {
                     hasOnboarded = true
                 }
             }
+            // UI text scales with Dynamic Type via .scaledFont (see
+            // DesignTokens). The cap keeps the largest accessibility
+            // sizes from exploding the gesture-driven layouts —
+            // accessibility2 is ~2x default, plenty legible, and the
+            // drawer/Polaroid compositions still hold together.
+            .dynamicTypeSize(...DynamicTypeSize.accessibility2)
     }
 }
 
@@ -50,7 +56,7 @@ private struct NotificationToast: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: "cloud.fill")
-                .font(.system(size: 15))
+                .scaledFont(size: 15)
                 .foregroundStyle(CV.Color.accent)
                 .frame(width: 32, height: 32)
                 .background(Circle().fill(CV.Color.accent.opacity(0.15)))
@@ -58,11 +64,11 @@ private struct NotificationToast: View {
             VStack(alignment: .leading, spacing: 2) {
                 if !alert.title.isEmpty {
                     Text(alert.title)
-                        .font(.system(size: 13, weight: .semibold))
+                        .scaledFont(size: 13, weight: .semibold)
                         .foregroundStyle(CV.Color.textPrimary)
                 }
                 Text(alert.body)
-                    .font(.system(size: 12))
+                    .scaledFont(size: 12)
                     .foregroundStyle(CV.Color.textSecondary)
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
@@ -72,7 +78,7 @@ private struct NotificationToast: View {
 
             Button(action: onDismiss) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .semibold))
+                    .scaledFont(size: 11, weight: .semibold)
                     .foregroundStyle(CV.Color.textTertiary)
                     .frame(width: 24, height: 24)
                     .background(Circle().fill(Color.white.opacity(0.08)))

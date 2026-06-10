@@ -15,6 +15,7 @@ struct CaptureRootView: View {
     @State private var subscriptions = SubscriptionService.shared
     @State private var mode: Mode = .resolving
     @State private var showUpgrade = false
+    @Environment(\.scenePhase) private var scenePhase
 
     enum Mode {
         case resolving        // initial state until JournalStore loads
@@ -27,43 +28,46 @@ struct CaptureRootView: View {
             switch mode {
             case .resolving:
                 resolvingView
+                    .transition(.opacity)
             case .camera:
                 // Only offer a cancel path when there's something to
                 // cancel back to (i.e., a subscriber who already has
                 // today's Polaroid and tapped "Capture another").
                 CaptureFlowView(
-                    onCompleted: {
-                        subscriptions.recordScan()
-                        Task { await DailyReminderService.shared.notifyDidScan() }
-                        mode = .today
-                    },
+                    onCompleted: { mode = .today },
                     onCancel: store.todaysEntry != nil ? { mode = .today } : nil
                 )
+                .transition(modeTransition)
             case .today:
                 if let today = store.todaysEntry {
                     TodaysPolaroidView(
                         entry: today,
                         onCaptureRequested: handleCaptureRequest
                     )
+                    .transition(modeTransition)
                 } else if subscriptions.hasQuotaToday {
                     // No today's entry, but quota is available — either
                     // a fresh day rolled in while the view was alive,
                     // or the user deleted today's entry. Either way,
-                    // back to the camera.
+                    // back to the camera. (Quota + reminder reschedule
+                    // are now handled inside CaptureFlowView on save.)
                     CaptureFlowView(
-                        onCompleted: {
-                            subscriptions.recordScan()
-                            mode = .today
-                        },
+                        onCompleted: { mode = .today },
                         onCancel: nil
                     )
+                    .transition(modeTransition)
                 } else {
                     // No quota, no today's entry — usually a free user
                     // who deleted their Polaroid from the gallery.
                     quotaSpentEmptyState
+                        .transition(modeTransition)
                 }
             }
         }
+        // Camera ↔ today's view used to hard-cut. The same soft
+        // dissolve-with-settle the onboarding pager uses — the new
+        // surface breathes in rather than snapping into place.
+        .animation(.spring(response: 0.45, dampingFraction: 0.85), value: mode)
         .task {
             await store.loadIfNeeded()
             await subscriptions.refreshEntitlements()
@@ -71,9 +75,32 @@ struct CaptureRootView: View {
                 mode = store.todaysEntry != nil ? .today : .camera
             }
         }
+        .onChange(of: scenePhase) { _, newPhase in
+            // Catch the midnight rollover: if the user has the app
+            // open past 00:00 local, the cached `mode` would keep
+            // showing yesterday's Polaroid as TODAY forever. Each
+            // foreground tick, ask the store fresh and re-route.
+            guard newPhase == .active else { return }
+            let hasToday = store.todaysEntry != nil
+            if mode == .today && !hasToday {
+                mode = subscriptions.hasQuotaToday ? .camera : .today
+            } else if mode == .camera && hasToday {
+                mode = .today
+            }
+        }
         .sheet(isPresented: $showUpgrade) {
             UpgradeSheetView()
         }
+    }
+
+    /// Soft dissolve + barely-there scale settle. Matches the
+    /// onboarding pager's transition so the whole app changes
+    /// surfaces with one consistent motion.
+    private var modeTransition: AnyTransition {
+        .asymmetric(
+            insertion: .opacity.combined(with: .scale(scale: 0.98, anchor: .center)),
+            removal: .opacity.combined(with: .scale(scale: 1.02, anchor: .center))
+        )
     }
 
     // MARK: - States
@@ -99,20 +126,20 @@ struct CaptureRootView: View {
             .ignoresSafeArea()
             VStack(spacing: 18) {
                 Text("☁︎")
-                    .font(.system(size: 52))
+                    .scaledFont(size: 52)
                     .foregroundStyle(.white.opacity(0.55))
                 Text("Today's sky is already developed.")
-                    .font(.system(size: 17, weight: .regular, design: .serif))
+                    .scaledFont(size: 17, weight: .regular, design: .serif)
                     .foregroundStyle(.white.opacity(0.85))
                 Text(subscriptions.nextResetMessage)
-                    .font(.system(size: 12, design: .monospaced))
+                    .scaledFont(size: 12, design: .monospaced)
                     .foregroundStyle(.white.opacity(0.45))
                     .multilineTextAlignment(.center)
                 Button {
                     showUpgrade = true
                 } label: {
                     Text("Unlock unlimited Polaroids")
-                        .font(.system(size: 14, weight: .semibold))
+                        .scaledFont(size: 14, weight: .semibold)
                         .foregroundStyle(.black)
                         .padding(.horizontal, 20).padding(.vertical, 12)
                         .background(Capsule().fill(CV.Color.accent))

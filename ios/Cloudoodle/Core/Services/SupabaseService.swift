@@ -153,6 +153,9 @@ final class SupabaseService: ObservableObject {
         try await client.auth.signOut()
         currentUser = nil
         isAuthenticated = false
+        // Auth state flipped — local reminder is now canonical again
+        // for this device. Re-arm the local schedule.
+        await DailyReminderService.shared.rescheduleIfNeeded()
     }
 
     func resetPassword(email: String) async throws {
@@ -189,6 +192,10 @@ final class SupabaseService: ObservableObject {
             // would have early-returned (no currentUser). Sync it now
             // that we have one. Cheap no-op when the token isn't set yet.
             await NotificationService.shared.syncDeviceToken()
+            // Server push is now the canonical reminder sender — tell
+            // DailyReminderService to drop its local schedule (and to
+            // sync the current prefs up so the cron knows when to fire).
+            await DailyReminderService.shared.rescheduleIfNeeded()
         } catch {
             currentUser = nil
             isAuthenticated = false
@@ -197,32 +204,6 @@ final class SupabaseService: ObservableObject {
 
     // MARK: - Profile
 
-    /// Best-effort availability check used during onboarding. Returns
-    /// `true` if the row exists, `false` if it doesn't, and `false`
-    /// (optimistic) on any network/auth error — better than blocking
-    /// onboarding behind a transient hiccup. The `username` column is
-    /// public-readable per migration 008.
-    func isUsernameTaken(_ username: String) async -> Bool {
-        guard let client else { return false }
-        do {
-            let rows: [TakenProbe] = try await client
-                .from("profiles")
-                .select("id")
-                .eq("username", value: username)
-                .limit(1)
-                .execute()
-                .value
-            return !rows.isEmpty
-        } catch {
-            return false
-        }
-    }
-
-    /// Tiny shape that matches the single `id` column we select in
-    /// `isUsernameTaken` — full AppUser would require all the columns
-    /// the public grant does NOT expose.
-    private struct TakenProbe: Decodable { let id: UUID }
-
     func updateDeviceToken(_ token: String) async {
         guard let client, let userId = currentUser?.id else { return }
         let row: [String: AnyJSON] = ["device_token": .string(token)]
@@ -230,6 +211,131 @@ final class SupabaseService: ObservableObject {
             .update(row)
             .eq("id", value: userId.uuidString)
             .execute()
+    }
+
+    /// Sync the user's daily-reminder preferences + their local
+    /// timezone up to their profile row. The `daily-reminders` edge
+    /// function reads these on every cron tick to decide who's due
+    /// for a personalized regional-aggregate push.
+    ///
+    /// Silent no-op if Supabase isn't configured or the user isn't
+    /// signed in (signed-out users get the on-device local notification
+    /// instead). Best-effort; failures are swallowed.
+    func updateReminderPrefs(
+        enabled: Bool,
+        hour: Int,
+        minute: Int
+    ) async {
+        guard let client, let userId = currentUser?.id else { return }
+        let localTime = String(format: "%02d:%02d", hour, minute)
+        let row: [String: AnyJSON] = [
+            "reminder_enabled": .bool(enabled),
+            "reminder_local_time": .string(localTime),
+            "timezone": .string(TimeZone.current.identifier)
+        ]
+        try? await client.from("profiles")
+            .update(row)
+            .eq("id", value: userId.uuidString)
+            .execute()
+    }
+
+    /// Ensures we have an authenticated user before calling
+    /// `developPolaroid`. If the user hasn't signed in (anonymous
+    /// or real) yet, create an anonymous Supabase user — they get
+    /// a stable user_id we can attribute scans + metadata to, and
+    /// they can later "upgrade" to a real account via Sign In with
+    /// Apple or email/password without losing their stack.
+    ///
+    /// Requires Anonymous Sign-Ins to be enabled in the Supabase
+    /// Dashboard under Authentication → Providers → Anonymous.
+    func signInAnonymouslyIfNeeded() async throws {
+        guard let client else { throw SupabaseError.notConfigured }
+        if currentUser != nil { return }
+        do {
+            let session = try await client.auth.signInAnonymously()
+            let profile = (try? await fetchProfile(id: session.user.id))
+                ?? AppUser(
+                    id: session.user.id,
+                    username: "",
+                    avatarURL: nil,
+                    city: nil,
+                    totalSightings: 0,
+                    streakDays: 0,
+                    createdAt: Date()
+                )
+            currentUser = profile
+            isAuthenticated = true
+            await DailyReminderService.shared.rescheduleIfNeeded()
+        } catch {
+            throw SupabaseError.notAuthenticated
+        }
+    }
+
+    /// Result returned by the `develop-polaroid` edge function.
+    /// Matches the JSON shape the function emits one-to-one.
+    struct DevelopResult: Decodable {
+        let shapeName: String
+        /// Weather-aware one-liner tying the shape to the real
+        /// conditions ("Better find shelter, dragon — rain rolls in
+        /// within the hour."). Empty when the server's quip pass
+        /// failed; callers fall back to the on-device generator.
+        let quip: String?
+        let cloudType: String
+        let weatherMood: String
+        let watchabilityScore: Int
+        let developedImageBase64: String
+
+        enum CodingKeys: String, CodingKey {
+            case shapeName            = "shape_name"
+            case quip
+            case cloudType            = "cloud_type"
+            case weatherMood          = "weather_mood"
+            case watchabilityScore    = "watchability_score"
+            case developedImageBase64 = "developed_image_base64"
+        }
+    }
+
+    /// Server-side AI proxy. The cropped image goes to our edge
+    /// function (`develop-polaroid`) which holds the Gemini and
+    /// Gemini API key as a Supabase secret and returns the developed
+    /// PNG plus the shape metadata in a single response.
+    ///
+    /// This is the canonical scan path. The previous direct-to-
+    /// Gemini + OpenAI client code is gone; users no
+    /// longer need to bring their own API keys.
+    ///
+    /// `crop` is the smart-cropped image (typically 1024×1024).
+    /// `city` is best-effort — passed through to the metadata row
+    /// the function inserts on the user's behalf, and reflected
+    /// onto `profiles.city` for the daily-reminders aggregation.
+    /// `recentShapes` (newest first) gives the AI variety pressure
+    /// so it avoids repeating the user's recent creatures.
+    /// `weatherSummary` is a compact human-readable line about the
+    /// current conditions — it powers the weather-aware quip.
+    func developPolaroid(
+        crop: UIImage,
+        city: String?,
+        recentShapes: [String] = [],
+        weatherSummary: String? = nil
+    ) async throws -> DevelopResult {
+        try await signInAnonymouslyIfNeeded()
+        guard let client else { throw SupabaseError.notConfigured }
+        guard let jpegData = crop.jpegData(compressionQuality: 0.88) else {
+            throw SupabaseError.uploadFailed(URLError(.badURL))
+        }
+        let body: [String: AnyJSON] = [
+            "image_base64": .string(jpegData.base64EncodedString()),
+            "city": city.map { .string($0) } ?? .null,
+            "recent_shapes": .array(recentShapes.prefix(7).map { .string($0) }),
+            "weather_summary": weatherSummary.map { .string(String($0.prefix(300))) } ?? .null,
+        ]
+        do {
+            let response: DevelopResult = try await client.functions
+                .invoke("develop-polaroid", options: .init(body: body))
+            return response
+        } catch {
+            throw SupabaseError.uploadFailed(error)
+        }
     }
 
     /// Fires off a minimal aggregation payload after each developed
@@ -263,6 +369,17 @@ final class SupabaseService: ObservableObject {
             row["city"] = .string(String(city.prefix(60)))
         }
         try? await client.from("sighting_metadata").insert(row).execute()
+
+        // Keep `profiles.city` fresh so the daily-reminders edge
+        // function knows which city to summarize for this user. We
+        // overwrite rather than maintain history; "where you last
+        // scanned" is the right anchor for the reminder push.
+        if let city, !city.isEmpty {
+            try? await client.from("profiles")
+                .update(["city": AnyJSON.string(String(city.prefix(60)))])
+                .eq("id", value: userId.uuidString)
+                .execute()
+        }
     }
 
     private func upsertProfile(id: UUID, username: String) async throws {
@@ -289,230 +406,5 @@ final class SupabaseService: ObservableObject {
             throw SupabaseError.queryFailed(URLError(.cannotParseResponse))
         }
         return profile
-    }
-
-    // MARK: - Sightings
-
-    func uploadSighting(
-        _ sighting: CloudSighting,
-        imageData: Data
-    ) async throws -> CloudSighting {
-        Telemetry.uploadStart()
-        do {
-            return try await uploadSightingCore(sighting, imageData: imageData)
-        } catch {
-            Telemetry.uploadFinish(success: false, error: error)
-            throw error
-        }
-    }
-
-    private func uploadSightingCore(
-        _ sighting: CloudSighting,
-        imageData: Data
-    ) async throws -> CloudSighting {
-        guard let client else { throw SupabaseError.notConfigured }
-        guard isAuthenticated,
-              let userId = currentUser?.id else { throw SupabaseError.notAuthenticated }
-
-        // Upload image to storage
-        let filename = "\(userId)/\(sighting.id.uuidString).jpg"
-        _ = try await client.storage
-            .from("sighting-images")
-            .upload(
-                filename,
-                data: imageData,
-                options: FileOptions(contentType: "image/jpeg")
-            )
-
-        let imageURL = try client.storage
-            .from("sighting-images")
-            .getPublicURL(path: filename)
-            .absoluteString
-
-        // Build drawing_paths as AnyJSON object for JSONB column
-        let elementJSONs: [AnyJSON] = sighting.drawingElements.map { el in
-            let pointsJSON: AnyJSON = .array(el.points.map { pair in
-                .array(pair.map { .double($0) })
-            })
-            var obj: [String: AnyJSON] = [
-                "points": pointsJSON,
-                "smooth": .bool(el.smooth),
-                "stroke_width": .double(el.strokeWidth)
-            ]
-            if let label = el.label { obj["label"] = .string(label) }
-            return .object(obj)
-        }
-        let drawingPathsJSON: AnyJSON = .object([
-            "elements": .array(elementJSONs),
-            "label_x": .double(sighting.drawingLabelX),
-            "label_y": .double(sighting.drawingLabelY)
-        ])
-
-        let row: [String: AnyJSON] = [
-            "id": .string(sighting.id.uuidString),
-            "user_id": .string(userId.uuidString),
-            "image_url": .string(imageURL),
-            "shape_name": .string(sighting.shapeName),
-            "quip": .string(sighting.quip),
-            "cloud_type": .string(sighting.cloudType),
-            "weather_mood": .string(sighting.weatherMood),
-            "watchability_score": .integer(sighting.watchabilityScore),
-            "drawing_paths": drawingPathsJSON,
-            "latitude": sighting.latitude.map { .double($0) } ?? .null,
-            "longitude": sighting.longitude.map { .double($0) } ?? .null,
-            "city": sighting.city.map { .string($0) } ?? .null,
-            "country": sighting.country.map { .string($0) } ?? .null,
-            "likes": .integer(0)
-        ]
-
-        try await client.from("sightings").insert(row).execute()
-
-        // Increment user's total_sightings
-        try await client.rpc("increment_sightings", params: ["user_id_input": userId.uuidString]).execute()
-
-        // Rebuild the in-memory sighting with the server-assigned image URL
-        // but preserve every field the caller supplied. The previous
-        // shorthand called the analysis-based initializer, which silently
-        // defaulted drawingElements / drawingLabelX / drawingLabelY back to
-        // their initializer defaults (empty + 0.5 + 0.25) — drawing data
-        // was lost on the in-memory return value even though the DB row
-        // had it correctly. CaptureFlowView discards the return today, so
-        // this is preventative; future callers that consume it (e.g. a
-        // post-upload share/preview screen) will get the right values.
-        let uploaded = CloudSighting(
-            id: sighting.id,
-            userId: userId,
-            imageURL: imageURL,
-            localImageData: nil,
-            analysis: sighting.analysis,
-            drawingElements: sighting.drawingElements,
-            drawingLabelX: sighting.drawingLabelX,
-            drawingLabelY: sighting.drawingLabelY,
-            latitude: sighting.latitude,
-            longitude: sighting.longitude,
-            city: sighting.city,
-            country: sighting.country,
-            likes: 0,
-            isLikedByCurrentUser: false,
-            createdAt: sighting.createdAt
-        )
-        Telemetry.uploadFinish(success: true)
-        return uploaded
-    }
-
-    func fetchFeed(limit: Int = 30, offset: Int = 0) async throws -> [CloudSighting] {
-        guard let client else { throw SupabaseError.notConfigured }
-        let rows: [SightingRow] = try await client
-            .from("sightings")
-            .select("*")
-            .order("created_at", ascending: false)
-            .range(from: offset, to: offset + limit - 1)
-            .execute()
-            .value
-
-        let likedIds = await fetchLikedIds()
-        return rows.map { $0.toSighting(isLiked: likedIds.contains($0.id)) }
-    }
-
-    func fetchNearbySightings(latitude: Double, longitude: Double, radiusKm: Double = 50) async throws -> [CloudSighting] {
-        guard let client else { throw SupabaseError.notConfigured }
-        let rows: [SightingRow] = try await client
-            .rpc("sightings_within_radius", params: [
-                "lat": latitude,
-                "lon": longitude,
-                "radius_km": radiusKm
-            ])
-            .execute()
-            .value
-        // Populate liked-by-current-user the same way fetchFeed does, so
-        // SightingCards rendered from the nearby list show the correct
-        // heart state and the like-toggle starts from the right value.
-        let likedIds = await fetchLikedIds()
-        return rows.map { $0.toSighting(isLiked: likedIds.contains($0.id)) }
-    }
-
-    func fetchCityStats() async throws -> [CityStats] {
-        guard let client else { throw SupabaseError.notConfigured }
-        struct CityRow: Codable {
-            let city: String
-            let country: String
-            let count: Int
-            let latitude: Double
-            let longitude: Double
-            let recentShapes: [String]
-            enum CodingKeys: String, CodingKey {
-                case city, country, count, latitude, longitude
-                case recentShapes = "recent_shapes"
-            }
-        }
-        let rows: [CityRow] = try await client
-            .rpc("city_sighting_stats")
-            .execute()
-            .value
-        return rows.map {
-            CityStats(
-                id: "\($0.city)-\($0.country)",
-                city: $0.city,
-                country: $0.country,
-                count: $0.count,
-                latitude: $0.latitude,
-                longitude: $0.longitude,
-                recentShapes: $0.recentShapes
-            )
-        }
-    }
-
-    func fetchUserSightings(userId: UUID, limit: Int = 50) async throws -> [CloudSighting] {
-        guard let client else { throw SupabaseError.notConfigured }
-        let rows: [SightingRow] = try await client
-            .from("sightings")
-            .select("*")
-            .eq("user_id", value: userId.uuidString)
-            .order("created_at", ascending: false)
-            .limit(limit)
-            .execute()
-            .value
-        // Same fix as fetchNearbySightings — without this the profile grid
-        // shows every heart in the unfilled state even on sightings the
-        // viewer has liked.
-        let likedIds = await fetchLikedIds()
-        return rows.map { $0.toSighting(isLiked: likedIds.contains($0.id)) }
-    }
-
-    func reportSighting(id: UUID, reason: String) async throws {
-        guard let client else { throw SupabaseError.notConfigured }
-        guard let userId = currentUser?.id else { throw SupabaseError.notAuthenticated }
-        let row: [String: AnyJSON] = [
-            "sighting_id": .string(id.uuidString),
-            "reported_by": .string(userId.uuidString),
-            "reason": .string(reason)
-        ]
-        try await client.from("sighting_reports").insert(row).execute()
-    }
-
-    func toggleLike(sightingId: UUID) async throws -> Bool {
-        guard let client else { throw SupabaseError.notConfigured }
-        guard let userId = currentUser?.id else { throw SupabaseError.notAuthenticated }
-        struct LikeResult: Codable { let liked: Bool }
-        let result: LikeResult = try await client
-            .rpc("toggle_like", params: [
-                "p_sighting_id": sightingId.uuidString,
-                "p_user_id": userId.uuidString
-            ])
-            .execute()
-            .value
-        return result.liked
-    }
-
-    private func fetchLikedIds() async -> Set<UUID> {
-        guard let client, let userId = currentUser?.id else { return [] }
-        struct LikeRow: Codable { let sightingId: UUID; enum CodingKeys: String, CodingKey { case sightingId = "sighting_id" } }
-        let rows: [LikeRow] = (try? await client
-            .from("sighting_likes")
-            .select("sighting_id")
-            .eq("user_id", value: userId.uuidString)
-            .execute()
-            .value) ?? []
-        return Set(rows.map(\.sightingId))
     }
 }

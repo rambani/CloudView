@@ -42,27 +42,42 @@ struct TodaysPolaroidView: View {
             VStack(spacing: 0) {
                 topBar
                 Spacer(minLength: 8)
-                ZoomableView { polaroid }
+                ZoomableView(onSingleTap: { showNoteEditor = true }) { polaroid }
                     .padding(.horizontal, 36)
                     .offset(x: dragOffset)
                     .rotationEffect(.degrees(-1.2 + dragOffset / 80))
                     .gesture(swipeToGallery)
-                    .onTapGesture { showNoteEditor = true }
                 Spacer(minLength: 8)
                 Color.clear.frame(height: 260)   // reserve space for drawer peek
             }
 
-            GlassDrawer(position: $drawerPosition, peekHeight: 200, halfFraction: 0.55) {
-                WeatherDrawerContent(weather: weather) {
+            GlassDrawer(position: $drawerPosition, peekHeight: 160, halfFraction: 0.55) {
+                // Peek surfaces today's quip + temperature; expand
+                // shows action row + watchability + sun arc.
+                WeatherDrawerContent(weather: weather, quip: entry.quip) {
                     AnyView(drawerActionRow)
                 }
+            }
+
+            // Gallery as an in-hierarchy overlay (not a cover) so it
+            // can slide in from the leading edge — the spatial mate
+            // of the card flying off to the right under the swipe.
+            if showGallery {
+                JournalGalleryView(
+                    focusEntryId: entry.id,
+                    onClose: {
+                        withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+                            showGallery = false
+                        }
+                    }
+                )
+                .ignoresSafeArea()
+                .transition(.move(edge: .leading))
+                .zIndex(50)
             }
         }
         .preferredColorScheme(.dark)
         .task { await loadWeather() }
-        .fullScreenCover(isPresented: $showGallery) {
-            JournalGalleryView(focusEntryId: entry.id)
-        }
         .sheet(isPresented: $showNoteEditor) { NoteEditorSheet(entry: entry) }
         .sheet(isPresented: $showUpgrade) { UpgradeSheetView() }
         .sheet(isPresented: $showSettings) { SettingsView() }
@@ -85,7 +100,7 @@ struct TodaysPolaroidView: View {
                 showSettings = true
             } label: {
                 Image(systemName: "gearshape")
-                    .font(.system(size: 15, weight: .semibold))
+                    .scaledFont(size: 15, weight: .semibold)
                     .foregroundStyle(.white.opacity(0.85))
                     .frame(width: 36, height: 36)
                     .background(Circle().fill(.white.opacity(0.10)))
@@ -95,26 +110,29 @@ struct TodaysPolaroidView: View {
             Spacer()
             VStack(spacing: 2) {
                 Text("TODAY")
-                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    .scaledFont(size: 11, weight: .semibold, design: .monospaced)
                     .tracking(2)
                     .foregroundStyle(.white.opacity(0.55))
                 if store.currentStreak >= 2 {
                     Text("\(store.currentStreak)-DAY STREAK")
-                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                        .scaledFont(size: 10, weight: .semibold, design: .monospaced)
                         .tracking(1.5)
                         .foregroundStyle(CV.Color.accent.opacity(0.85))
                 } else {
                     Text(headerDate)
-                        .font(.system(size: 11, design: .monospaced))
+                        .scaledFont(size: 11, design: .monospaced)
                         .foregroundStyle(.white.opacity(0.40))
                 }
             }
             Spacer()
             Button {
-                showGallery = true
+                Haptics.tap()
+                withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+                    showGallery = true
+                }
             } label: {
                 Image(systemName: "rectangle.stack")
-                    .font(.system(size: 15, weight: .semibold))
+                    .scaledFont(size: 15, weight: .semibold)
                     .foregroundStyle(.white.opacity(0.85))
                     .frame(width: 36, height: 36)
                     .background(Circle().fill(.white.opacity(0.10)))
@@ -140,7 +158,7 @@ struct TodaysPolaroidView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "camera.fill")
                     Text("Capture another sky")
-                        .font(.system(size: 15, weight: .semibold))
+                        .scaledFont(size: 15, weight: .semibold)
                 }
                 .foregroundStyle(.black)
                 .frame(maxWidth: .infinity)
@@ -151,12 +169,12 @@ struct TodaysPolaroidView: View {
         } else {
             VStack(alignment: .center, spacing: 6) {
                 Text("Tomorrow's sky awaits ☁︎")
-                    .font(.system(size: 14, weight: .regular, design: .serif))
+                    .scaledFont(size: 14, weight: .regular, design: .serif)
                     .italic()
                     .foregroundStyle(.white.opacity(0.75))
                 Button { showUpgrade = true } label: {
                     Text("Or unlock unlimited Polaroids")
-                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                        .scaledFont(size: 12, weight: .semibold, design: .monospaced)
                         .tracking(0.5)
                         .foregroundStyle(CV.Color.accent)
                 }
@@ -207,13 +225,16 @@ struct TodaysPolaroidView: View {
                 let commit = value.translation.width > 80
                     || value.predictedEndTranslation.width > 180
                 if commit {
+                    Haptics.soft()
                     withAnimation(.easeOut(duration: 0.18)) {
                         dragOffset = UIScreen.main.bounds.width
                     }
                     Task {
                         try? await Task.sleep(for: .milliseconds(160))
-                        showGallery = true
-                        try? await Task.sleep(for: .milliseconds(50))
+                        withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+                            showGallery = true
+                        }
+                        try? await Task.sleep(for: .milliseconds(80))
                         dragOffset = 0
                     }
                 } else {

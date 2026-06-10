@@ -110,23 +110,19 @@ enum Telemetry {
     // MARK: - Helpers
 
     /// Short, low-cardinality label for the kind of scan failure
-    /// observed. Keeps dashboards clean: 5 distinct values instead of
-    /// thousands of localized error strings.
+    /// observed. Keeps dashboards clean: a handful of distinct values
+    /// instead of thousands of localized error strings.
     private static func geminiCategory(_ error: Error) -> String {
-        if let g = error as? GeminiError {
-            switch g {
-            case .missingAPIKey:                            return "missing_api_key"
-            case .imageEncodingFailed:                      return "image_encoding_failed"
-            case .networkError:                             return "network_error"
-            case .invalidResponse(let code, _) where code == 429: return "rate_limited"
-            case .invalidResponse(let code, _) where (401...403).contains(code): return "auth_error"
-            case .invalidResponse(let code, _) where (500...599).contains(code): return "server_error"
-            case .invalidResponse:                          return "invalid_response"
-            case .parseError:                               return "parse_error"
-            }
-        }
         if (error as NSError).domain == NSURLErrorDomain {
             return "network_error"
+        }
+        if let supabase = error as? SupabaseError {
+            switch supabase {
+            case .notConfigured:    return "backend_not_configured"
+            case .notAuthenticated: return "auth_error"
+            case .uploadFailed:     return "upload_failed"
+            case .queryFailed:      return "query_failed"
+            }
         }
         return "unknown"
     }

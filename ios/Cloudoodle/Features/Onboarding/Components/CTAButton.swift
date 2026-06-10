@@ -11,9 +11,9 @@ struct PrimaryCTA: View {
         Button(action: action) {
             HStack(spacing: 8) {
                 Text(title)
-                    .font(.system(size: 16, weight: .semibold))
+                    .scaledFont(size: 16, weight: .semibold)
                 if let systemImage {
-                    Image(systemName: systemImage).font(.system(size: 14, weight: .semibold))
+                    Image(systemName: systemImage).scaledFont(size: 14, weight: .semibold)
                 }
             }
             .foregroundStyle(.white)
@@ -37,7 +37,7 @@ struct SecondaryCTA: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 14, weight: .medium))
+                .scaledFont(size: 14, weight: .medium)
                 .foregroundStyle(CV.Color.textSecondary)
                 .frame(height: 36)
                 .padding(.horizontal, 16)

@@ -17,17 +17,24 @@ struct DemoPage: View {
         let palette: SkyBackdrop.Palette
         let conditions: String
         let temperatureF: Int
+        /// Sample weather-aware quip — previews the voice the real
+        /// AI quips use (shape + actual conditions in one line).
+        let quip: String
     }
 
     private let demos: [Demo] = [
         Demo(shapeName: "a whale, drifting", palette: .day,
-             conditions: "scattered cumulus", temperatureF: 72),
+             conditions: "scattered cumulus", temperatureF: 72,
+             quip: "Smooth sailing for this whale — not a ripple in the sky till sundown."),
         Demo(shapeName: "a sleeping dragon", palette: .sunset,
-             conditions: "broken cloud", temperatureF: 65),
+             conditions: "broken cloud", temperatureF: 65,
+             quip: "Let the dragon sleep — rain rolls in within the hour."),
         Demo(shapeName: "a cotton-tailed rabbit", palette: .day,
-             conditions: "clear sky", temperatureF: 78),
+             conditions: "clear sky", temperatureF: 78,
+             quip: "78° and not a cloud to hide in — bold move, rabbit."),
         Demo(shapeName: "a sailboat, far horizon", palette: .day,
-             conditions: "scattered cumulus", temperatureF: 70)
+             conditions: "scattered cumulus", temperatureF: 70,
+             quip: "A 12 mph westerly — perfect sailing weather, as it happens.")
     ]
 
     @State private var index = 0
@@ -41,11 +48,11 @@ struct DemoPage: View {
                     .foregroundStyle(CV.Color.accentBlue)
                     .tracking(1.5)
                 (Text("One frame. ") + Text("Stamped with the moment.").italic())
-                    .font(.system(size: 26, weight: .regular, design: .serif))
+                    .scaledFont(size: 26, weight: .regular, design: .serif)
                     .foregroundStyle(CV.Color.textPrimary)
                     .fixedSize(horizontal: false, vertical: true)
-                Text("Each Polaroid carries the date, the weather, and a shape the AI noticed in the sky.")
-                    .font(.system(size: 14))
+                Text("Each Polaroid carries the date, the weather, the shape the AI noticed — and a line about how the two are getting along.")
+                    .scaledFont(size: 14)
                     .foregroundStyle(CV.Color.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -90,19 +97,19 @@ struct DemoPage: View {
             // Top border — same date/time stamp pattern
             HStack(alignment: .firstTextBaseline) {
                 Text(dayOfWeek)
-                    .font(.system(size: 10, weight: .regular, design: .serif))
+                    .scaledFont(size: 10, weight: .regular, design: .serif)
                     .italic()
                     .tracking(1.5)
                     .foregroundStyle(.black.opacity(0.55))
                 Spacer(minLength: 6)
                 Text(dateStamp)
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .scaledFont(size: 11, weight: .medium, design: .monospaced)
                     .foregroundStyle(.black.opacity(0.6))
                 Text("·")
-                    .font(.system(size: 10, design: .monospaced))
+                    .scaledFont(size: 10, design: .monospaced)
                     .foregroundStyle(.black.opacity(0.3))
                 Text(timeStamp)
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .scaledFont(size: 11, weight: .medium, design: .monospaced)
                     .foregroundStyle(.black.opacity(0.6))
             }
             .padding(.horizontal, 16)
@@ -120,7 +127,7 @@ struct DemoPage: View {
                     Spacer()
                     HStack {
                         Text(demo.shapeName)
-                            .font(.system(size: 14, weight: .regular, design: .serif))
+                            .scaledFont(size: 14, weight: .regular, design: .serif)
                             .italic()
                             .foregroundStyle(.white.opacity(0.92))
                             .shadow(color: .black.opacity(0.55), radius: 6, y: 1)
@@ -133,14 +140,16 @@ struct DemoPage: View {
             .aspectRatio(1, contentMode: .fit)
             .clipped()
 
-            // Bottom border — temp + conditions + city
+            // Bottom border — temp + conditions (matches the real
+            // PolaroidCard; the weather-aware quip lives in the
+            // drawer peek, not on the print).
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("\(demo.temperatureF)°")
-                        .font(.system(size: 22, weight: .regular, design: .serif))
+                        .scaledFont(size: 22, weight: .regular, design: .serif)
                         .foregroundStyle(.black.opacity(0.78))
                     Text("\(demo.conditions) · sample")
-                        .font(.system(size: 12, weight: .regular, design: .serif))
+                        .scaledFont(size: 12, weight: .regular, design: .serif)
                         .italic()
                         .foregroundStyle(.black.opacity(0.55))
                 }
@@ -181,6 +190,6 @@ struct DemoPage: View {
         // Mild tilt swap so each tap feels physical
         let amplitudes: [Double] = [-2.6, -1.2, -3.2, 0.8]
         tilt = amplitudes[index % amplitudes.count]
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        Haptics.tap()
     }
 }

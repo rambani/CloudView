@@ -1,21 +1,11 @@
-// Cloudoodle — API Keys Configuration
+// Cloudoodle — Build Configuration
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. Copy this file to Config.xcconfig (same directory)
 // 2. Fill in your values below
-// 3. Config.xcconfig is gitignored — never commit real keys
+// 3. Config.xcconfig is gitignored — never commit real values
 //
 // After filling in, run: xcodegen generate
 // ─────────────────────────────────────────────────────────────────────────────
-
-// Google AI Studio — free at https://aistudio.google.com/app/apikey
-// Free tier: 1,500 requests/day, 1M tokens/day
-GEMINI_API_KEY =
-
-// OpenAI — used ONLY for the optional "Develop with AI" feature
-// (gpt-image-1, ~$0.04 per render). Leave blank to disable the
-// develop button; the cheap on-device path still works without this.
-// Get a key at https://platform.openai.com/api-keys
-OPENAI_API_KEY =
 
 // Supabase project URL — found in Settings → API in your Supabase dashboard
 SUPABASE_URL = https://xxxxxxxxxxxxxxxxxxxx.supabase.co
@@ -26,3 +16,11 @@ SUPABASE_ANON_KEY = eyJ...
 // Sentry DSN — create a project at https://sentry.io (free tier available)
 // Leave blank to disable crash reporting
 SENTRY_DSN =
+
+// Note: AI keys are NOT in the client anymore. The entire AI pipeline
+// (analysis + image develop) runs on Google Gemini via the
+// `develop-polaroid` Supabase edge function:
+//   supabase secrets set GEMINI_API_KEY=<key>
+//
+// Earlier builds bundled Gemini/OpenAI keys into Info.plist via
+// Config.xcconfig; that path is removed in favor of the proxy.

@@ -17,14 +17,14 @@ struct LegalView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     if let attributed = loadMarkdown() {
                         Text(attributed)
-                            .font(.system(size: 15))
+                            .scaledFont(size: 15)
                             .foregroundStyle(CV.Color.textPrimary)
                             .textSelection(.enabled)
                             .fixedSize(horizontal: false, vertical: true)
                     } else {
                         VStack(spacing: 12) {
                             Image(systemName: "doc.text.magnifyingglass")
-                                .font(.system(size: 32))
+                                .scaledFont(size: 32)
                                 .foregroundStyle(CV.Color.textTertiary)
                             Text("Couldn't load \(resourceName).md")
                                 .font(CV.Font.ui)

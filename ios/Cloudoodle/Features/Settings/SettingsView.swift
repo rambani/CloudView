@@ -23,6 +23,18 @@ struct SettingsView: View {
     @State private var reminderTime = DailyReminderService.shared.reminderTime
     @State private var reminderPermissionDenied = false
 
+    // Journal export
+    @State private var isExporting = false
+    @State private var exportURL: ExportArchive?
+    @State private var exportError: String?
+
+    /// Identifiable wrapper so the share sheet presents from an
+    /// optional binding.
+    struct ExportArchive: Identifiable {
+        let url: URL
+        var id: String { url.path }
+    }
+
     // Auth form
     @State private var email = ""
     @State private var password = ""
@@ -71,7 +83,7 @@ struct SettingsView: View {
                             Toggle(isOn: $showShapeCaption) {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("Show shape name on Polaroid")
-                                        .font(.system(size: 14, weight: .medium))
+                                        .scaledFont(size: 14, weight: .medium)
                                         .foregroundStyle(CV.Color.textPrimary)
                                     Text("Faint italic caption inside the photo.")
                                         .font(CV.Font.caption)
@@ -86,55 +98,87 @@ struct SettingsView: View {
                             reminderSection
                         }
 
-                        // Gemini section
-                        SettingsSection(title: "AI Analysis", icon: "brain") {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Google AI Studio API Key")
+                        // Your data — the journal lives only on this
+                        // device until cloud sync exists; export is the
+                        // way out (zip of every photo + a journal.txt).
+                        SettingsSection(title: "Your Data", icon: "square.and.arrow.up.on.square") {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("Your Polaroids and notes are stored on this device. Export a .zip with every photo (developed + original) and a text file of your notes.")
                                     .font(CV.Font.caption)
-                                    .foregroundStyle(CV.Color.textTertiary)
-                                SecureRevealField(
-                                    text: $geminiKey,
-                                    isRevealed: $showAnthropicKey,
-                                    placeholder: "AIza..."
-                                )
-                                HStack(spacing: 4) {
-                                    Image(systemName: geminiKey.isEmpty ? "exclamationmark.circle" : "checkmark.circle")
-                                        .foregroundStyle(geminiKey.isEmpty ? .orange : .green)
-                                    Text(geminiKey.isEmpty
-                                         ? "Free at aistudio.google.com — 1,500 scans/day"
-                                         : "Gemini Flash active · quips generated on-device")
-                                        .foregroundStyle(CV.Color.textTertiary)
+                                    .foregroundStyle(CV.Color.textSecondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                Button {
+                                    Task { await exportJournal() }
+                                } label: {
+                                    HStack(spacing: 6) {
+                                        if isExporting {
+                                            ProgressView().tint(.black).scaleEffect(0.7)
+                                        } else {
+                                            Image(systemName: "square.and.arrow.up")
+                                        }
+                                        Text(isExporting ? "Preparing…" : "Export Journal")
+                                            .scaledFont(size: 14, weight: .semibold)
+                                    }
+                                    .foregroundStyle(.black)
+                                    .padding(.horizontal, 14).padding(.vertical, 9)
+                                    .background(Capsule().fill(CV.Color.accent))
                                 }
-                                .font(CV.Font.caption)
+                                .buttonStyle(.plain)
+                                .disabled(isExporting)
+                                if let exportError {
+                                    Text(exportError)
+                                        .font(CV.Font.caption)
+                                        .foregroundStyle(.red)
+                                }
                             }
                         }
 
-                        // OpenAI section — required for the Polaroid
-                        // develop step (every scan goes through it).
-                        SettingsSection(title: "Polaroid Develop", icon: "wand.and.sparkles") {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("OpenAI API Key")
+                        // The Gemini API key is now held as a
+                        // secrets on the server (Supabase edge function
+                        // `develop-polaroid`). Users no longer need to
+                        // bring their own keys. The legacy DEBUG fields
+                        // below let developers override the key on a
+                        // dev build, but the production app never reads
+                        // them — calls go through the proxy regardless.
+                        #if DEBUG
+                        SettingsSection(title: "AI Keys (DEBUG)", icon: "key") {
+                            VStack(alignment: .leading, spacing: 12) {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Gemini API Key — unused at runtime")
+                                        .font(CV.Font.caption)
+                                        .foregroundStyle(CV.Color.textTertiary)
+                                    SecureRevealField(
+                                        text: $geminiKey,
+                                        isRevealed: $showAnthropicKey,
+                                        placeholder: "AIza..."
+                                    )
+                                }
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("OpenAI API Key — fully retired (Gemini handles the develop now)")
+                                        .font(CV.Font.caption)
+                                        .foregroundStyle(CV.Color.textTertiary)
+                                    SecureRevealField(
+                                        text: $openaiKey,
+                                        isRevealed: $showOpenAIKey,
+                                        placeholder: "sk-..."
+                                    )
+                                }
+                                Text("Both keys are held as Supabase secrets by the develop-polaroid edge function. The fields above are kept for legacy reference only.")
                                     .font(CV.Font.caption)
                                     .foregroundStyle(CV.Color.textTertiary)
-                                SecureRevealField(
-                                    text: $openaiKey,
-                                    isRevealed: $showOpenAIKey,
-                                    placeholder: "sk-..."
-                                )
-                                HStack(spacing: 4) {
-                                    Image(systemName: openaiKey.isEmpty ? "exclamationmark.circle" : "checkmark.circle")
-                                        .foregroundStyle(openaiKey.isEmpty ? .orange : .green)
-                                    Text(openaiKey.isEmpty
-                                         ? "Required to develop Polaroids · ~$0.04 per image"
-                                         : "Developing every Polaroid · gpt-image-1 active")
-                                        .foregroundStyle(CV.Color.textTertiary)
-                                }
-                                .font(CV.Font.caption)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
                         }
+                        #endif
 
-                        // Supabase section
-                        SettingsSection(title: "Community Backend", icon: "server.rack") {
+                        #if DEBUG
+                        // Supabase URL + anon key are normally baked
+                        // in at build time via Config.xcconfig — no
+                        // user should ever see these fields. Kept
+                        // behind DEBUG so devs can point a test build
+                        // at a different Supabase project without
+                        // rebuilding.
+                        SettingsSection(title: "Backend (DEBUG)", icon: "server.rack") {
                             VStack(alignment: .leading, spacing: 12) {
                                 LabeledField(label: "Supabase URL", placeholder: "https://xxx.supabase.co", text: $supabaseURL)
                                 VStack(alignment: .leading, spacing: 8) {
@@ -150,11 +194,12 @@ struct SettingsView: View {
                                 Button("Apply & Reconnect") {
                                     supabase.configure()
                                 }
-                                .font(.system(size: 14, weight: .semibold))
+                                .scaledFont(size: 14, weight: .semibold)
                                 .foregroundStyle(supabase.isConfigured ? CV.Color.accentBlue : CV.Color.textTertiary)
                                 .disabled(!supabase.isConfigured)
                             }
                         }
+                        #endif
 
                         // Auth section
                         SettingsSection(title: supabase.isAuthenticated ? "Account" : "Sign In", icon: "person.circle") {
@@ -226,7 +271,7 @@ struct SettingsView: View {
                         // sync with whatever the xcconfig is building.
                         VStack(spacing: 4) {
                             Text("Cloudoodle")
-                                .font(.system(size: 13, weight: .semibold))
+                                .scaledFont(size: 13, weight: .semibold)
                                 .foregroundStyle(CV.Color.textTertiary)
                             Text("Find shapes in the sky")
                                 .font(CV.Font.caption)
@@ -260,6 +305,9 @@ struct SettingsView: View {
             .sheet(isPresented: $showUpgrade) {
                 UpgradeSheetView()
             }
+            .sheet(item: $exportURL) { archive in
+                ActivityViewSheet(items: [archive.url])
+            }
         }
         .preferredColorScheme(.dark)
         .task { await subscriptions.refreshEntitlements() }
@@ -275,7 +323,7 @@ struct SettingsView: View {
             Toggle(isOn: $reminderEnabled) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Remind me daily")
-                        .font(.system(size: 14, weight: .medium))
+                        .scaledFont(size: 14, weight: .medium)
                         .foregroundStyle(CV.Color.textPrimary)
                     Text("A quiet nudge to look up — only on days you haven't scanned.")
                         .font(CV.Font.caption)
@@ -294,7 +342,7 @@ struct SettingsView: View {
                     selection: $reminderTime,
                     displayedComponents: .hourAndMinute
                 )
-                .font(.system(size: 14))
+                .scaledFont(size: 14)
                 .foregroundStyle(CV.Color.textPrimary)
                 .tint(CV.Color.accent)
                 .onChange(of: reminderTime) { _, newValue in
@@ -315,10 +363,12 @@ struct SettingsView: View {
                 }
             }
 
-            // Forward-looking hint — sets expectations now while the
-            // backend aggregation isn't wired yet.
-            Text("Coming soon: when enough people near you spot the same shape, the reminder will say so.")
-                .font(.system(size: 11, design: .serif))
+            // Reminder source hint — explains why the wording the
+            // user sees depends on whether they're signed in.
+            Text(subscriptions.isSubscribed || SupabaseService.shared.isAuthenticated
+                 ? "Sign-in active: the reminder summarizes what people near you saw today."
+                 : "Sign in to get a reminder summarizing what people near you saw today; otherwise it's a warm-generic nudge.")
+                .scaledFont(size: 11, design: .serif)
                 .italic()
                 .foregroundStyle(CV.Color.textTertiary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -358,7 +408,7 @@ struct SettingsView: View {
                     Image(systemName: "checkmark.seal.fill")
                         .foregroundStyle(CV.Color.accent)
                     Text("Unlimited active")
-                        .font(.system(size: 14, weight: .semibold))
+                        .scaledFont(size: 14, weight: .semibold)
                         .foregroundStyle(CV.Color.textPrimary)
                     Spacer()
                 }
@@ -368,7 +418,7 @@ struct SettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
                 if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
                     Link("Manage subscription", destination: url)
-                        .font(.system(size: 13, weight: .medium))
+                        .scaledFont(size: 13, weight: .medium)
                         .foregroundStyle(CV.Color.accentBlue)
                         .padding(.top, 4)
                 }
@@ -376,7 +426,7 @@ struct SettingsView: View {
         } else {
             VStack(alignment: .leading, spacing: 10) {
                 Text("One free Polaroid per day. Upgrade for unlimited captures and to support a tiny indie app.")
-                    .font(.system(size: 13, design: .serif))
+                    .scaledFont(size: 13, design: .serif)
                     .foregroundStyle(CV.Color.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 Button {
@@ -385,7 +435,7 @@ struct SettingsView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "sparkles")
                         Text("See plans")
-                            .font(.system(size: 14, weight: .semibold))
+                            .scaledFont(size: 14, weight: .semibold)
                     }
                     .foregroundStyle(.black)
                     .padding(.horizontal, 14).padding(.vertical, 9)
@@ -436,6 +486,18 @@ struct SettingsView: View {
         isAuthLoading = false
     }
 
+    private func exportJournal() async {
+        isExporting = true
+        exportError = nil
+        do {
+            let url = try await JournalStore.shared.exportArchive()
+            exportURL = ExportArchive(url: url)
+        } catch {
+            exportError = "Couldn't build the export: \(error.localizedDescription)"
+        }
+        isExporting = false
+    }
+
     private func deleteAccount() async {
         isDeletingAccount = true
         do {
@@ -472,11 +534,11 @@ private struct LegalRow: View {
     private var rowContent: some View {
         HStack(spacing: 8) {
             Text(title)
-                .font(.system(size: 14))
+                .scaledFont(size: 14)
                 .foregroundStyle(CV.Color.textPrimary)
             Spacer()
             Image(systemName: url == nil ? "doc.text" : "arrow.up.right")
-                .font(.system(size: 11, weight: .semibold))
+                .scaledFont(size: 11, weight: .semibold)
                 .foregroundStyle(CV.Color.textTertiary)
         }
         .padding(.vertical, 12)
@@ -498,7 +560,7 @@ private struct SettingsSection<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Label(title, systemImage: icon)
-                .font(.system(size: 13, weight: .semibold))
+                .scaledFont(size: 13, weight: .semibold)
                 .foregroundStyle(CV.Color.textSecondary)
                 .textCase(.uppercase)
 
@@ -577,7 +639,7 @@ private struct AuthenticatedView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(user.username)
-                        .font(.system(size: 15, weight: .semibold))
+                        .scaledFont(size: 15, weight: .semibold)
                         .foregroundStyle(CV.Color.textPrimary)
                     Text("\(user.totalSightings) sightings · \(user.streakDays) day streak")
                         .font(CV.Font.caption)
@@ -585,7 +647,7 @@ private struct AuthenticatedView: View {
                 }
                 Spacer()
                 Button("Sign Out", action: onSignOut)
-                    .font(.system(size: 14, weight: .medium))
+                    .scaledFont(size: 14, weight: .medium)
                     .foregroundStyle(CV.Color.accentBlue)
             }
 
@@ -599,7 +661,7 @@ private struct AuthenticatedView: View {
                         ProgressView().tint(.red).scaleEffect(0.7)
                     }
                     Text(isDeleting ? "Deleting account…" : "Delete Account")
-                        .font(.system(size: 13, weight: .medium))
+                        .scaledFont(size: 13, weight: .medium)
                         .foregroundStyle(.red.opacity(0.8))
                 }
             }
@@ -665,7 +727,7 @@ private struct AuthForm: View {
                 HStack {
                     if isLoading { ProgressView().tint(.black).scaleEffect(0.8) }
                     Text(isSignUp ? "Create Account" : "Sign In")
-                        .font(.system(size: 15, weight: .semibold))
+                        .scaledFont(size: 15, weight: .semibold)
                 }
                 .foregroundStyle(.black)
                 .frame(maxWidth: .infinity)
