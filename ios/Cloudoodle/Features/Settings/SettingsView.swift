@@ -364,8 +364,10 @@ struct SettingsView: View {
             }
 
             // Reminder source hint — explains why the wording the
-            // user sees depends on whether they're signed in.
-            Text(subscriptions.isSubscribed || SupabaseService.shared.isAuthenticated
+            // user sees depends on whether they're signed in. (Who
+            // sends the reminder is purely an auth question; the
+            // subscription has nothing to do with it.)
+            Text(SupabaseService.shared.isAuthenticated
                  ? "Sign-in active: the reminder summarizes what people near you saw today."
                  : "Sign in to get a reminder summarizing what people near you saw today; otherwise it's a warm-generic nudge.")
                 .scaledFont(size: 11, design: .serif)

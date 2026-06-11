@@ -52,6 +52,11 @@ struct CaptureFlowView: View {
     @State private var polaroidProgress: Double = 0
     @State private var polaroidError: String?
     @State private var polaroidJournalEntryId: UUID?
+    /// Monotonic token tying a develop-animation loop to its capture.
+    /// A failed develop leaves the old loop running for up to ~16s;
+    /// without the token, a quick re-capture starts a second loop and
+    /// the two interleave, visibly flickering the progress curve.
+    @State private var developGeneration = 0
 
     var body: some View {
         ZStack {
@@ -108,10 +113,12 @@ struct CaptureFlowView: View {
             get: { polaroidError != nil },
             set: { if !$0 { polaroidError = nil } }
         )) {
-            // Most develop failures the user can act on involve the
-            // backend configuration — surface Settings right from the
-            // alert so they don't have to hunt for the gear icon.
+            #if DEBUG
+            // The backend URL/key fields only exist in debug builds —
+            // in release there's nothing actionable in Settings for a
+            // develop failure, so the shortcut would just strand users.
             Button("Open Settings") { showSettings = true }
+            #endif
             Button("OK", role: .cancel) {}
         } message: {
             Text(polaroidError ?? "")
@@ -126,6 +133,7 @@ struct CaptureFlowView: View {
     /// previous client-side direct calls to those APIs — and the
     /// associated user-supplied API keys — are gone.
     private func startDevelop(originalImage: UIImage, crop: SmartCrop.Result) {
+        developGeneration += 1
         polaroidOriginal = originalImage
         polaroidDeveloped = nil
         polaroidProgress = 0
@@ -143,7 +151,7 @@ struct CaptureFlowView: View {
 
                 guard let developedData = Data(base64Encoded: result.developedImageBase64),
                       let developedImage = UIImage(data: developedData) else {
-                    throw SupabaseError.uploadFailed(URLError(.cannotParseResponse))
+                    throw SupabaseError.developFailed(URLError(.cannotParseResponse))
                 }
 
                 // Composite developed crop back into the original
@@ -189,11 +197,14 @@ struct CaptureFlowView: View {
                 await DailyReminderService.shared.notifyDidScan()
                 // The edge function inserts sighting_metadata + updates
                 // profiles.city on the server side, so no separate
-                // recordSightingMetadata call is needed here.
+                // client-side write is needed here.
                 Telemetry.scanSuccess(shapeName: result.shapeName)
             } catch {
                 Telemetry.scanFailure(error: error)
                 await MainActor.run {
+                    // Invalidate this capture's animation loop right
+                    // away instead of letting it run out its ~16s.
+                    developGeneration += 1
                     polaroidError = (error as? LocalizedError)?.errorDescription
                         ?? error.localizedDescription
                     showPolaroid = false
@@ -209,11 +220,15 @@ struct CaptureFlowView: View {
     /// step with user expectation. When the API actually returns,
     /// startDevelop flips it to 1.0 with a hard cut.
     private func driveDevelopAnimation() {
+        let generation = developGeneration
         Task {
             let totalSteps = 90
             let stepDelay: Duration = .milliseconds(180)
             for step in 0..<totalSteps {
-                if polaroidDeveloped != nil { break }
+                // Stop when the develop landed — or when this loop's
+                // capture is no longer the live one (failed develop
+                // followed by a re-capture started a fresh loop).
+                if polaroidDeveloped != nil || developGeneration != generation { break }
                 let x = Double(step) / Double(totalSteps)
                 let curve = 0.92 / (1 + exp(-6 * (x - 0.45)))
                 await MainActor.run { polaroidProgress = curve }
@@ -446,7 +461,12 @@ struct CaptureFlowView: View {
         }
         Haptics.shutter()
         do {
-            let image = try await camera.capturePhoto()
+            // Normalize EXIF orientation immediately: Vision, SmartCrop,
+            // and the develop composite all need the cgImage raster and
+            // the oriented size to be the same coordinate space, or the
+            // crop sent to the server and the spot the ink is composited
+            // back into drift apart on portrait captures.
+            let image = try await camera.capturePhoto().orientationNormalized()
 
             // Night guard — a black frame produces a garbage Polaroid
             // AND burns the free user's daily quota on it. Catch it

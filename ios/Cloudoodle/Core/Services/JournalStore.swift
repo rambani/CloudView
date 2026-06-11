@@ -176,6 +176,10 @@ final class JournalStore {
             prettyFormat.timeStyle = .short
 
             var journalText = "Cloudoodle Journal\n==================\n"
+            // Subscribers can capture the same shape twice in a day
+            // ("Capture another sky") — suffix repeats so the second
+            // file doesn't silently clobber the first.
+            var usedBaseNames: [String: Int] = [:]
             for entry in snapshot {
                 let day = dayFormat.string(from: entry.createdAt)
                 // Filesystem-safe slug from the shape name.
@@ -184,7 +188,10 @@ final class JournalStore {
                     .filter { !$0.isEmpty }
                     .joined(separator: "-")
                     .prefix(40)
-                let base = slug.isEmpty ? day : "\(day)-\(slug)"
+                var base = slug.isEmpty ? day : "\(day)-\(slug)"
+                let seen = (usedBaseNames[base] ?? 0) + 1
+                usedBaseNames[base] = seen
+                if seen > 1 { base += "-\(seen)" }
 
                 if let dev = entry.developedImageData {
                     try? dev.write(to: staging.appendingPathComponent("\(base)-polaroid.jpg"))

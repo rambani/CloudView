@@ -12,14 +12,29 @@ import SwiftUI
 /// can see the Polaroid above their typing — the "writing on the
 /// back of a print" metaphor continues without losing the picture.
 struct JournalEntryDetailView: View {
+    /// Snapshot at presentation time. Render through `liveEntry`,
+    /// not this — a note edit saves through JournalStore while this
+    /// view stays up, and a value copy would keep showing stale text.
     let entry: JournalEntry
+    /// Performs the actual deletion. Confirmation is hosted HERE,
+    /// not in the presenting gallery: while this fullScreenCover is
+    /// up, the gallery can't present a dialog, so a parent-hosted
+    /// confirm appears to do nothing and then pops up after dismiss.
     var onDelete: () -> Void = {}
 
     @Environment(\.dismiss) private var dismiss
+    @State private var store = JournalStore.shared
     @State private var showNoteEditor = false
     @State private var showOriginal = false
+    @State private var confirmDelete = false
     @State private var shareImage: UIImage?
     @AppStorage("polaroid_show_shape_caption") private var showShapeCaption = true
+
+    /// The store's current copy of this entry (falls back to the
+    /// init-time snapshot mid-deletion, while the cover dismisses).
+    private var liveEntry: JournalEntry {
+        store.entries.first(where: { $0.id == entry.id }) ?? entry
+    }
 
     var body: some View {
         ZStack {
@@ -33,7 +48,7 @@ struct JournalEntryDetailView: View {
                     inkToggle
                         .padding(.top, 14)
                 }
-                if !entry.quip.isEmpty {
+                if !liveEntry.quip.isEmpty {
                     quipLine
                         .padding(.horizontal, 32)
                         .padding(.top, 12)
@@ -46,7 +61,27 @@ struct JournalEntryDetailView: View {
         }
         .preferredColorScheme(.dark)
         .sheet(isPresented: $showNoteEditor) {
-            NoteEditorSheet(entry: entry)
+            NoteEditorSheet(entry: liveEntry)
+        }
+        .confirmationDialog(
+            "Delete this Polaroid?",
+            isPresented: $confirmDelete,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                onDelete()
+                dismiss()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            // Honesty about quota — free users sometimes try to
+            // delete and re-scan. Set the expectation.
+            if Calendar.current.isDateInToday(liveEntry.createdAt),
+               !SubscriptionService.shared.isSubscribed {
+                Text("This is today's Polaroid. Deleting it won't give you another scan until tomorrow.")
+            } else {
+                Text("The note and the photo go with it. This can't be undone.")
+            }
         }
         .sheet(item: Binding(
             get: { shareImage.map { SharePayload(image: $0) } },
@@ -61,7 +96,7 @@ struct JournalEntryDetailView: View {
     private var polaroid: some View {
         ZoomableView(onSingleTap: { showNoteEditor = true }) {
             PolaroidCard(
-                entry: entry,
+                entry: liveEntry,
                 showShapeCaption: showShapeCaption,
                 tilt: 0,
                 showOriginal: showOriginal
@@ -70,7 +105,7 @@ struct JournalEntryDetailView: View {
     }
 
     private var hasDevelopedVersion: Bool {
-        entry.developedImageData != nil
+        liveEntry.developedImageData != nil
     }
 
     /// Ink / Original segmented chip. Only shown when there IS a
@@ -111,7 +146,7 @@ struct JournalEntryDetailView: View {
     /// The day's weather-aware quip — readable for every past entry,
     /// not just today's (the drawer peek only carries today's).
     private var quipLine: some View {
-        Text(entry.quip)
+        Text(liveEntry.quip)
             .scaledFont(size: 14, weight: .regular, design: .serif)
             .italic()
             .foregroundStyle(.white.opacity(0.75))
@@ -126,7 +161,7 @@ struct JournalEntryDetailView: View {
         Button {
             showNoteEditor = true
         } label: {
-            if let note = entry.note, !note.isEmpty {
+            if let note = liveEntry.note, !note.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(note)
                         .scaledFont(size: 14, weight: .regular, design: .serif)
@@ -179,13 +214,13 @@ struct JournalEntryDetailView: View {
     @MainActor
     private func share() {
         if showOriginal {
-            if let img = UIImage(data: entry.originalImageData) {
+            if let img = UIImage(data: liveEntry.originalImageData) {
                 shareImage = img
             }
             return
         }
         let card = PolaroidCard(
-            entry: entry,
+            entry: liveEntry,
             showShapeCaption: showShapeCaption,
             tilt: 0
         )
@@ -218,7 +253,7 @@ struct JournalEntryDetailView: View {
                     share()
                 }
                 chromeButton(systemName: "trash", label: "Delete", role: .destructive) {
-                    onDelete()
+                    confirmDelete = true
                 }
             }
         }
@@ -255,6 +290,6 @@ struct JournalEntryDetailView: View {
     private var formattedDate: String {
         let f = DateFormatter()
         f.dateFormat = "EEE, MMM d"
-        return f.string(from: entry.createdAt).uppercased()
+        return f.string(from: liveEntry.createdAt).uppercased()
     }
 }

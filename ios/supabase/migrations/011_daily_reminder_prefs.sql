@@ -21,7 +21,7 @@ ALTER TABLE public.profiles
 
 ALTER TABLE public.profiles
     ADD COLUMN IF NOT EXISTS reminder_local_time TEXT
-        CHECK (reminder_local_time IS NULL OR reminder_local_time ~ '^[0-2][0-9]:[0-5][0-9]$');
+        CHECK (reminder_local_time IS NULL OR reminder_local_time ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$');
 
 ALTER TABLE public.profiles
     ADD COLUMN IF NOT EXISTS timezone TEXT

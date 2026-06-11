@@ -88,7 +88,16 @@ private struct ScaledFont: ViewModifier {
     let design: Font.Design
 
     func body(content: Content) -> some View {
-        let scaled = UIFontMetrics(forTextStyle: .body).scaledValue(for: size)
+        // Scale against the SwiftUI environment's size category, not
+        // the device-global one a bare `scaledValue(for:)` reads.
+        // This is what makes ContentView's `.dynamicTypeSize(...cap)`
+        // actually apply to point-sized chrome: the environment is
+        // capped at accessibility2, the device setting isn't.
+        let traits = UITraitCollection(
+            preferredContentSizeCategory: UIContentSizeCategory(sizeCategory)
+        )
+        let scaled = UIFontMetrics(forTextStyle: .body)
+            .scaledValue(for: size, compatibleWith: traits)
         content.font(.system(size: scaled, weight: weight, design: design))
     }
 }

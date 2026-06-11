@@ -60,11 +60,17 @@ struct JournalGalleryView: View {
                 }
         )
         .fullScreenCover(item: $detailEntry) { entry in
+            // The detail view hosts its own delete confirmation —
+            // this view is covered while it's up, so a dialog
+            // presented from here would never appear. `onDelete`
+            // is the post-confirmation action.
             JournalEntryDetailView(
                 entry: entry,
-                onDelete: { deleteConfirmFor = entry }
+                onDelete: { Task { await deleteEntry(entry) } }
             )
         }
+        // Confirmation for the context-menu path only (no cover is
+        // presented then, so this view can show the dialog itself).
         .confirmationDialog(
             "Delete this Polaroid?",
             isPresented: Binding(

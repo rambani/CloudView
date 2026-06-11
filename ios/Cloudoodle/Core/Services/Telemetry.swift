@@ -122,6 +122,7 @@ enum Telemetry {
             case .notAuthenticated: return "auth_error"
             case .uploadFailed:     return "upload_failed"
             case .queryFailed:      return "query_failed"
+            case .developFailed:    return "develop_failed"
             }
         }
         return "unknown"

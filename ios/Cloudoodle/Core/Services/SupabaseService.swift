@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import Supabase
 
 enum SupabaseError: LocalizedError {
@@ -6,13 +7,18 @@ enum SupabaseError: LocalizedError {
     case notAuthenticated
     case uploadFailed(Error)
     case queryFailed(Error)
+    case developFailed(Error)
 
     var errorDescription: String? {
         switch self {
-        case .notConfigured: return "Configure Supabase URL and key in Settings."
+        // In release builds there's nothing the user can do about a
+        // missing backend config (the DEBUG-only Settings fields are
+        // gone) — keep the copy honest about whose problem it is.
+        case .notConfigured: return "Cloudoodle's backend isn't set up on this build. Please try again later."
         case .notAuthenticated: return "Sign in to share sightings."
         case .uploadFailed(let e): return "Upload failed: \(e.localizedDescription)"
         case .queryFailed(let e): return "Query failed: \(e.localizedDescription)"
+        case .developFailed(let e): return "Couldn't develop this sky: \(e.localizedDescription)"
         }
     }
 }
@@ -153,6 +159,7 @@ final class SupabaseService: ObservableObject {
         try await client.auth.signOut()
         currentUser = nil
         isAuthenticated = false
+        NotificationService.shared.invalidateTokenSync()
         // Auth state flipped — local reminder is now canonical again
         // for this device. Re-arm the local schedule.
         await DailyReminderService.shared.rescheduleIfNeeded()
@@ -204,13 +211,22 @@ final class SupabaseService: ObservableObject {
 
     // MARK: - Profile
 
-    func updateDeviceToken(_ token: String) async {
-        guard let client, let userId = currentUser?.id else { return }
+    /// Returns whether the token actually landed on the profile row.
+    /// DailyReminderService uses this to decide if the server push is
+    /// deliverable before it suppresses the local notification.
+    @discardableResult
+    func updateDeviceToken(_ token: String) async -> Bool {
+        guard let client, let userId = currentUser?.id else { return false }
         let row: [String: AnyJSON] = ["device_token": .string(token)]
-        try? await client.from("profiles")
-            .update(row)
-            .eq("id", value: userId.uuidString)
-            .execute()
+        do {
+            try await client.from("profiles")
+                .update(row)
+                .eq("id", value: userId.uuidString)
+                .execute()
+            return true
+        } catch {
+            return false
+        }
     }
 
     /// Sync the user's daily-reminder preferences + their local
@@ -251,24 +267,56 @@ final class SupabaseService: ObservableObject {
     func signInAnonymouslyIfNeeded() async throws {
         guard let client else { throw SupabaseError.notConfigured }
         if currentUser != nil { return }
+
+        // A session can exist even while `currentUser` is nil — e.g.
+        // the profile fetch inside refreshSession() failed on a
+        // transient network error. NEVER sign in anonymously over a
+        // live session: `signInAnonymously()` mints a brand-new user
+        // and REPLACES the current session, silently orphaning a real
+        // account (or a prior anonymous identity and its server-side
+        // attribution). Re-adopt the existing session instead.
+        if let session = try? await client.auth.session {
+            currentUser = (try? await fetchProfile(id: session.user.id))
+                ?? Self.placeholderUser(id: session.user.id)
+            isAuthenticated = true
+            return
+        }
+
         do {
             let session = try await client.auth.signInAnonymously()
-            let profile = (try? await fetchProfile(id: session.user.id))
-                ?? AppUser(
-                    id: session.user.id,
-                    username: "",
-                    avatarURL: nil,
-                    city: nil,
-                    totalSightings: 0,
-                    streakDays: 0,
-                    createdAt: Date()
-                )
-            currentUser = profile
+            // Anonymous users get no handle_new_user trigger, so
+            // without this upsert there's no profiles row — and the
+            // device-token + reminder-pref updates (`.update().eq()`)
+            // would silently match zero rows. The server's develop
+            // path upserts too (ignoreDuplicates), as a backstop.
+            try? await upsertProfile(
+                id: session.user.id,
+                username: "watcher-\(session.user.id.uuidString.prefix(8).lowercased())"
+            )
+            currentUser = (try? await fetchProfile(id: session.user.id))
+                ?? Self.placeholderUser(id: session.user.id)
             isAuthenticated = true
+            // The token may have been captured before any user
+            // existed; now there's a profile row to attach it to.
+            await NotificationService.shared.syncDeviceToken()
             await DailyReminderService.shared.rescheduleIfNeeded()
         } catch {
             throw SupabaseError.notAuthenticated
         }
+    }
+
+    /// Local stand-in when the profile row can't be fetched right
+    /// now — keeps the session usable; the real row syncs later.
+    private static func placeholderUser(id: UUID) -> AppUser {
+        AppUser(
+            id: id,
+            username: "",
+            avatarURL: nil,
+            city: nil,
+            totalSightings: 0,
+            streakDays: 0,
+            createdAt: Date()
+        )
     }
 
     /// Result returned by the `develop-polaroid` edge function.
@@ -334,51 +382,7 @@ final class SupabaseService: ObservableObject {
                 .invoke("develop-polaroid", options: .init(body: body))
             return response
         } catch {
-            throw SupabaseError.uploadFailed(error)
-        }
-    }
-
-    /// Fires off a minimal aggregation payload after each developed
-    /// Polaroid — three fields only: the AI's shape description, the
-    /// city name (for regional roll-ups), and the captured timestamp.
-    ///
-    /// What we DO send: shape_name, city, captured_at.
-    /// What we DO NOT send: the image, precise lat/long, the note,
-    /// or any other JournalEntry field.
-    ///
-    /// Fire-and-forget. Silently no-ops when:
-    ///   • Supabase isn't configured,
-    ///   • the user isn't signed in (only signed-in users contribute
-    ///     to aggregation, which keeps the table free of spam).
-    ///
-    /// Reads by the `sighting_metadata` table powered by migration
-    /// 010 — RLS lets only the row owner insert, no one read; the
-    /// daily edge function will roll up with service_role.
-    func recordSightingMetadata(
-        shapeName: String,
-        city: String?,
-        capturedAt: Date
-    ) async {
-        guard let client, let userId = currentUser?.id else { return }
-        var row: [String: AnyJSON] = [
-            "user_id": .string(userId.uuidString),
-            "shape_name": .string(String(shapeName.prefix(80))),
-            "captured_at": .string(ISO8601DateFormatter().string(from: capturedAt))
-        ]
-        if let city, !city.isEmpty {
-            row["city"] = .string(String(city.prefix(60)))
-        }
-        try? await client.from("sighting_metadata").insert(row).execute()
-
-        // Keep `profiles.city` fresh so the daily-reminders edge
-        // function knows which city to summarize for this user. We
-        // overwrite rather than maintain history; "where you last
-        // scanned" is the right anchor for the reminder push.
-        if let city, !city.isEmpty {
-            try? await client.from("profiles")
-                .update(["city": AnyJSON.string(String(city.prefix(60)))])
-                .eq("id", value: userId.uuidString)
-                .execute()
+            throw SupabaseError.developFailed(error)
         }
     }
 

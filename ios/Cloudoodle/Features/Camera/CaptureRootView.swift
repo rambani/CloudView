@@ -76,17 +76,17 @@ struct CaptureRootView: View {
             }
         }
         .onChange(of: scenePhase) { _, newPhase in
-            // Catch the midnight rollover: if the user has the app
-            // open past 00:00 local, the cached `mode` would keep
-            // showing yesterday's Polaroid as TODAY forever. Each
-            // foreground tick, ask the store fresh and re-route.
             guard newPhase == .active else { return }
-            let hasToday = store.todaysEntry != nil
-            if mode == .today && !hasToday {
-                mode = subscriptions.hasQuotaToday ? .camera : .today
-            } else if mode == .camera && hasToday {
-                mode = .today
-            }
+            rerouteForDayRollover()
+        }
+        // The scenePhase hook only fires on re-foregrounding — an app
+        // left OPEN past 00:00 never gets one. iOS posts a significant
+        // time change at local midnight (and on timezone/DST shifts),
+        // which covers exactly that case.
+        .onReceive(NotificationCenter.default.publisher(
+            for: UIApplication.significantTimeChangeNotification
+        )) { _ in
+            rerouteForDayRollover()
         }
         .sheet(isPresented: $showUpgrade) {
             UpgradeSheetView()
@@ -148,6 +148,21 @@ struct CaptureRootView: View {
                 .padding(.top, 8)
             }
             .padding(.horizontal, 36)
+        }
+    }
+
+    // MARK: - Day rollover
+
+    /// Catch the midnight rollover: the cached `mode` would keep
+    /// showing yesterday's Polaroid as TODAY forever. Ask the store
+    /// fresh and re-route — but only away from a stale `.today`.
+    /// `.camera` is deliberately left alone: a subscriber who's mid-
+    /// "Capture another sky" (which coexists with having today's
+    /// entry) shouldn't be yanked back to today's view by a
+    /// foreground tick.
+    private func rerouteForDayRollover() {
+        if mode == .today && store.todaysEntry == nil {
+            mode = subscriptions.hasQuotaToday ? .camera : .today
         }
     }
 

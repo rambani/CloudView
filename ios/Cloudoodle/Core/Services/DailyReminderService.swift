@@ -97,9 +97,15 @@ final class DailyReminderService {
         // Sign-in flips the canonical sender: the `daily-reminders`
         // edge function pushes signed-in users with the regional
         // summary; signed-out users still get the local fire below.
-        // Skipping the local schedule when signed in prevents the
-        // user from receiving two pings at the same minute.
-        let signedIn = SupabaseService.shared.isAuthenticated
+        // Skipping the local schedule prevents two pings at the same
+        // minute — but ONLY when the server can actually deliver,
+        // i.e. the device token has landed on the profile row. Being
+        // merely signed in isn't enough (anonymous sign-in happens
+        // implicitly on the first scan, long before any token sync),
+        // and suppressing local while the server has no token means
+        // NO reminder fires at all.
+        let serverPushReady = SupabaseService.shared.isAuthenticated
+            && NotificationService.shared.hasSyncedDeviceToken
 
         // Mirror the local schedule + IANA timezone to the profile
         // so the server cron knows when to push. Silent no-op for
@@ -108,7 +114,7 @@ final class DailyReminderService {
             enabled: enabled, hour: hour, minute: minute
         )
 
-        if signedIn { return }
+        if serverPushReady { return }
 
         let settings = await center.notificationSettings()
         guard settings.authorizationStatus == .authorized

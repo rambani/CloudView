@@ -17,22 +17,30 @@
  *        supabase secrets set APNS_BUNDLE_ID=com.cloudoodle.app
  *        supabase secrets set APNS_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n..."
  *        supabase secrets set APNS_ENVIRONMENT=production    # or development
- *   3. Schedule cron in Supabase Dashboard → Database → Cron jobs:
+ *   3. Set a shared secret so only the cron tick can trigger the
+ *      fan-out (the default gateway accepts ANY valid project JWT,
+ *      including anonymous user sessions — not good enough for an
+ *      endpoint that can push to every user):
+ *        supabase secrets set CRON_SECRET=<long random string>
+ *   4. Schedule cron in Supabase Dashboard → Database → Cron jobs:
  *        Name:     daily-reminders-tick
- *        Schedule: */15 * * * *
+ *        Schedule: 0,15,30,45 * * * *   (every 15 minutes)
  *        Action:   HTTP request → POST <function URL>
- *        Headers:  Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>
+ *        Headers:  Authorization: Bearer <CRON_SECRET>
  *      (Or, if pg_cron + pg_net are enabled, schedule via SQL —
- *      see TASKS.md for the snippet.)
+ *      see TASKS.md for the snippet. NB: don't write the schedule
+ *      with a slash-15 shorthand in this comment — the slash-star
+ *      sequence would terminate this comment block and break the
+ *      whole file.)
  *
  * Implementation notes:
  *
- *   • The cron tick widens its match window to ±7.5 min so a user
- *     whose reminder time falls between ticks still gets pushed
- *     exactly once. A `last_pushed_at` column on profiles would
- *     bullet-proof "exactly once," but for now we rely on the cron
- *     interval being predictable enough that one fire per scheduled
- *     time is the worst that happens.
+ *   • Each cron tick matches reminder times within ±7 min, which
+ *     tiles a 15-minute interval exactly — every minute belongs to
+ *     one tick, so no user is skipped and none is pushed twice. A
+ *     `last_pushed_at` column on profiles would bullet-proof
+ *     "exactly once" against irregular cron timing, but the tiling
+ *     makes duplicates impossible when ticks fire on schedule.
  *   • Users without a city (or with too few nearby sightings to
  *     summarize) get a warm-generic copy instead of a personalized
  *     line — never an empty body.
@@ -51,14 +59,17 @@ const APNS_ENDPOINT = (APNS_ENVIRONMENT === "development" || APNS_ENVIRONMENT ==
   : "https://api.push.apple.com";
 
 // Half-width of the "is this user due for a reminder right now"
-// match window, in minutes. Should be at least half the cron
-// interval so no scheduled reminder time falls between ticks.
-const MATCH_WINDOW_MINUTES = 8;
+// match window, in minutes. With a 15-minute cron interval, ±7
+// tiles the clock exactly: each tick covers [t-7, t+7] and the
+// next starts at t+8 — every minute is owned by exactly one tick,
+// so nobody is skipped and (unlike ±8) nobody is pushed twice.
+const MATCH_WINDOW_MINUTES = 7;
 
-// Minimum sightings-in-region required before the body text uses
-// a personalized "N people near {city} saw {shape}" line. Below
-// this threshold we fall back to warm-generic copy so a single
-// user's lonely Polaroid doesn't read as "you saw a whale today."
+// Minimum DISTINCT contributors in a region before the body text
+// uses a personalized "N people near {city} saw {shape}" line.
+// Below this threshold we fall back to warm-generic copy so a
+// single user's lonely Polaroid (or their four scans of the same
+// sky) doesn't read as "4 people saw a whale today."
 const MIN_SIGHTINGS_FOR_PERSONALIZED = 4;
 
 // ---------- Types -----------------------------------------------------------
@@ -75,9 +86,46 @@ interface ShapeAggregate {
   count: number;
 }
 
+interface CityAggregate {
+  shapes: ShapeAggregate[];
+  /// Distinct contributors, NOT raw row count — a single user
+  /// scanning four times must not read as "4 people near you."
+  people: number;
+}
+
+/**
+ * `shape_name` and `city` are user-influenced text (the AI writes
+ * the shape, but its prompt includes user-supplied fields, and
+ * migration 010's RLS lets any authenticated user insert rows
+ * directly — including throwaway anonymous accounts). Anything we
+ * interpolate into OTHER users' lock screens gets a strict
+ * allow-list: letters, digits, spaces, hyphens, apostrophes.
+ * Returns null when the text doesn't pass.
+ */
+function sanitizedPhrase(raw: string, maxLength: number): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed.length > maxLength) return null;
+  if (!/^[\p{L}\p{N}' -]+$/u.test(trimmed)) return null;
+  return trimmed;
+}
+
 // ---------- Entry point -----------------------------------------------------
 Deno.serve(async (req) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+
+  // Only the cron tick may trigger the fan-out. The platform's
+  // verify_jwt gate is NOT sufficient here: with anonymous sign-ins
+  // enabled, any device can mint a valid project JWT, and this
+  // endpoint can push a notification to every user. Require the
+  // dedicated CRON_SECRET (preferred) or the service-role key.
+  const expectedSecrets = [
+    Deno.env.get("CRON_SECRET"),
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+  ].filter((s): s is string => !!s);
+  const presented = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
+  if (!presented || !expectedSecrets.includes(presented)) {
+    return new Response("Unauthorized", { status: 401 });
+  }
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -99,8 +147,9 @@ Deno.serve(async (req) => {
   );
 
   const sends = dueProfiles.map((profile) => {
-    const aggregates = profile.city ? cityAggregates.get(profile.city) ?? [] : [];
-    const copy = buildPushCopy({ city: profile.city, aggregates });
+    const aggregate = (profile.city ? cityAggregates.get(profile.city) : undefined)
+      ?? { shapes: [], people: 0 };
+    const copy = buildPushCopy({ city: profile.city, aggregate });
     return sendApnsNotification({
       deviceToken: profile.device_token,
       apnsToken,
@@ -219,30 +268,38 @@ async function loadAggregates(
   // deno-lint-ignore no-explicit-any
   supabase: any,
   cities: string[],
-): Promise<Map<string, ShapeAggregate[]>> {
-  const result = new Map<string, ShapeAggregate[]>();
+): Promise<Map<string, CityAggregate>> {
+  const result = new Map<string, CityAggregate>();
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
   await Promise.all(cities.map(async (city) => {
     const { data, error } = await supabase
       .from("sighting_metadata")
-      .select("shape_name")
+      .select("shape_name, user_id")
       .eq("city", city)
       .gt("captured_at", since);
     if (error) {
       console.error(`loadAggregates failed for city=${city}`, error);
-      result.set(city, []);
+      result.set(city, { shapes: [], people: 0 });
       return;
     }
-    const counts = new Map<string, number>();
+    const counts = new Map<string, Set<string>>();
+    const people = new Set<string>();
     for (const row of data ?? []) {
-      const key = (row.shape_name as string).trim().toLowerCase();
-      counts.set(key, (counts.get(key) ?? 0) + 1);
+      // Drop anything that wouldn't be safe to put verbatim on a
+      // stranger's lock screen.
+      const key = sanitizedPhrase(
+        (row.shape_name as string).toLowerCase(),
+        40,
+      );
+      if (!key) continue;
+      people.add(row.user_id as string);
+      counts.set(key, (counts.get(key) ?? new Set()).add(row.user_id as string));
     }
     const sorted = Array.from(counts.entries())
-      .map(([shape_name, count]) => ({ shape_name, count }))
+      .map(([shape_name, users]) => ({ shape_name, count: users.size }))
       .sort((a, b) => b.count - a.count);
-    result.set(city, sorted);
+    result.set(city, { shapes: sorted, people: people.size });
   }));
 
   return result;
@@ -259,14 +316,17 @@ interface PushCopy { title: string; body: string }
  * Group the top-N shape names into a single phrase ("birds, whales,
  * and sleeping cats") so a varied sky reads richer than just "birds."
  */
-function buildPushCopy({ city, aggregates }: {
+function buildPushCopy({ city, aggregate }: {
   city: string | null;
-  aggregates: ShapeAggregate[];
+  aggregate: CityAggregate;
 }): PushCopy {
   const title = "Today's sky is waiting";
 
-  const total = aggregates.reduce((acc, a) => acc + a.count, 0);
-  if (!city || total < MIN_SIGHTINGS_FOR_PERSONALIZED) {
+  // City names come from user-controlled profile rows; hold them to
+  // the same lock-screen allow-list as shape names.
+  const safeCity = city ? sanitizedPhrase(city, 40) : null;
+  const people = aggregate.people;
+  if (!safeCity || people < MIN_SIGHTINGS_FOR_PERSONALIZED) {
     // Generic fallback — same rotation as the local-fallback copy
     // the client uses when this push doesn't fire.
     const pool = [
@@ -276,16 +336,17 @@ function buildPushCopy({ city, aggregates }: {
       "Whatever shape finds you today — develop it.",
       "Out the window, just for a second.",
     ];
-    const dayOfYear = Math.floor((Date.now() / (1000 * 60 * 60 * 24)) % pool.length);
-    return { title, body: pool[dayOfYear] };
+    // Days-since-epoch mod pool size — a stable daily rotator.
+    const rotationIndex = Math.floor((Date.now() / (1000 * 60 * 60 * 24)) % pool.length);
+    return { title, body: pool[rotationIndex] };
   }
 
   // Take the top shape and either the top 3 or all of them if fewer.
-  const top = aggregates.slice(0, 3).map((a) => a.shape_name);
+  const top = aggregate.shapes.slice(0, 3).map((a) => a.shape_name);
   const phrase = listPhrase(top);
-  const body = total === 1
-    ? `Someone near ${city} saw ${top[0]} today. Your turn?`
-    : `${total} people near ${city} saw ${phrase} in the sky today.`;
+  const body = people === 1
+    ? `Someone near ${safeCity} saw ${top[0]} today. Your turn?`
+    : `${people} people near ${safeCity} saw ${phrase} in the sky today.`;
   return { title, body };
 }
 

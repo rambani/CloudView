@@ -45,13 +45,29 @@ extension UIImage {
         return renderer.image { _ in draw(in: CGRect(origin: .zero, size: newSize)) }
     }
 
-    // Prepare image for Anthropic API — resize and compress
-    func preparedForAnalysis() -> Data? {
-        resized(maxDimension: 1568).jpegData(compressionQuality: 0.82)
-    }
-
     // Create a thumbnail for local display
     func thumbnail(size: CGFloat = 400) -> UIImage {
         resized(maxDimension: size)
+    }
+
+    /// Redraws the image so `imageOrientation == .up`, making the
+    /// backing `cgImage` raster match the oriented `size` the rest
+    /// of the pipeline reasons in.
+    ///
+    /// Camera captures carry EXIF orientation (portrait shots are
+    /// typically `.right`): `size` is orientation-applied while
+    /// `cgImage` is the raw sensor raster with the axes swapped.
+    /// SmartCrop computes its rect from `size` but crops `cgImage`,
+    /// and the develop composite draws back in oriented space — so
+    /// every consumer after the shutter needs ONE consistent space.
+    /// Normalize once at capture; everything downstream agrees.
+    func orientationNormalized() -> UIImage {
+        guard imageOrientation != .up else { return self }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = scale
+        format.opaque = true
+        return UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            draw(in: CGRect(origin: .zero, size: size))
+        }
     }
 }

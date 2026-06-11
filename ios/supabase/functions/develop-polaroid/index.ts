@@ -30,12 +30,21 @@
  * Auth: required. Verifies the Supabase JWT on Authorization:
  *       Bearer <token>. Anonymous Supabase users work fine.
  *
+ * Abuse protection: anonymous sign-ins make a valid JWT free to
+ * obtain, and every request here costs real money (three Gemini
+ * calls, one of them the image model). A per-user daily cap backed
+ * by the `scan_log` table (migration 012) bounds the worst case;
+ * the product quota (one free Polaroid per day) remains enforced
+ * client-side and is intentionally LOWER than this cap so paying
+ * subscribers never hit the server limit in normal use.
+ *
  * Setup:
  *   1. Deploy: supabase functions deploy develop-polaroid
  *   2. Set secret:
  *        supabase secrets set GEMINI_API_KEY=<key>
  *   3. Enable Anonymous Sign-Ins in the Supabase Dashboard
  *      under Authentication → Providers → Anonymous.
+ *   4. Run migration 012_scan_log.sql (rate-limit bookkeeping).
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -44,6 +53,17 @@ const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") ?? "";
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const TEXT_MODEL = "gemini-2.5-flash";
 const IMAGE_MODEL = "gemini-2.5-flash-image";
+
+// The well-behaved client sends a 1024×1024 JPEG at 0.88 quality —
+// well under 1.5 MB of base64. Anything bigger is either a bug or
+// someone amplifying our Gemini bill; reject before any AI call.
+const MAX_IMAGE_BASE64_LENGTH = 2_000_000;
+
+// Hard per-user daily ceiling, counted in `scan_log`. This is abuse
+// protection, NOT the product quota — the free tier's one-per-day
+// stays client-enforced, and subscribers capturing enthusiastically
+// should never get near this number organically.
+const MAX_SCANS_PER_USER_PER_DAY = 25;
 
 // ---------- Prompts ---------------------------------------------------------
 
@@ -166,6 +186,11 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") {
     return json({ error: "Method not allowed" }, 405);
   }
+  // Fail fast on a misconfigured deploy — better a clear 500 here
+  // than burning an auth round-trip before the pipeline throws.
+  if (!GEMINI_API_KEY) {
+    return json({ error: "Server not configured" }, 500);
+  }
 
   // 1. Auth — extract the user's JWT and resolve their user_id.
   const authHeader = req.headers.get("Authorization") ?? "";
@@ -195,13 +220,55 @@ Deno.serve(async (req) => {
   if (!body.image_base64) {
     return json({ error: "Missing image_base64" }, 400);
   }
+  if (body.image_base64.length > MAX_IMAGE_BASE64_LENGTH) {
+    return json({ error: "Image too large" }, 413);
+  }
+  // The client always sends JPEG; "/9j/" is base64 for the JPEG
+  // SOI marker (0xFFD8FF). Catches garbage payloads before they
+  // burn an upstream call.
+  if (!body.image_base64.startsWith("/9j/")) {
+    return json({ error: "image_base64 must be a JPEG" }, 400);
+  }
+
+  // 3. Rate limit — count this user's scans in the trailing 24h and
+  //    record the new attempt BEFORE the AI pipeline runs, so failed
+  //    pipelines still count against an abuser hammering the proxy.
+  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { count: recentScans, error: countErr } = await supabase
+    .from("scan_log")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .gt("created_at", since24h);
+  if (countErr) {
+    console.error("scan_log count failed", countErr);
+    // Fail open: a bookkeeping outage shouldn't take scanning down.
+  } else if ((recentScans ?? 0) >= MAX_SCANS_PER_USER_PER_DAY) {
+    return json({ error: "Daily scan limit reached. Try again tomorrow." }, 429);
+  }
+  const { error: logErr } = await supabase
+    .from("scan_log")
+    .insert({ user_id: userId });
+  if (logErr) console.error("scan_log insert failed", logErr);
+
+  // 4. Ensure a profiles row exists. Anonymous users have none (no
+  //    handle_new_user trigger fires for them), and without a row
+  //    the client's device-token / reminder-pref updates match zero
+  //    rows — silently breaking daily reminders. ignoreDuplicates
+  //    keeps an existing row (and its chosen username) untouched.
+  const { error: profileErr } = await supabase
+    .from("profiles")
+    .upsert(
+      { id: userId, username: `watcher-${userId.slice(0, 8)}` },
+      { onConflict: "id", ignoreDuplicates: true },
+    );
+  if (profileErr) console.error("profiles upsert failed", profileErr);
 
   const recentShapes = (body.recent_shapes ?? [])
     .filter((s): s is string => typeof s === "string" && s.length > 0)
     .slice(0, 7)
     .map((s) => s.slice(0, 60));
 
-  // 3. The three-step pipeline. Steps are sequential by design:
+  // 5. The three-step pipeline. Steps are sequential by design:
   //    identify sets the develop instructions; re-caption needs the
   //    developed image. ~1s per text step, the image step dominates.
   const weatherSummary =
@@ -231,28 +298,33 @@ Deno.serve(async (req) => {
     return json({ error: message }, 502);
   }
 
-  // 4. Insert sighting_metadata (fire-and-forget). Uses the FINAL
-  //    shape name — the aggregation should reflect what users
-  //    actually saw on their Polaroids.
+  // 6. Insert sighting_metadata. Uses the FINAL shape name — the
+  //    aggregation should reflect what users actually saw on their
+  //    Polaroids. Best-effort (the user already paid the AI cost,
+  //    so a bookkeeping failure must not fail the response), but it
+  //    MUST be awaited: supabase-js builders are lazy thenables, so
+  //    a `void`-dropped insert never sends the request at all.
   const captureTs = new Date().toISOString();
   const cityTrimmed = body.city?.trim().slice(0, 60) || null;
-  void supabase.from("sighting_metadata").insert({
+  const { error: metaErr } = await supabase.from("sighting_metadata").insert({
     user_id: userId,
     shape_name: finalShapeName.slice(0, 80),
     city: cityTrimmed,
     captured_at: captureTs,
   });
+  if (metaErr) console.error("sighting_metadata insert failed", metaErr);
 
-  // 5. Update profiles.city so the daily-reminders aggregation has
+  // 7. Update profiles.city so the daily-reminders aggregation has
   //    a current region to summarize for this user.
   if (cityTrimmed) {
-    void supabase
+    const { error: cityErr } = await supabase
       .from("profiles")
       .update({ city: cityTrimmed })
       .eq("id", userId);
+    if (cityErr) console.error("profiles.city update failed", cityErr);
   }
 
-  // 6. Respond. cloud_type / weather_mood / watchability describe
+  // 8. Respond. cloud_type / weather_mood / watchability describe
   //    the SKY (unchanged by the ink), so they come from step 1;
   //    only the shape name is re-derived from the finished image.
   return json({
@@ -277,11 +349,41 @@ async function identify(
     prompt: buildIdentifyPrompt(recentShapes),
     maxTokens: 500,
   });
-  const parsed = JSON.parse(stripCodeFences(text));
-  if (!parsed.shape_name || !parsed.cloud_type) {
-    throw new Error("Identify response missing required fields");
+  // The prompt's own fallback for an unreadable sky. Also our
+  // fallback when the model ignores responseMimeType and returns
+  // prose — a degraded-but-honest Polaroid beats a failed scan.
+  const fallback: GeminiAnalysis = {
+    shape_name: "Soft cumulus",
+    cloud_type: "Cumulus",
+    weather_mood: "calm",
+    watchability_score: 3,
+  };
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(stripCodeFences(text));
+  } catch {
+    console.warn("Identify response was not valid JSON; using fallback");
+    return fallback;
   }
-  return parsed as GeminiAnalysis;
+  const shapeName = String(parsed.shape_name ?? "").trim();
+  const cloudType = String(parsed.cloud_type ?? "").trim();
+  if (!shapeName || !cloudType) {
+    console.warn("Identify response missing required fields; using fallback");
+    return fallback;
+  }
+  // The model occasionally emits the score as a string, a float, or
+  // out of range; the develop prompt and the client's Int decode
+  // both need a clean 1–10 integer.
+  const rawScore = Number(parsed.watchability_score);
+  const watchability = Number.isFinite(rawScore)
+    ? Math.min(10, Math.max(1, Math.round(rawScore)))
+    : 5;
+  return {
+    shape_name: shapeName.slice(0, 80),
+    cloud_type: cloudType.slice(0, 40),
+    weather_mood: String(parsed.weather_mood ?? "").trim().slice(0, 40) || "calm",
+    watchability_score: watchability,
+  };
 }
 
 async function develop(
