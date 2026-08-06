@@ -59,12 +59,16 @@ at all and fall back, so we never confidently draw a dragon on a shapeless blob.
 - **`CloudLandmarks`** reduces any contour to five stable reference points:
   centroid + the four extremes (top/bottom/left/right). The extremes are where
   a silhouette pushes out — the bumps the eye reads as head, feet, tail.
-- **`SimilarityTransform`** fits the least-squares similarity (uniform scale +
-  rotation + translation, no reflection or shear) mapping the *template's*
-  landmarks onto the *cloud's*. It's solved in closed form as complex linear
-  regression `w = c·z + d` — no matrix inversion, fully testable. Applying it to
-  the template's strokes lands ears at the cloud's top, a tail off its side
-  bump, and so on.
+- **`TemplateWarp`** chooses the deformation. When the rich landmarks support
+  it, a **`ThinPlateSpline`** — the smoothest 2-D warp that exactly maps each
+  source landmark onto its target — drapes the template so appendages follow
+  the cloud's individual bumps in eight directions. Coincident landmarks (a
+  shape whose topmost point is also its top-left diagonal) are de-duplicated
+  first, since they'd make the spline system singular. When too few distinct
+  landmarks survive, it falls back to **`SimilarityTransform`**: the
+  closed-form least-squares similarity (uniform scale + rotation + translation)
+  solved as complex linear regression `w = c·z + d`, no matrix inversion.
+  Both satisfy a common `PointWarp` interface so the composer is agnostic.
 
 ### 3. Composition — hybrid by confidence
 
@@ -161,10 +165,10 @@ absolute.
 
 ## Limitations & next steps
 
-- **Similarity warp only.** The current fit is global scale/rotation/translation.
-  A thin-plate-spline refinement keyed on more landmarks would let appendages
-  follow individual cloud bumps more tightly. The composer is structured so this
-  drops into the fitting stage without touching callers.
+- **Landmark-driven warp.** The thin-plate spline is keyed on nine semantic
+  landmarks (centroid + axis/diagonal extremes). Denser correspondences —
+  arc-length-resampled contour points aligned to a canonical start — would let
+  the drape follow finer detail, at the cost of correspondence robustness.
 - **Single-cloud clusters.** `CloudClusteringService` returns one cluster per
   cloud today; multi-cloud constellations ("those three clouds are a dragon")
   are a natural extension — the signature and rasterizer already handle clusters.
