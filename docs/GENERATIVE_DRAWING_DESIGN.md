@@ -1,160 +1,166 @@
-# Design: on-device generative sketches + runtime variation
+# Design: rich part-based drawings + runtime variation
 
-**Status:** proposed (design review). No implementation yet.
+**Status:** revised after design review. Supersedes the earlier draft of this
+document, which proposed live on-device sketch generation as the primary art
+source — that is now a v2 stretch track (see Appendix) after a reference-image
+review and a feasibility research pass both pointed the same way.
 
 Goal: every cloud becomes a creature that (a) genuinely resembles the cloud
-[consistency], and (b) is drawn freshly and uniquely each time — different by
-viewing angle, by person, and across a city [creativity]. All on-device, $0,
-offline, kid-safe, and in the existing animated-line aesthetic.
+[consistency], (b) matches an illustrator-grade line aesthetic, and (c) feels
+effectively endless — different by viewing angle, by person, and across a city
+[creativity]. All on-device at runtime, $0, offline, kid-safe, in the existing
+animated-line aesthetic.
 
-## Core principle: stable identity, variable expression
+## The reference aesthetic
 
-The split that delivers "a mix of consistency and creativity":
+The quality bar is a fine-line pen drawing fused into a real cloud: the
+creature's **body and bulk ARE the cloud**; the art contributes the identifying
+detail — horns and spikes riding the cloud's top edge, a detailed eye, teeth
+along a lower bump, a breath-stream flowing to a companion element (e.g. a
+castle rising from a neighboring cloud bank). Thin, even line weight,
+semi-transparent white over sky.
 
-- **Stable, driven by the cloud's shape:** the creature *category* (rabbit vs
-  whale). The drawing always looks like what the cloud resembles. This is the
-  consistency thread and reuses the shape-retrieval engine already built.
-- **Variable, driven by a seed:** the actual linework (a fresh generative
-  sample), pose, expression, accessory, stroke style, animation. This is the
-  creativity/uniqueness, and it's where "different angles → different drawings"
-  and "different within a city" come from.
+Two conclusions follow:
 
-## Part 1 — On-device generative sketches
+1. **The existing engine is the right substrate.** Cloud-as-body + detail
+   attached at the cloud's real landmarks (already built: Hu shape retrieval,
+   TPS warp, hybrid composer) is precisely how that image works.
+2. **No on-device generative model reaches this fidelity** (research verdict,
+   Appendix). The detail must come from **pre-authored art** — produced with
+   image-gen models at build time, vectorized, and human-curated.
 
-### Why sketch generation, not image generation
+## Where "endless" comes from without live generation
 
-The app draws *strokes* that trace themselves onto the sky. That rules out
-raster image models (DALL·E / Stable Diffusion) — they output pixels, would
-need vectorizing, lose the animation, are heavy, and (open-ended) pose a
-kid-safety problem. A **sketch-generation model outputs pen strokes directly**:
-vector, tiny, fast, animatable, and category-bounded so it's safe (a "cat"
-model only ever draws cat-ish sketches).
+Four independent, compounding sources:
 
-### Candidate model
+1. **The cloud itself.** No two clouds — or two viewing angles of one cloud —
+   produce the same contour. The body and the warp differ on every scan before
+   any art variation applies. This is a free infinite generator.
+2. **Component decomposition** (the big one). Art ships not as monolithic
+   drawings but as a **parts library**: tagged head styles, eye styles,
+   horn/spike/ear/fin sets, mouths, wings, tails, accessories, and companion
+   elements (castle, birds, moon, breath-stream). A composer assembles a
+   drawing per scan. A modest curated pool — 20 creatures × 6 heads × 5 eyes ×
+   6 detail sets × 4 mouths × 10 accessories × 8 companions-or-none — is
+   ~10⁶ distinct assemblies per creature category, before styling.
+3. **Seeded selection** (below) spreads assemblies across people, places, time.
+4. **Style variation:** line weight, hand-drawn jitter, opacity, reveal
+   order/speed of the stroke animation.
 
-**sketch-rnn** (Google Magenta, Apache-2.0 code; trained on the *Quick, Draw!*
-dataset, CC BY 4.0). A VAE + RNN whose decoder emits, per step, a Gaussian
-mixture over the next pen offset `(Δx, Δy)` plus a pen state
-`{draw, lift, end}`. Sampling a latent `z` and rolling the decoder out yields a
-complete stroke sequence — exactly our `DrawingConcept.DrawingPath` format.
+"Endless" is perceptual: with ~10⁶ assemblies × never-repeating cloud bodies,
+perceived repeats are effectively impossible; literal repeats are impossible.
+The bounded parts pool is what *guarantees* the curated aesthetic — recurring
+part styles read as an artist's hand, not as repetition, and the library grows
+with updates.
 
-- **Size:** ~4–5 MB per category checkpoint, or a single multi-category
-  conditional model (~10 MB). Bundle-size is a real decision (see risks).
-- **Speed:** ~100–250 autoregressive steps of small matrix mults → expected
-  well under 100 ms on-device (to be confirmed by the spike).
-- **Safety:** bounded by category — no open-ended content.
+## Part schema (extends the existing template schema)
 
-### Integration — reuse the engine already built
+`DrawingTemplates.json` evolves from whole-creature templates to:
 
-The current pipeline is `cloud contour → Hu shape match → pick creature → warp
-template onto cloud → compose → animate`. Generation slots in with **minimal
-change** (call this **Mode A**):
-
-```
-cloud contour
-   │
-   ├─► Hu shape match (existing) ──► creature CATEGORY  [consistency]
-   │
-   └─► SketchGenerator.generate(category, seed) ──► fresh stroke sketch  [creativity]
-                     │
-        TemplateWarp / TPS (existing) ──► drape the generated sketch onto the cloud
-                     │
-        DrawingConcept ──► AnimatedDrawing (existing reveal)
-```
-
-The static `DrawingTemplates.json` doesn't go away — it becomes the **shape
-prototype registry** the Hu matcher uses to pick the category, and its strokes
-become the **fallback drawing** when generation is unavailable. So the fallback
-chain is: **generated sketch → static template → CLIP/outline → "Cool cloud!".**
-
-A future **Mode B** would *condition* generation on the cloud contour (encode
-the cloud, decode a creature already shaped like it) for an even tighter fit.
-Deferred — Mode A reuses the tested warp and de-risks first.
-
-### What has to be built (and the unknowns)
-
-| Piece | Effort | Risk |
-|---|---|---|
-| sketch-rnn checkpoint → Core ML (decoder cell) | med | **high** — RNN + custom sampling; conversion is the crux |
-| Swift rollout loop + Gaussian-mixture sampling | med | med — standard MDN sampling, ~100 lines |
-| Category mapping to available Quick, Draw! classes | low | low — but some (dragon, swan) may not exist; adjust set or train |
-| Bundle size / model packaging | low | med — per-category vs one conditional model |
-| Aesthetic acceptance (doodle quality) | — | med — Quick, Draw! sketches are crude; may read as charming "kid-drawn," may read as too rough |
-
-## Part 2 — Runtime variation & seeding policy
-
-### The seed
-
-```
-seed = hash(
-    cloudShapeBucket,   // Hu-moment bucket (existing) — the consistency anchor
-    regionBucket,       // city-level (existing, from scan reporting) — city variety
-    timeBucket,         // e.g. floor(now / 6h) — drawings evolve over time
-    deviceSalt          // random 64-bit persisted per install — personal uniqueness
-)
+```jsonc
+{
+  "version": 2,
+  "creatures": [
+    {
+      "label": "dragon",
+      "category": "mythical",
+      "silhouette": [[x,y], ...],     // shape prototype for Hu retrieval (unchanged)
+      "slots": {                       // which part kinds this creature uses,
+        "head":   { "required": true },   // and where they attach
+        "eye":    { "required": true },
+        "crest":  { "required": false },  // spikes / ears / fins / horns
+        "mouth":  { "required": true },
+        "limb":   { "required": false },
+        "tail":   { "required": false },
+        "companion": { "required": false, "probability": 0.3 }
+      }
+    }
+  ],
+  "parts": [
+    {
+      "id": "dragon-head-03",
+      "kind": "head",
+      "creatures": ["dragon"],         // or ["*"] for shared parts (eyes, accessories)
+      "anchor": "top",                 // cloud landmark to attach at:
+                                        // top|bottom|left|right|centroid|topLeft|topRight|...
+      "strokes": [ { "order": 1, "closed": false, "points": [[x,y], ...] }, ... ]
+    }
+  ]
+}
 ```
 
-A **stickiness** parameter `α ∈ [0,1]` blends how much weight the *shared*
-components (cloud + region) carry vs. the *personal* ones (device + time).
-`α → 1` = everyone at a cloud sees the same thing (social/shared feel); `α → 0`
-= always fresh and personal. Default proposed: **α ≈ 0.5**.
+- Parts are authored in their own normalized local space; the composer places
+  them at the named cloud landmark via a local similarity transform (position +
+  scale from the cloud's bounding geometry), then the global TPS warp applies.
+- `creatures: ["*"]` lets eyes/accessories be shared across the library,
+  multiplying combinations further.
+- The v1 whole-creature templates remain valid as single-part creatures, so
+  migration is incremental and the current system keeps working throughout.
 
-### Variation dimensions (all seeded, deterministic)
+## Seeding policy (unchanged from prior draft)
 
-A seeded PRNG (SplitMix64) drives:
+```
+seed = hash(cloudShapeBucket, regionBucket, timeBucket, deviceSalt)
+```
 
-1. **Category** — usually the best Hu match [consistency]; a small
-   temperature `τ_cat` lets it occasionally pick the 2nd/3rd match for surprise.
-2. **Generative latent `z`** — the fresh linework. `τ_gen` = the creativity
-   knob (latent sampling temperature).
-3. **Expression** — happy / sleepy / surprised (small feature variants).
-4. **Accessory** — `Bernoulli(p_acc)` then a weighted pick (hat, scarf…).
-5. **Orientation** — occasional horizontal flip within cloud-fit bounds.
-6. **Stroke style** — line weight, slight hand-drawn jitter, tint.
-7. **Animation** — reveal order / speed variation.
+A seeded PRNG (SplitMix64) deterministically drives: category temperature
+(usually the best Hu match; occasionally 2nd/3rd), part selection per slot,
+companion inclusion, expression, orientation flip, stroke style, animation
+timing. Stickiness `α` blends shared (cloud+region) vs personal (device+time)
+components; default 0.5. Same inputs → same drawing (testable, shareable).
 
-### How this delivers exactly what was asked
+- Same cloud, different angles → different contour + salt → different assembly
+  on a differently-warped body.
+- Same city → deviceSalt/timeBucket guarantee neighbors differ.
+- Category stays anchored to the cloud's shape → still feels *discovered*.
 
-- **Same cloud, different angles → different drawings.** A different angle
-  produces a different contour → different Hu bucket (can shift category) and
-  always a different warp; combined with the per-device salt, the drawing
-  genuinely differs.
-- **Different within a city.** The `deviceSalt` + `timeBucket` guarantee
-  neighbors get different drawings even of the same cloud.
-- **Consistency where it matters.** The `cloudShapeBucket` anchor keeps the
-  *category* stable — a rabbit-shaped cloud reads as a rabbit for everyone —
-  while everything else varies.
-- **Reproducible.** Same seed inputs → identical drawing, so behavior is
-  testable and a drawing could later be shared/regenerated.
+## Build-time art pipeline (AI-generated, curated)
+
+1. **Generate** creature line-art with a strong image model, prompted to the
+   house style (fine single-weight line, white-on-transparent, no shading),
+   many variants per creature and per part.
+2. **Vectorize** (e.g. vtracer/potrace) → centerline strokes; simplify (RDP),
+   resample, smooth (Catmull-Rom) into clean point sequences.
+3. **Split into parts** along the slot taxonomy; tag anchors.
+4. **Curate**: human passes every shipped part for quality, style coherence,
+   and kid-safety. Nothing un-reviewed ships.
+5. Emit `DrawingTemplates.json` v2 via an offline tool (`tools/`), mirroring
+   the existing `generate_label_embeddings.py` pattern.
+
+Output is owned, vetted, offline assets — no runtime cost, latency, vendor, or
+moderation exposure.
 
 ## Phased plan
 
-1. **De-risk spike (do first).** Convert *one* sketch-rnn category to Core ML,
-   implement the Swift sampling rollout, generate a sketch, and render it
-   through the existing `AnimatedDrawing`. Measure quality + latency on device.
-   Go/no-go on the whole generative direction hinges here.
-2. **Multi-category generation** wired as the linework source in the compose
-   pipeline (Mode A), with the static-template fallback intact.
-3. **Variation engine** — the seed + dimensions above, layered on top.
-4. **Tuning & safety** — `τ_gen`/`α` defaults, kid-safety review of the
-   category set, bundle-size optimization (per-category vs conditional model).
+1. **Schema + composer:** part schema v2, slot-based assembly composer,
+   landmark anchoring; v1 templates keep working. Unit-tested (pure code).
+2. **Variation engine:** seed, SplitMix64, per-slot selection, style/animation
+   variation. Unit-tested (deterministic).
+3. **Art pipeline tooling:** the offline generate→vectorize→split→emit tool.
+4. **First real art drop:** one creature (dragon) at reference quality,
+   end-to-end, to validate the look on-device before scaling the library.
+5. **Scale the library**; tune α and temperatures.
 
-## Open decisions (for review)
+## Appendix: on-device generation (deferred v2 track)
 
-1. **Aesthetic:** lean into the crude "hand-drawn doodle" look of Quick, Draw!
-   (charming, kid-made feel) or invest in cleaner generation (train/curate)?
-2. **Model packaging:** several small per-category models (simpler, bigger
-   bundle) vs one multi-category conditional model (smaller, more conversion
-   work)?
-3. **Stickiness default `α`:** how much should strangers at the same cloud see
-   the *same* creature vs. always-fresh? (Affects any future social/shared
-   feature.)
-4. **Creature set:** align to categories that exist in Quick, Draw! (drop/replace
-   dragon, swan, …) or commit to training custom categories?
+Research verdict (2026-08): generation compute is trivially on-device-feasible —
+a sketch-rnn decoder (Magenta, Apache-2.0 code; Quick, Draw! data CC-BY 4.0) is
+a ~512-unit LSTM + 20-component GMM head, a few MB, milliseconds per drawing.
+The proven integration pattern is a **single-step decoder as the Core ML
+model** (in: prev point + state; out: 123-dim GMM/pen vector + state) with the
+autoregressive loop and all sampling in Swift, as magenta-js does in JS; Core
+ML stateful models (iOS 18+) make state handling cleaner. No turnkey iOS port
+exists — the Swift loop is custom work.
 
-## What stays true regardless
+The blocker is quality, not compute: every small convertible model is trained
+on Quick, Draw!'s crude time-pressured doodles, no large clean stroke-ordered
+creature dataset exists to retrain on, and cleaner research models
+(SketchKnitter et al., diffusion) are too heavy and not Core ML-friendly.
+Post-processing (RDP+smoothing) and sample-and-rank lift output to "clean,
+confident doodle" — a possible future *distinct sketchy mode*, not a route to
+the reference aesthetic. Revisit if a clean vector dataset or a small clean
+generator emerges.
 
-The shape-retrieval + TPS-warp + compose + animate engine already built is the
-substrate under all of this. Generation and variation plug into it; they don't
-replace it. If the generative spike fails or ships later, the static-template
-system is the working fallback.
+Key sources: arXiv:1704.03477 (sketch-rnn) · magenta-js `@magenta/sketch`
+(sampling loop reference) · coremltools stateful-models guide ·
+arXiv:2306.03103 (sample-and-rank) · SketchKnitter (ICLR 2023).
