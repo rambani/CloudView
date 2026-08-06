@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "_comment": "PLACEHOLDER starter art. These four creatures exist to exercise the shape-retrieval + fitting engine end to end; they are intentionally simple. Production art is permissively-licensed line-art (see docs/DRAWING_SYSTEM.md) authored to this same schema, dropping in with no code change. Coordinates are normalized 0-1, top-left origin, y-down. `silhouette` is the closed body outline (drives Hu-moment matching and is the body in full-creature mode). `strokes` are detail marks warped onto the cloud.",
+  "templates": [
+    {
+      "label": "rabbit",
+      "category": "animals",
+      "silhouette": [
+        [0.34, 0.04], [0.28, 0.22], [0.24, 0.40], [0.16, 0.62],
+        [0.24, 0.86], [0.50, 0.92], [0.74, 0.86], [0.82, 0.62],
+        [0.74, 0.40], [0.70, 0.22], [0.64, 0.04], [0.58, 0.24],
+        [0.50, 0.30], [0.40, 0.24]
+      ],
+      "strokes": [
+        { "role": "eye", "order": 1, "closed": true,
+          "points": [[0.43, 0.46], [0.415, 0.486], [0.385, 0.486], [0.37, 0.46], [0.385, 0.434], [0.415, 0.434]] },
+        { "role": "eye", "order": 2, "closed": true,
+          "points": [[0.63, 0.46], [0.615, 0.486], [0.585, 0.486], [0.57, 0.46], [0.585, 0.434], [0.615, 0.434]] },
+        { "role": "nose", "order": 3, "closed": true,
+          "points": [[0.50, 0.54], [0.47, 0.58], [0.53, 0.58]] },
+        { "role": "mouth", "order": 4, "closed": false,
+          "points": [[0.44, 0.66], [0.50, 0.62], [0.56, 0.66]] },
+        { "role": "tail", "order": 5, "closed": true,
+          "points": [[0.85, 0.78], [0.83, 0.83], [0.78, 0.85], [0.74, 0.81], [0.76, 0.75], [0.81, 0.74]] }
+      ]
+    },
+    {
+      "label": "fish",
+      "category": "animals",
+      "silhouette": [
+        [0.05, 0.50], [0.20, 0.36], [0.45, 0.30], [0.65, 0.34],
+        [0.72, 0.42], [0.95, 0.28], [0.82, 0.50], [0.95, 0.72],
+        [0.72, 0.58], [0.65, 0.66], [0.45, 0.70], [0.20, 0.64]
+      ],
+      "strokes": [
+        { "role": "eye", "order": 1, "closed": true,
+          "points": [[0.21, 0.46], [0.195, 0.484], [0.165, 0.484], [0.15, 0.46], [0.165, 0.436], [0.195, 0.436]] },
+        { "role": "gill", "order": 2, "closed": false,
+          "points": [[0.30, 0.36], [0.27, 0.50], [0.30, 0.64]] },
+        { "role": "mouth", "order": 3, "closed": false,
+          "points": [[0.05, 0.52], [0.12, 0.55]] }
+      ]
+    },
+    {
+      "label": "cat",
+      "category": "animals",
+      "silhouette": [
+        [0.22, 0.05], [0.12, 0.30], [0.10, 0.45], [0.22, 0.75],
+        [0.50, 0.85], [0.78, 0.75], [0.90, 0.45], [0.88, 0.30],
+        [0.78, 0.05], [0.62, 0.22], [0.50, 0.18], [0.38, 0.22]
+      ],
+      "strokes": [
+        { "role": "eye", "order": 1, "closed": true,
+          "points": [[0.40, 0.45], [0.385, 0.485], [0.335, 0.485], [0.32, 0.45], [0.335, 0.415], [0.385, 0.415]] },
+        { "role": "eye", "order": 2, "closed": true,
+          "points": [[0.68, 0.45], [0.665, 0.485], [0.615, 0.485], [0.60, 0.45], [0.615, 0.415], [0.665, 0.415]] },
+        { "role": "nose", "order": 3, "closed": true,
+          "points": [[0.50, 0.55], [0.46, 0.60], [0.54, 0.60]] },
+        { "role": "whisker", "order": 4, "closed": false,
+          "points": [[0.30, 0.58], [0.08, 0.54]] },
+        { "role": "whisker", "order": 5, "closed": false,
+          "points": [[0.30, 0.64], [0.08, 0.66]] },
+        { "role": "whisker", "order": 6, "closed": false,
+          "points": [[0.70, 0.58], [0.92, 0.54]] },
+        { "role": "whisker", "order": 7, "closed": false,
+          "points": [[0.70, 0.64], [0.92, 0.66]] }
+      ]
+    },
+    {
+      "label": "bird",
+      "category": "animals",
+      "silhouette": [
+        [0.05, 0.42], [0.22, 0.25], [0.55, 0.28], [0.92, 0.32],
+        [0.92, 0.50], [0.60, 0.55], [0.40, 0.68], [0.22, 0.60],
+        [0.12, 0.50], [0.05, 0.46]
+      ],
+      "strokes": [
+        { "role": "eye", "order": 1, "closed": true,
+          "points": [[0.24, 0.40], [0.228, 0.42], [0.202, 0.42], [0.19, 0.40], [0.202, 0.38], [0.228, 0.38]] },
+        { "role": "wing", "order": 2, "closed": false,
+          "points": [[0.40, 0.40], [0.62, 0.44], [0.48, 0.52]] },
+        { "role": "leg", "order": 3, "closed": false,
+          "points": [[0.40, 0.68], [0.40, 0.80]] },
+        { "role": "leg", "order": 4, "closed": false,
+          "points": [[0.50, 0.66], [0.52, 0.80]] }
+      ]
+    }
+  ]
+}

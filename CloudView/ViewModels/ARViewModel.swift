@@ -267,30 +267,41 @@ class ARViewModel: ObservableObject {
 
         guard !hasNearbyDrawing else { return }
 
-        // CLIP-based recognition: cluster the cloud (single-cloud today),
-        // ask the recognizer for 5 alternative interpretations, take the
-        // first (matcher already softmax-samples for variety). When the
-        // CLIP model isn't bundled, the service returns deterministic
-        // stub picks so this path still produces something.
         // Quiet "I see something" cue while recognition runs.
         FeedbackService.shared.fire(.sightingBegan)
 
-        guard let cluster = CloudClusteringService.cluster([cloudShape]).first else {
-            FeedbackService.shared.fire(.noMatch)
-            return
+        // Primary path: shape retrieval against the drawing-template library.
+        // The cloud's contour is matched (Hu moments) to a real creature
+        // whose art is then warped onto the cloud — so the pick is *caused
+        // by* the cloud's shape and the drawing is a genuine creature, not
+        // the cloud's own outline with dots. Returns nil when nothing is a
+        // confident enough fit, and we fall back below.
+        let concept: DrawingConcept
+        if let templated = DrawingTemplateLibrary.shared.makeDrawing(
+            forCloudContour: cloudShape.normalizedContour
+        ) {
+            concept = templated
+        } else {
+            // Fallback: CLIP interpretation (or deterministic stub when the
+            // model isn't bundled) rendered as the cloud outline + minimal
+            // annotation marks. Keeps the app producing something for clouds
+            // that don't resemble any template.
+            guard let cluster = CloudClusteringService.cluster([cloudShape]).first else {
+                FeedbackService.shared.fire(.noMatch)
+                return
+            }
+            let interpretations = (try? await recognitionService.recognize(cluster)) ?? []
+            guard let interpretation = interpretations.first else {
+                // No good match — soft haptic so the user knows we tried, no
+                // sound. UI's existing nil-name state shows "Cool cloud!".
+                FeedbackService.shared.fire(.noMatch)
+                return
+            }
+            concept = RecognitionToDrawingAdapter.makeDrawingConcept(
+                from: interpretation,
+                cloudShape: cloudShape
+            )
         }
-        let interpretations = (try? await recognitionService.recognize(cluster)) ?? []
-        guard let interpretation = interpretations.first else {
-            // No good match — soft haptic so the user knows we tried, no
-            // sound. UI's existing nil-name state shows "Cool cloud!".
-            FeedbackService.shared.fire(.noMatch)
-            return
-        }
-
-        let concept = RecognitionToDrawingAdapter.makeDrawingConcept(
-            from: interpretation,
-            cloudShape: cloudShape
-        )
 
         // Update UI with the recognized label
         currentDrawingName = concept.name
