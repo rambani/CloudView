@@ -207,4 +207,81 @@ final class TemplateDrawingTests: XCTestCase {
         }
         XCTAssertFalse(matchesCloudExactly)
     }
+
+    // MARK: - Linear solver
+
+    func testLinearSolveKnownSystem() {
+        // 2x + y = 3 ; x + 3y = 5  →  x = 0.8, y = 1.4
+        let x = LinearSolve.solve([[2, 1], [1, 3]], [3, 5])
+        XCTAssertNotNil(x)
+        XCTAssertEqual(x![0], 0.8, accuracy: 1e-9)
+        XCTAssertEqual(x![1], 1.4, accuracy: 1e-9)
+    }
+
+    func testLinearSolveSingularReturnsNil() {
+        // Second row is 2× the first → singular.
+        XCTAssertNil(LinearSolve.solve([[1, 2], [2, 4]], [3, 6]))
+    }
+
+    // MARK: - Thin-plate spline
+
+    private let tpsControl: [CGPoint] = [
+        CGPoint(x: 0.2, y: 0.1), CGPoint(x: 0.8, y: 0.15),
+        CGPoint(x: 0.85, y: 0.8), CGPoint(x: 0.15, y: 0.85),
+        CGPoint(x: 0.5, y: 0.5),
+    ]
+
+    func testTPSIdentityLeavesPointsPut() throws {
+        let tps = try XCTUnwrap(ThinPlateSpline.fit(source: tpsControl, target: tpsControl))
+        assertPointsEqual(tps.apply(CGPoint(x: 0.4, y: 0.4)), CGPoint(x: 0.4, y: 0.4), 1e-5)
+        assertPointsEqual(tps.apply(CGPoint(x: 0.7, y: 0.2)), CGPoint(x: 0.7, y: 0.2), 1e-5)
+    }
+
+    func testTPSInterpolatesControlPointsAndReproducesAffine() throws {
+        // Affine target: (x,y) ↦ (1.3x + 0.1, 0.7y + 0.2).
+        func affine(_ p: CGPoint) -> CGPoint {
+            CGPoint(x: 1.3 * p.x + 0.1, y: 0.7 * p.y + 0.2)
+        }
+        let dst = tpsControl.map(affine)
+        let tps = try XCTUnwrap(ThinPlateSpline.fit(source: tpsControl, target: dst))
+
+        // Exactly interpolates every control point …
+        for (s, d) in zip(tpsControl, dst) { assertPointsEqual(tps.apply(s), d, 1e-5) }
+        // … and, because the data is affine, reproduces it at a new point.
+        let newP = CGPoint(x: 0.37, y: 0.62)
+        assertPointsEqual(tps.apply(newP), affine(newP), 1e-5)
+    }
+
+    func testTPSFitRejectsTooFewPoints() {
+        XCTAssertNil(ThinPlateSpline.fit(
+            source: [CGPoint(x: 0, y: 0), CGPoint(x: 1, y: 1)],
+            target: [CGPoint(x: 0, y: 0), CGPoint(x: 1, y: 1)]
+        ))
+    }
+
+    // MARK: - Warp selection (integration)
+
+    func testTemplateWarpStaysBoundedOnRealisticContours() {
+        // A rabbit-ish template silhouette draped onto an irregular cloud.
+        let template = [
+            CGPoint(x: 0.34, y: 0.04), CGPoint(x: 0.28, y: 0.22), CGPoint(x: 0.24, y: 0.40),
+            CGPoint(x: 0.16, y: 0.62), CGPoint(x: 0.24, y: 0.86), CGPoint(x: 0.50, y: 0.92),
+            CGPoint(x: 0.74, y: 0.86), CGPoint(x: 0.82, y: 0.62), CGPoint(x: 0.74, y: 0.40),
+            CGPoint(x: 0.70, y: 0.22), CGPoint(x: 0.64, y: 0.04), CGPoint(x: 0.50, y: 0.30),
+        ]
+        let cloud = [
+            CGPoint(x: 0.30, y: 0.10), CGPoint(x: 0.22, y: 0.28), CGPoint(x: 0.20, y: 0.45),
+            CGPoint(x: 0.12, y: 0.65), CGPoint(x: 0.30, y: 0.88), CGPoint(x: 0.55, y: 0.90),
+            CGPoint(x: 0.78, y: 0.82), CGPoint(x: 0.80, y: 0.60), CGPoint(x: 0.70, y: 0.42),
+            CGPoint(x: 0.66, y: 0.25), CGPoint(x: 0.60, y: 0.08), CGPoint(x: 0.46, y: 0.30),
+        ]
+        let warp = TemplateWarp.fit(templateContour: template, cloudContour: cloud)
+        let warped = warp.apply(template)
+        XCTAssertEqual(warped.count, template.count)
+        // No NaNs and no runaway extrapolation — the drape stays near the cloud.
+        for p in warped {
+            XCTAssertTrue(p.x.isFinite && p.y.isFinite)
+            XCTAssertTrue(p.x > -0.5 && p.x < 1.5 && p.y > -0.5 && p.y < 1.5)
+        }
+    }
 }

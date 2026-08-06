@@ -33,7 +33,10 @@ enum TemplateDrawingComposer {
         score: Double,
         strongMatchThreshold: Double = defaultStrongThreshold
     ) -> DrawingConcept {
-        let transform = SimilarityTransform.fit(
+        // Thin-plate spline over the cloud's landmarks when they support one,
+        // else a closed-form similarity transform — either way the template is
+        // draped onto the cloud's real form.
+        let warp = TemplateWarp.fit(
             templateContour: template.silhouette.cgPoints,
             cloudContour: cloudContour
         )
@@ -43,7 +46,7 @@ enum TemplateDrawingComposer {
 
         // Body (order 0): the real cloud outline when confident, otherwise the
         // warped template silhouette.
-        let bodyPoints = cloudAsBody ? cloudContour : transform.apply(template.silhouette.cgPoints)
+        let bodyPoints = cloudAsBody ? cloudContour : warp.apply(template.silhouette.cgPoints)
         if bodyPoints.count >= 2 {
             paths.append(DrawingConcept.DrawingPath(points: bodyPoints, closed: true, order: 0))
         }
@@ -51,7 +54,7 @@ enum TemplateDrawingComposer {
         // Details: always the template's strokes, warped onto the cloud, in
         // their authored reveal order (offset by 1 so the body is first).
         for stroke in template.strokes.sorted(by: { $0.order < $1.order }) {
-            let pts = transform.apply(stroke.points.cgPoints)
+            let pts = warp.apply(stroke.points.cgPoints)
             guard pts.count >= 2 else { continue }
             paths.append(DrawingConcept.DrawingPath(
                 points: pts,
