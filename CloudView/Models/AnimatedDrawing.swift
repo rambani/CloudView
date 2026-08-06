@@ -75,7 +75,7 @@ class AnimatedDrawing {
 
         var meshDescriptor = MeshDescriptor(name: "line")
 
-        let lineWidth: Float = 0.003 // 3mm thick lines
+        let lineWidth = concept.style.lineWidth
 
         // Convert normalized points to 3D positions
         var positions: [simd_float3] = []

@@ -3,6 +3,7 @@ import RealityKit
 import ARKit
 import Combine
 import CoreMotion
+import CoreLocation
 
 class ARViewModel: ObservableObject {
     @Published var isProcessing = false
@@ -270,6 +271,22 @@ class ARViewModel: ObservableObject {
         // Quiet "I see something" cue while recognition runs.
         FeedbackService.shared.fire(.sightingBegan)
 
+        guard let cluster = CloudClusteringService.cluster([cloudShape]).first else {
+            FeedbackService.shared.fire(.noMatch)
+            return
+        }
+
+        // Deterministic variation seed: cloud shape + city-scale region are
+        // the shared components (what strangers at the same cloud can agree
+        // on); device salt + 6-hour time bucket are the personal ones. See
+        // docs/GENERATIVE_DRAWING_DESIGN.md for the policy.
+        let variation = VariationSeed(
+            cloudShapeKey: cluster.signature.cacheKey,
+            regionKey: Self.regionKey(for: weatherService?.currentLocation),
+            timeBucket: UInt64(Date().timeIntervalSince1970 / (6 * 3600)),
+            deviceSalt: Self.deviceSalt
+        )
+
         // Primary path: shape retrieval against the drawing-template library.
         // The cloud's contour is matched (Hu moments) to a real creature
         // whose art is then warped onto the cloud — so the pick is *caused
@@ -278,7 +295,8 @@ class ARViewModel: ObservableObject {
         // confident enough fit, and we fall back below.
         let concept: DrawingConcept
         if let templated = DrawingTemplateLibrary.shared.makeDrawing(
-            forCloudContour: cloudShape.normalizedContour
+            forCloudContour: cloudShape.normalizedContour,
+            variation: variation
         ) {
             concept = templated
         } else {
@@ -286,10 +304,6 @@ class ARViewModel: ObservableObject {
             // model isn't bundled) rendered as the cloud outline + minimal
             // annotation marks. Keeps the app producing something for clouds
             // that don't resemble any template.
-            guard let cluster = CloudClusteringService.cluster([cloudShape]).first else {
-                FeedbackService.shared.fire(.noMatch)
-                return
-            }
             let interpretations = (try? await recognitionService.recognize(cluster)) ?? []
             guard let interpretation = interpretations.first else {
                 // No good match — soft haptic so the user knows we tried, no
@@ -359,12 +373,38 @@ class ARViewModel: ObservableObject {
         FeedbackService.shared.fire(.drawingRevealed)
 
         // Save a snapshot to the local gallery once the line-drawing
-        // animation has had time to render. The 2.5s drawing animation
+        // animation has had time to render: the (seeded) reveal duration
         // + a little buffer gives the kid a satisfying complete image.
+        let archiveDelay = concept.style.revealDuration + 0.3
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 2_800_000_000)
+            try? await Task.sleep(nanoseconds: UInt64(archiveDelay * 1_000_000_000))
             captureAndArchive(label: concept.name)
         }
+    }
+
+    // MARK: - Variation seed inputs
+
+    /// Random 64-bit salt minted once per install — the "personal" component
+    /// that makes two neighbors' drawings of the same cloud differ.
+    private static let deviceSalt: UInt64 = {
+        let key = "cloudoodle.deviceSalt"
+        let defaults = UserDefaults.standard
+        if let stored = defaults.object(forKey: key) as? NSNumber {
+            return stored.uint64Value
+        }
+        let salt = UInt64.random(in: .min ... .max)
+        defaults.set(NSNumber(value: salt), forKey: key)
+        return salt
+    }()
+
+    /// City-scale region bucket from the coarse location the weather service
+    /// already holds: 0.2° grid (~20 km) — enough for "shared across a city"
+    /// without adding any location precision the app doesn't already use.
+    private static func regionKey(for location: CLLocation?) -> String {
+        guard let coordinate = location?.coordinate else { return "unknown" }
+        let lat = (coordinate.latitude * 5).rounded() / 5
+        let lon = (coordinate.longitude * 5).rounded() / 5
+        return "\(lat):\(lon)"
     }
 
     @MainActor
@@ -426,7 +466,7 @@ class ARViewModel: ObservableObject {
         let animatedDrawing = AnimatedDrawing(
             concept: concept,
             size: cloudShape.size,
-            duration: 2.5 // 2.5 seconds for full animation
+            duration: concept.style.revealDuration // seeded per drawing
         )
 
         animatedDrawing.animate(entity: entity)

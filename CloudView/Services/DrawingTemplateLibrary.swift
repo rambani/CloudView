@@ -1,8 +1,8 @@
 import Foundation
 import CoreGraphics
 
-/// Ranks `DrawingTemplate`s by how closely their canonical silhouette matches
-/// a cloud's contour, using the Hu-moment signature the app already computes
+/// Ranks creatures by how closely their canonical silhouette matches a
+/// cloud's contour, using the Hu-moment signature the app already computes
 /// (`CloudShapeSignature`). This is what makes a recognition "feel real": the
 /// creature is chosen *because the cloud's shape resembles it*, not sampled at
 /// random.
@@ -39,20 +39,38 @@ enum ShapeMatcher {
     }
 }
 
-/// Loads the bundled `DrawingTemplates.json`, precomputes each template's Hu
-/// signature once, and answers "which creature does this cloud look like, and
-/// how strongly?" Missing/empty/corrupt file → an empty library, so the app
-/// silently falls back to the existing recognition path.
+/// Loads the bundled `DrawingTemplates.json` — schema v1 (whole-creature
+/// templates) or v2 (creatures + parts library) — precomputes each creature's
+/// Hu signature once, and turns "which creature does this cloud look like?"
+/// plus a `VariationSeed` into a ready-to-animate drawing. Missing/corrupt
+/// file → an empty library, so the app silently falls back to the existing
+/// recognition path.
 final class DrawingTemplateLibrary {
     static let shared = DrawingTemplateLibrary()
 
     struct Entry {
-        let template: DrawingTemplate
-        /// Hu moments of `template.silhouette`, precomputed at load.
+        let label: String
+        let silhouette: [CGPoint]
+        /// Hu moments of the silhouette, precomputed at load.
         let huMoments: [Double]
+        let content: Content
+
+        enum Content {
+            /// v1: a complete authored drawing.
+            case template(DrawingTemplate)
+            /// v2: a creature assembled from the parts pool per scan.
+            case creature(CreatureSpec)
+        }
+    }
+
+    struct Match {
+        let entry: Entry
+        let score: Double
     }
 
     let entries: [Entry]
+    /// The v2 parts pool (empty for a v1 library).
+    let parts: [DrawingPart]
 
     /// Confidence floor below which we decline to claim a creature at all and
     /// let the caller fall back (or show "Cool cloud!"). Keeps us from drawing
@@ -60,77 +78,140 @@ final class DrawingTemplateLibrary {
     /// up".
     let confidenceFloor: Double
 
+    /// How often the seeded category pick strays from the best shape match to
+    /// the runner-up / third place, for surprise without breaking the "cloud
+    /// caused this" feel: 80% best, 15% second, 5% third.
+    private static let categoryTemperature: [Double] = [0.80, 0.95]
+
     private init(confidenceFloor: Double = 0.30) {
         self.confidenceFloor = confidenceFloor
-        self.entries = Self.loadEntries()
+        let loaded = Self.loadFromBundle()
+        self.entries = loaded.entries
+        self.parts = loaded.parts
         if entries.isEmpty {
             print("ℹ️  DrawingTemplateLibrary: no templates loaded — " +
                   "template drawings disabled, falling back to recognition/outline path.")
         }
     }
 
-    /// Test seam: build a library from in-memory templates without touching
-    /// the bundle.
+    /// Test seam: v1 library from in-memory templates.
     init(templates: [DrawingTemplate], confidenceFloor: Double = 0.30) {
         self.confidenceFloor = confidenceFloor
-        self.entries = templates.map {
-            Entry(template: $0,
-                  huMoments: CloudShapeSignature.huMoments(of: $0.silhouette.cgPoints))
-        }
+        self.parts = []
+        self.entries = templates.compactMap { Self.entry(label: $0.label, silhouette: $0.silhouette, content: .template($0)) }
     }
 
-    private static func loadEntries() -> [Entry] {
+    /// Test seam: v2 library from in-memory creatures + parts.
+    init(creatures: [CreatureSpec], parts: [DrawingPart], confidenceFloor: Double = 0.30) {
+        self.confidenceFloor = confidenceFloor
+        self.parts = parts
+        self.entries = creatures.compactMap { Self.entry(label: $0.label, silhouette: $0.silhouette, content: .creature($0)) }
+    }
+
+    private static func entry(label: String, silhouette: [Pt], content: Entry.Content) -> Entry? {
+        let pts = silhouette.cgPoints
+        guard pts.count >= 3 else {
+            print("⚠️  '\(label)' has a degenerate silhouette; skipping.")
+            return nil
+        }
+        return Entry(
+            label: label,
+            silhouette: pts,
+            huMoments: CloudShapeSignature.huMoments(of: pts),
+            content: content
+        )
+    }
+
+    private static func loadFromBundle() -> (entries: [Entry], parts: [DrawingPart]) {
         guard let url = Bundle.main.url(forResource: "DrawingTemplates", withExtension: "json") else {
             print("ℹ️  DrawingTemplates.json not in bundle.")
-            return []
+            return ([], [])
         }
         do {
             let data = try Data(contentsOf: url)
-            let file = try JSONDecoder().decode(DrawingTemplateFile.self, from: data)
-            return file.templates.compactMap { template in
-                let pts = template.silhouette.cgPoints
-                guard pts.count >= 3 else {
-                    print("⚠️  Template '\(template.label)' has a degenerate silhouette; skipping.")
-                    return nil
+            struct VersionPeek: Codable { let version: Int }
+            let version = (try? JSONDecoder().decode(VersionPeek.self, from: data))?.version ?? 1
+
+            if version >= 2 {
+                let file = try JSONDecoder().decode(PartsLibraryFile.self, from: data)
+                let entries = file.creatures.compactMap {
+                    entry(label: $0.label, silhouette: $0.silhouette, content: .creature($0))
                 }
-                return Entry(template: template,
-                             huMoments: CloudShapeSignature.huMoments(of: pts))
+                return (entries, file.parts)
+            } else {
+                let file = try JSONDecoder().decode(DrawingTemplateFile.self, from: data)
+                let entries = file.templates.compactMap {
+                    entry(label: $0.label, silhouette: $0.silhouette, content: .template($0))
+                }
+                return (entries, [])
             }
         } catch {
             print("⚠️  Failed to decode DrawingTemplates.json: \(error.localizedDescription)")
-            return []
+            return ([], [])
         }
     }
 
-    /// Best-matching template for a cloud contour and its 0–1 confidence, or
-    /// `nil` if nothing clears `confidenceFloor`.
-    func bestMatch(forCloudContour contour: [CGPoint]) -> (template: DrawingTemplate, score: Double)? {
-        guard contour.count >= 3, !entries.isEmpty else { return nil }
+    // MARK: - Matching
+
+    /// All creatures whose shape similarity to the cloud clears the
+    /// confidence floor, best first.
+    func rankedMatches(forCloudContour contour: [CGPoint]) -> [Match] {
+        guard contour.count >= 3, !entries.isEmpty else { return [] }
         let cloudHu = CloudShapeSignature.huMoments(of: contour)
 
-        var best: (template: DrawingTemplate, score: Double)?
-        for entry in entries {
-            let d = ShapeMatcher.distance(cloudHu, entry.huMoments)
-            let s = ShapeMatcher.score(distance: d)
-            if best == nil || s > best!.score {
-                best = (entry.template, s)
-            }
-        }
-
-        guard let match = best, match.score >= confidenceFloor else { return nil }
-        return match
+        return entries
+            .map { Match(entry: $0, score: ShapeMatcher.score(distance: ShapeMatcher.distance(cloudHu, $0.huMoments))) }
+            .filter { $0.score >= confidenceFloor }
+            .sorted { $0.score > $1.score }
     }
 
-    /// Full path from a raw cloud contour to a ready-to-animate drawing, or
-    /// `nil` when no creature is a confident enough fit. Ties `bestMatch` to
-    /// the hybrid composer so callers stay a one-liner.
-    func makeDrawing(forCloudContour contour: [CGPoint]) -> DrawingConcept? {
-        guard let match = bestMatch(forCloudContour: contour) else { return nil }
-        return TemplateDrawingComposer.compose(
-            cloudContour: contour,
-            template: match.template,
-            score: match.score,
-            strongMatchThreshold: TemplateDrawingComposer.defaultStrongThreshold
-        )
+    /// Best-matching v1 template and its 0–1 confidence, or `nil` if nothing
+    /// clears `confidenceFloor`. (Legacy surface; the variation-aware
+    /// `makeDrawing` below is the production path.)
+    func bestMatch(forCloudContour contour: [CGPoint]) -> (template: DrawingTemplate, score: Double)? {
+        for match in rankedMatches(forCloudContour: contour) {
+            if case .template(let t) = match.entry.content {
+                return (t, match.score)
+            }
+        }
+        return nil
+    }
+
+    // MARK: - Drawing
+
+    /// Full path from a raw cloud contour + variation seed to a
+    /// ready-to-animate drawing, or `nil` when no creature is a confident
+    /// enough fit. The seed picks the category (with a small temperature
+    /// across the top shape matches), drives part assembly for v2 creatures,
+    /// and styles the strokes/animation — deterministically, so the same
+    /// cloud + seed always yields the same drawing.
+    func makeDrawing(forCloudContour contour: [CGPoint], variation: VariationSeed) -> DrawingConcept? {
+        let ranked = rankedMatches(forCloudContour: contour)
+        guard !ranked.isEmpty else { return nil }
+
+        let u = variation.double(for: "category")
+        var index = 0
+        if u >= Self.categoryTemperature[0] { index = 1 }
+        if u >= Self.categoryTemperature[1] { index = 2 }
+        let match = ranked[min(index, ranked.count - 1)]
+
+        switch match.entry.content {
+        case .creature(let creature):
+            return DrawingAssembler.assemble(
+                creature: creature,
+                parts: parts,
+                cloudContour: contour,
+                score: match.score,
+                variation: variation
+            )
+        case .template(let template):
+            var concept = TemplateDrawingComposer.compose(
+                cloudContour: contour,
+                template: template,
+                score: match.score
+            )
+            concept.style = DrawingAssembler.seededStyle(variation)
+            return concept
+        }
     }
 }
