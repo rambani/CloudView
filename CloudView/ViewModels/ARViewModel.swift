@@ -275,8 +275,11 @@ class ARViewModel: ObservableObject {
         // Quiet "I see something" cue while recognition runs.
         FeedbackService.shared.fire(.sightingBegan)
 
-        let cluster = CloudClusteringService.cluster([cloudShape]).first
-        let interpretations = (try? await recognitionService.recognize(cluster!)) ?? []
+        guard let cluster = CloudClusteringService.cluster([cloudShape]).first else {
+            FeedbackService.shared.fire(.noMatch)
+            return
+        }
+        let interpretations = (try? await recognitionService.recognize(cluster)) ?? []
         guard let interpretation = interpretations.first else {
             // No good match — soft haptic so the user knows we tried, no
             // sound. UI's existing nil-name state shows "Cool cloud!".
@@ -402,22 +405,19 @@ class ARViewModel: ObservableObject {
 
     @MainActor
     private func createAnimatedDrawing(concept: DrawingConcept, cloudShape: CloudShape) async -> ModelEntity {
+        // The container entity carries no mesh of its own. Previously it was
+        // given a solid white quad, which rendered as an opaque white card
+        // *in front of* the drawing and hid the white line strokes entirely.
+        // The visible geometry is the set of animated line children that
+        // `animate(entity:)` adds and reveals in sequence.
         let entity = ModelEntity()
 
-        // Create animated line drawing
         let animatedDrawing = AnimatedDrawing(
             concept: concept,
             size: cloudShape.size,
             duration: 2.5 // 2.5 seconds for full animation
         )
 
-        // Generate mesh from paths
-        let mesh = animatedDrawing.generateMesh()
-        let material = SimpleMaterial(color: .white, isMetallic: false)
-
-        entity.model = ModelComponent(mesh: mesh, materials: [material])
-
-        // Start animation
         animatedDrawing.animate(entity: entity)
 
         return entity
