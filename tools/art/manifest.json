@@ -1,0 +1,114 @@
+{
+  "_comment": "Source of truth for CloudView/Resources/DrawingTemplates.json (schema v2). Regenerate with: python3 build_drawing_templates.py --manifest art/manifest.json --output ../CloudView/Resources/DrawingTemplates.json  — see ART_WORKFLOW.md for the art production process.",
+  "creatures": [
+    {
+      "label": "rabbit",
+      "category": "animals",
+      "silhouette": "rabbit/silhouette.svg",
+      "slots": { "face": { "required": true } }
+    },
+    {
+      "label": "fish",
+      "category": "animals",
+      "silhouette": "fish/silhouette.svg",
+      "slots": { "face": { "required": true } }
+    },
+    {
+      "label": "cat",
+      "category": "animals",
+      "silhouette": "cat/silhouette.svg",
+      "slots": { "face": { "required": true } }
+    },
+    {
+      "label": "bird",
+      "category": "animals",
+      "silhouette": "bird/silhouette.svg",
+      "slots": { "face": { "required": true } }
+    },
+    {
+      "label": "whale",
+      "category": "animals",
+      "silhouette": "whale/silhouette.svg",
+      "slots": { "face": { "required": true } }
+    },
+    {
+      "label": "turtle",
+      "category": "animals",
+      "silhouette": "turtle/silhouette.svg",
+      "slots": { "face": { "required": true } }
+    },
+    {
+      "label": "dragon",
+      "category": "mythical",
+      "silhouette": "dragon/silhouette.svg",
+      "slots": {
+        "face": { "required": true },
+        "crest": { "required": true },
+        "breath": { "required": false, "probability": 0.4 },
+        "companion": { "required": false, "probability": 0.3 }
+      }
+    },
+    {
+      "label": "swan",
+      "category": "animals",
+      "silhouette": "swan/silhouette.svg",
+      "slots": { "face": { "required": true } }
+    },
+    {
+      "label": "bear",
+      "category": "animals",
+      "silhouette": "bear/silhouette.svg",
+      "slots": { "face": { "required": true } }
+    }
+  ],
+  "parts": [
+    {
+      "id": "face-round-01",
+      "kind": "face",
+      "creatures": ["*"],
+      "anchor": "centroid",
+      "scale": 0.4,
+      "source": "shared/face-round-01.svg"
+    },
+    {
+      "id": "face-sleepy-02",
+      "kind": "face",
+      "creatures": ["*"],
+      "anchor": "centroid",
+      "scale": 0.4,
+      "source": "shared/face-sleepy-02.svg"
+    },
+    {
+      "id": "dragon-face-fierce-01",
+      "kind": "face",
+      "creatures": ["dragon"],
+      "anchor": "centroid",
+      "scale": 0.45,
+      "source": "dragon/face-fierce-01.svg"
+    },
+    {
+      "id": "dragon-crest-01",
+      "kind": "crest",
+      "creatures": ["dragon"],
+      "anchor": "top",
+      "scale": 0.5,
+      "source": "dragon/crest-01.svg"
+    },
+    {
+      "id": "dragon-breath-01",
+      "kind": "breath",
+      "creatures": ["dragon"],
+      "anchor": "left",
+      "scale": 0.35,
+      "source": "dragon/breath-01.svg"
+    },
+    {
+      "id": "dragon-companion-castle-01",
+      "kind": "companion",
+      "creatures": ["dragon"],
+      "anchor": "right",
+      "scale": 0.6,
+      "source": "dragon/companion-castle-01.svg"
+    }
+  ]
+}

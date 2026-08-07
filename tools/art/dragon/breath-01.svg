@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 170 70">
+  <!-- Breath stream flowing left from the dragon's mouth, three tapering
+       wisps like the reference image. -->
+  <path id="wisp" d="M 165 18 Q 120 6 80 16 Q 45 24 8 17"/>
+  <path id="wisp" d="M 168 34 Q 118 28 76 36 Q 40 43 14 37"/>
+  <path id="wisp" d="M 160 50 Q 118 56 82 50 Q 52 45 26 52"/>
+  <path id="curl" d="M 8 17 Q 2 22 9 26"/>
+</svg>

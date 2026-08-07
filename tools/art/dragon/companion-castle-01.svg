@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 130 150">
+  <!-- Turreted castle rising from a neighboring cloud bank — the companion
+       element in the reference image. Anchored at the cloud's right edge so
+       it sits beside/beyond the creature. -->
+  <path id="keep" d="M 34 145 L 34 78 L 40 78 L 40 70 L 47 70 L 47 78 L 58 78
+                     L 58 70 L 65 70 L 65 78 L 76 78 L 76 70 L 83 70 L 83 78
+                     L 90 78 L 90 145"/>
+  <path id="tower-center" d="M 52 78 L 52 44 L 74 44 L 74 78"/>
+  <path id="cone-center" d="M 48 44 L 63 12 L 78 44"/>
+  <path id="flag" d="M 63 12 L 63 3 L 74 7 L 63 10"/>
+  <path id="tower-left" d="M 14 145 L 14 66 L 30 66 L 30 145"/>
+  <path id="cone-left" d="M 10 66 L 22 40 L 34 66"/>
+  <path id="tower-right" d="M 96 145 L 96 66 L 112 66 L 112 145"/>
+  <path id="cone-right" d="M 92 66 L 104 40 L 116 66"/>
+  <path id="gate" d="M 55 145 L 55 116 Q 62 106 69 116 L 69 145"/>
+  <path id="window" d="M 60 56 Q 63 50 66 56 L 66 64 L 60 64 Z"/>
+</svg>
