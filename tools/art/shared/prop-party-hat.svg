@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 70">
+  <path id="hat" d="M 20 62 L 40 10 L 60 62 Z"/>
+  <circle id="pompom" cx="40" cy="8" r="5"/>
+  <path id="stripe" d="M 30 40 Q 40 34 52 42"/>
+</svg>

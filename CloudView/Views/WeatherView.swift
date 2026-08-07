@@ -84,6 +84,7 @@ struct SwipeableWeatherPanel: View {
 
                             QuirkyWeatherStatement(
                                 drawingName: arViewModel.lastDrawingName,
+                                drawingSubject: arViewModel.lastDrawingSubject,
                                 weather: weather,
                                 forecast: weatherService.forecast,
                                 appState: arViewModel.appState
@@ -134,6 +135,9 @@ private typealias WeatherDetails = QuipEngine.WeatherDetails
 
 struct QuirkyWeatherStatement: View {
     let drawingName: String?
+    /// Base creature behind the (possibly prop-decorated) drawing name, so
+    /// "Skateboarding Elephant" still gets elephant-flavored quips.
+    var drawingSubject: String? = nil
     let weather: WeatherData
     let forecast: [ForecastData.ForecastItem]
     let appState: AppState
@@ -175,7 +179,7 @@ struct QuirkyWeatherStatement: View {
                 // Seeded copy: stable for this drawing within the hour,
                 // fresh for a new drawing or a new hour. See QuipEngine.
                 return QuipEngine.quip(
-                    creature: drawing,
+                    creature: drawingSubject ?? drawing,
                     trend: trend,
                     details: details,
                     seed: QuipEngine.seed(

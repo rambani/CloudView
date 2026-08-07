@@ -53,8 +53,23 @@ enum QuipEngine {
         "elephant": "🐘", "giraffe": "🦒", "butterfly": "🦋", "octopus": "🐙",
         "dog": "🐶", "duck": "🦆", "dolphin": "🐬", "dinosaur": "🦕",
         "unicorn": "🦄", "snail": "🐌", "sailboat": "⛵",
+        "wizard": "🧙", "castle": "🏰", "basketball": "🏀", "astronaut": "🧑‍🚀",
+        "rocket": "🚀", "hot air balloon": "🎈", "ice cream": "🍦",
     ]
     private static let genericEmoji = "✨"
+
+    /// Resolve a display name to its persona key. Prop-decorated names
+    /// ("Skateboarding Elephant", "Wizard Cat in a Party Hat") still land on
+    /// the base creature's personality — exact match first, then the longest
+    /// known key contained in the name (longest so "hot air balloon" beats a
+    /// hypothetical "balloon" key).
+    private static func resolveKey(from name: String) -> String? {
+        let lowered = name.lowercased()
+        if creatureEmoji[lowered] != nil { return lowered }
+        return creatureEmoji.keys
+            .sorted { $0.count > $1.count }
+            .first { lowered.contains($0) }
+    }
 
     // MARK: - Authored creature × weather matrix
     //
@@ -202,6 +217,46 @@ enum QuipEngine {
             .windy: ["{wind} mph winds — the sailboat is at full sail."],
             .stable: ["Becalmed at {temp}° — the sailboat drifts with the clouds."],
         ],
+        "wizard": [
+            .rainComing: ["The wizard summoned this rain {time} — probably just showing off."],
+            .stormyComing: ["That thunder {time}? The wizard insists it isn't theirs."],
+            .windy: ["A {wind} mph wind is doing dramatic things to the wizard's robes."],
+            .stable: ["A suspiciously perfect {temp}° — the wizard's doing, no doubt."],
+        ],
+        "castle": [
+            .rainComing: ["The castle has weathered a thousand storms — rain {time} is nothing."],
+            .stormyComing: ["Raise the drawbridge — thunder marches in {time}."],
+            .windy: ["Banners streaming at {wind} mph over the castle walls."],
+            .stable: ["The castle holds the sky at a calm {temp}°."],
+        ],
+        "basketball": [
+            .rainComing: ["Rain delay {time} — even sky basketball has one."],
+            .windy: ["A {wind} mph crosswind — tricky free throws up there."],
+            .stable: ["Nothing but sky — {temp}° and perfect shooting weather."],
+        ],
+        "astronaut": [
+            .rainComing: ["The astronaut has seen storms from above — this rain {time} is cuter."],
+            .gettingColder: ["A space-grade suit laughs at {temp}°."],
+            .windy: ["{wind} mph? The astronaut has re-entered atmospheres windier than this."],
+            .stable: ["Clear skies at {temp}° — the astronaut can see the whole neighborhood."],
+        ],
+        "rocket": [
+            .rainComing: ["Launch scrubbed — rain moves in {time}."],
+            .gettingWarmer: ["Countdown conditions: clear and climbing to {temp}°."],
+            .stormyComing: ["Hold the countdown — storms {time}."],
+            .stable: ["All systems go at a steady {temp}°."],
+        ],
+        "hot air balloon": [
+            .rainComing: ["The balloon is finding a landing spot — rain {time}."],
+            .windy: ["{wind} mph winds — the balloon goes wherever they decide."],
+            .stable: ["Perfect ballooning at {temp}° — drifting exactly nowhere, happily."],
+        ],
+        "ice cream": [
+            .rainComing: ["The ice cream welcomes the cooldown — rain {time}."],
+            .gettingWarmer: ["Warming to {temp}° — the ice cream is officially on a deadline."],
+            .gettingColder: ["Cooling to {temp}° — the ice cream can finally relax."],
+            .stable: ["Holding at {temp}° — the ice cream approves of this forecast."],
+        ],
     ]
 
     /// Name-aware fallback for creatures (or cells) the matrix doesn't
@@ -226,23 +281,27 @@ enum QuipEngine {
 
     // MARK: - Public API
 
-    /// One integrated creature-meets-weather quip, seeded.
+    /// One integrated creature-meets-weather quip, seeded. `creature` may be
+    /// a prop-decorated display name ("Skateboarding Elephant") — the base
+    /// creature's personality is resolved from it.
     static func quip(creature: String, trend: WeatherTrend, details: WeatherDetails, seed: UInt64) -> String {
         var rng = SplitMix64(seed: seed)
-        let key = creature.lowercased()
+        let key = resolveKey(from: creature)
 
-        let bank = creatureTrendLines[key]?[trend] ?? genericLines(for: trend)
+        let bank = key.flatMap { creatureTrendLines[$0]?[trend] } ?? genericLines(for: trend)
         let line = bank[Int(rng.next() % UInt64(bank.count))]
-        let emoji = creatureEmoji[key] ?? genericEmoji
+        let emoji = key.flatMap { creatureEmoji[$0] } ?? genericEmoji
 
         return render(line, creature: creature, trend: trend, details: details) + " " + emoji
     }
 
-    /// Short share-ready caption for a drawing ("The sky drew me a Dragon 🐉").
-    static func caption(creature: String, seed: UInt64) -> String {
+    /// Short share-ready caption for a drawing ("The sky drew me a
+    /// Skateboarding Elephant 🐘"). Shows the full decorated name; the
+    /// emoji comes from the base creature (`subject` when the caller knows
+    /// it, otherwise resolved from the name).
+    static func caption(creature: String, subject: String? = nil, seed: UInt64) -> String {
         var rng = SplitMix64(seed: seed &+ 0x51EE)
-        let key = creature.lowercased()
-        let emoji = creatureEmoji[key] ?? genericEmoji
+        let emoji = resolveKey(from: subject ?? creature).flatMap { creatureEmoji[$0] } ?? genericEmoji
         let display = displayName(for: creature)
         let forms = [
             "I found a \(display) in the clouds today \(emoji)",

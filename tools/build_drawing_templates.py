@@ -648,6 +648,13 @@ def build(manifest_path, output_path, tolerance, smooth, max_points):
         }
         if "scale" in p:
             part["scale"] = p["scale"]
+        # Optional display-name template for props: "Skateboarding {name}" /
+        # "{name} in a Party Hat". The assembler applies it to the drawing's
+        # display name when the part is included.
+        if "display" in p:
+            if "{name}" not in p["display"]:
+                fail(f"part '{p['id']}': display template must contain '{{name}}'")
+            part["display"] = p["display"]
         parts_out.append(part)
 
     for c in creatures_out:

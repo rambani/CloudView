@@ -144,13 +144,14 @@ final class DrawingAssemblyTests: XCTestCase {
 
     /// A part whose strokes are centered on local (0.5, 0.5), so the mapped
     /// centroid should land exactly on the anchor landmark.
-    private func makePart(id: String, kind: String, anchor: PartAnchor, pointCount: Int = 2) -> DrawingPart {
+    private func makePart(id: String, kind: String, anchor: PartAnchor, pointCount: Int = 2,
+                          display: String? = nil) -> DrawingPart {
         let pts = (0..<pointCount).map { i -> Pt in
             let t = Double(i) / Double(max(pointCount - 1, 1))
             return Pt(x: 0.4 + 0.2 * t, y: 0.5)
         }
         return DrawingPart(
-            id: id, kind: kind, creatures: ["*"], anchor: anchor, scale: 0.2,
+            id: id, kind: kind, creatures: ["*"], anchor: anchor, scale: 0.2, display: display,
             strokes: [DrawingTemplate.Stroke(role: kind, order: 1, closed: false, points: pts)]
         )
     }
@@ -279,6 +280,26 @@ final class DrawingAssemblyTests: XCTestCase {
             return concept.paths.first { $0.order == 1 }?.points.count ?? -1
         })
         XCTAssertGreaterThan(observed.count, 1)
+    }
+
+    func testPropDisplayTemplateDecoratesName() {
+        // A required prop with a display template must rewrite the drawing's
+        // display name — "Blob" becomes "Skateboarding Blob".
+        let concept = DrawingAssembler.assemble(
+            creature: makeCreature(slots: ["prop": SlotSpec(required: true, probability: nil)]),
+            parts: [makePart(id: "prop-skate", kind: "prop", anchor: .bottom,
+                             display: "Skateboarding {name}")],
+            cloudContour: cloud, score: 0.9, variation: seed
+        )
+        XCTAssertEqual(concept.name, "Skateboarding Blob")
+
+        // Without a display template the name stays the plain creature.
+        let plain = DrawingAssembler.assemble(
+            creature: makeCreature(slots: ["eye": SlotSpec(required: true, probability: nil)]),
+            parts: [makePart(id: "eye-01", kind: "eye", anchor: .centroid)],
+            cloudContour: cloud, score: 0.9, variation: seed
+        )
+        XCTAssertEqual(plain.name, "Blob")
     }
 
     func testSeededStyleStaysInBounds() {

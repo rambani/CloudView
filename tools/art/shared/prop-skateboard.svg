@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 40">
+  <path id="deck" d="M 8 14 Q 14 22 26 22 L 94 22 Q 106 22 112 14"/>
+  <circle id="wheel" cx="36" cy="30" r="6"/>
+  <circle id="wheel" cx="84" cy="30" r="6"/>
+</svg>

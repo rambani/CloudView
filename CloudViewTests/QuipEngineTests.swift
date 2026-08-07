@@ -11,6 +11,8 @@ final class QuipEngineTests: XCTestCase {
         "rabbit", "fish", "cat", "bird", "whale", "turtle", "dragon", "swan", "bear",
         "elephant", "giraffe", "butterfly", "octopus", "dog", "duck", "dolphin",
         "dinosaur", "unicorn", "snail", "sailboat",
+        "wizard", "castle", "basketball", "astronaut", "rocket",
+        "hot air balloon", "ice cream",
     ]
 
     private let allTrends: [QuipEngine.WeatherTrend] = [
@@ -70,6 +72,38 @@ final class QuipEngineTests: XCTestCase {
             XCTAssertTrue(turtleRain.contains("roof"),
                           "turtle×rain should lean on the shell-as-roof joke: \(turtleRain)")
         }
+    }
+
+    func testPropDecoratedNameResolvesToBaseCreaturePersona() {
+        // "Skateboarding Elephant" must land on the elephant's personality,
+        // not the generic fallback — and the caption must keep the full
+        // decorated name.
+        for seed in 0..<6 {
+            let quip = QuipEngine.quip(
+                creature: "Skateboarding Elephant", trend: .windy,
+                details: QuipEngine.WeatherDetails(windSpeed: 18), seed: UInt64(seed)
+            ).lowercased()
+            XCTAssertTrue(quip.contains("ears"),
+                          "decorated elephant should still get elephant lines: \(quip)")
+            XCTAssertTrue(quip.contains("🐘"), "elephant emoji expected: \(quip)")
+        }
+
+        let caption = QuipEngine.caption(creature: "Skateboarding Elephant", seed: 3)
+        XCTAssertTrue(caption.contains("Skateboarding Elephant"), caption)
+        XCTAssertTrue(caption.contains("🐘"), caption)
+
+        // With an explicit subject, ambiguous decorations resolve correctly:
+        // a cat in a wizard hat is still a cat, not a wizard.
+        let wizardCat = QuipEngine.caption(creature: "Wizard Cat", subject: "cat", seed: 3)
+        XCTAssertTrue(wizardCat.contains("Wizard Cat"), wizardCat)
+        XCTAssertTrue(wizardCat.contains("🐱"), wizardCat)
+
+        // Multi-word key resolution: "hot air balloon" resolves as itself.
+        let balloon = QuipEngine.quip(
+            creature: "Hot Air Balloon", trend: .windy,
+            details: QuipEngine.WeatherDetails(windSpeed: 12), seed: 1
+        )
+        XCTAssertTrue(balloon.contains("🎈"), balloon)
     }
 
     func testUnknownCreatureFallsBackGracefully() {

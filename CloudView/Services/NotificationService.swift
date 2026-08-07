@@ -217,7 +217,8 @@ enum DrawingCategory: String, Codable {
 
         // Vehicles
         if name.contains("car") || name.contains("plane") || name.contains("boat") ||
-           name.contains("train") || name.contains("rocket") || name.contains("helicopter") {
+           name.contains("train") || name.contains("rocket") || name.contains("helicopter") ||
+           name.contains("balloon") {
             return .vehicles
         }
 

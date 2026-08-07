@@ -8,6 +8,10 @@
       "slots": {
         "face": {
           "required": true
+        },
+        "prop": {
+          "required": false,
+          "probability": 0.35
         }
       }
     },
@@ -18,6 +22,10 @@
       "slots": {
         "face": {
           "required": true
+        },
+        "prop": {
+          "required": false,
+          "probability": 0.35
         }
       }
     },
@@ -28,6 +36,10 @@
       "slots": {
         "face": {
           "required": true
+        },
+        "prop": {
+          "required": false,
+          "probability": 0.35
         }
       }
     },
@@ -38,6 +50,10 @@
       "slots": {
         "face": {
           "required": true
+        },
+        "prop": {
+          "required": false,
+          "probability": 0.35
         }
       }
     },
@@ -48,6 +64,10 @@
       "slots": {
         "face": {
           "required": true
+        },
+        "prop": {
+          "required": false,
+          "probability": 0.35
         }
       }
     },
@@ -58,6 +78,10 @@
       "slots": {
         "face": {
           "required": true
+        },
+        "prop": {
+          "required": false,
+          "probability": 0.35
         }
       }
     },
@@ -79,6 +103,10 @@
         "companion": {
           "required": false,
           "probability": 0.3
+        },
+        "prop": {
+          "required": false,
+          "probability": 0.35
         }
       }
     },
@@ -89,6 +117,10 @@
       "slots": {
         "face": {
           "required": true
+        },
+        "prop": {
+          "required": false,
+          "probability": 0.35
         }
       }
     },
@@ -99,6 +131,10 @@
       "slots": {
         "face": {
           "required": true
+        },
+        "prop": {
+          "required": false,
+          "probability": 0.35
         }
       }
     },
@@ -109,6 +145,10 @@
       "slots": {
         "face": {
           "required": true
+        },
+        "prop": {
+          "required": false,
+          "probability": 0.35
         }
       }
     },
@@ -119,6 +159,10 @@
       "slots": {
         "face": {
           "required": true
+        },
+        "prop": {
+          "required": false,
+          "probability": 0.35
         }
       }
     },
@@ -129,6 +173,10 @@
       "slots": {
         "face": {
           "required": true
+        },
+        "prop": {
+          "required": false,
+          "probability": 0.35
         }
       }
     },
@@ -139,6 +187,10 @@
       "slots": {
         "face": {
           "required": true
+        },
+        "prop": {
+          "required": false,
+          "probability": 0.35
         }
       }
     },
@@ -149,6 +201,10 @@
       "slots": {
         "face": {
           "required": true
+        },
+        "prop": {
+          "required": false,
+          "probability": 0.35
         }
       }
     },
@@ -159,6 +215,10 @@
       "slots": {
         "face": {
           "required": true
+        },
+        "prop": {
+          "required": false,
+          "probability": 0.35
         }
       }
     },
@@ -169,6 +229,10 @@
       "slots": {
         "face": {
           "required": true
+        },
+        "prop": {
+          "required": false,
+          "probability": 0.35
         }
       }
     },
@@ -179,6 +243,10 @@
       "slots": {
         "face": {
           "required": true
+        },
+        "prop": {
+          "required": false,
+          "probability": 0.35
         }
       }
     },
@@ -189,6 +257,10 @@
       "slots": {
         "face": {
           "required": true
+        },
+        "prop": {
+          "required": false,
+          "probability": 0.35
         }
       }
     },
@@ -199,6 +271,10 @@
       "slots": {
         "face": {
           "required": true
+        },
+        "prop": {
+          "required": false,
+          "probability": 0.35
         }
       }
     },
@@ -209,6 +285,108 @@
       "slots": {
         "face": {
           "required": true
+        },
+        "prop": {
+          "required": false,
+          "probability": 0.35
+        }
+      }
+    },
+    {
+      "label": "wizard",
+      "category": "mythical",
+      "silhouette": "wizard/silhouette.svg",
+      "slots": {
+        "face": {
+          "required": true
+        },
+        "prop": {
+          "required": false,
+          "probability": 0.35
+        }
+      }
+    },
+    {
+      "label": "castle",
+      "category": "landmarks",
+      "silhouette": "castle/silhouette.svg",
+      "slots": {
+        "face": {
+          "required": true
+        },
+        "prop": {
+          "required": false,
+          "probability": 0.35
+        }
+      }
+    },
+    {
+      "label": "basketball",
+      "category": "nature",
+      "silhouette": "basketball/silhouette.svg",
+      "slots": {
+        "face": {
+          "required": true
+        },
+        "prop": {
+          "required": false,
+          "probability": 0.35
+        }
+      }
+    },
+    {
+      "label": "astronaut",
+      "category": "nature",
+      "silhouette": "astronaut/silhouette.svg",
+      "slots": {
+        "face": {
+          "required": true
+        },
+        "prop": {
+          "required": false,
+          "probability": 0.35
+        }
+      }
+    },
+    {
+      "label": "rocket",
+      "category": "vehicles",
+      "silhouette": "rocket/silhouette.svg",
+      "slots": {
+        "face": {
+          "required": true
+        },
+        "prop": {
+          "required": false,
+          "probability": 0.35
+        }
+      }
+    },
+    {
+      "label": "hot air balloon",
+      "category": "vehicles",
+      "silhouette": "hotairballoon/silhouette.svg",
+      "slots": {
+        "face": {
+          "required": true
+        },
+        "prop": {
+          "required": false,
+          "probability": 0.35
+        }
+      }
+    },
+    {
+      "label": "ice cream",
+      "category": "food",
+      "silhouette": "icecream/silhouette.svg",
+      "slots": {
+        "face": {
+          "required": true
+        },
+        "prop": {
+          "required": false,
+          "probability": 0.35
         }
       }
     }
@@ -273,6 +451,50 @@
       "anchor": "right",
       "scale": 0.6,
       "source": "dragon/companion-castle-01.svg"
+    },
+    {
+      "id": "prop-wizard-hat",
+      "kind": "prop",
+      "creatures": [
+        "*"
+      ],
+      "anchor": "top",
+      "scale": 0.3,
+      "display": "Wizard {name}",
+      "source": "shared/prop-wizard-hat.svg"
+    },
+    {
+      "id": "prop-party-hat",
+      "kind": "prop",
+      "creatures": [
+        "*"
+      ],
+      "anchor": "top",
+      "scale": 0.25,
+      "display": "{name} in a Party Hat",
+      "source": "shared/prop-party-hat.svg"
+    },
+    {
+      "id": "prop-skateboard",
+      "kind": "prop",
+      "creatures": [
+        "*"
+      ],
+      "anchor": "bottom",
+      "scale": 0.45,
+      "display": "Skateboarding {name}",
+      "source": "shared/prop-skateboard.svg"
+    },
+    {
+      "id": "prop-balloon",
+      "kind": "prop",
+      "creatures": [
+        "*"
+      ],
+      "anchor": "topRight",
+      "scale": 0.35,
+      "display": "{name} with a Balloon",
+      "source": "shared/prop-balloon.svg"
     }
   ]
 }

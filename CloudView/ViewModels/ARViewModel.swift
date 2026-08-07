@@ -10,6 +10,9 @@ class ARViewModel: ObservableObject {
     @Published var detectedClouds: [CloudRegion] = []
     @Published var currentDrawingName: String?
     @Published var lastDrawingName: String? // Persists for quirky weather statements
+    /// Base creature label behind `lastDrawingName` (a "Skateboarding
+    /// Elephant" is still, at heart, an elephant). Drives quip personality.
+    @Published var lastDrawingSubject: String?
     @Published var appState: AppState = .scanning
 
     /// The most recent finished drawing, held in memory only for the
@@ -332,6 +335,7 @@ class ARViewModel: ObservableObject {
         // Update UI with the recognized label
         currentDrawingName = concept.name
         lastDrawingName = concept.name // Persist for quirky weather statements
+        lastDrawingSubject = concept.subject
 
         // Report scan anonymously for community notifications (privacy-preserving)
         ScanReportingService.shared.reportScan(
@@ -391,7 +395,7 @@ class ARViewModel: ObservableObject {
         let captureDelay = concept.style.revealDuration + 0.3
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: UInt64(captureDelay * 1_000_000_000))
-            captureForSharing(label: concept.name)
+            captureForSharing(label: concept.name, subject: concept.subject)
         }
     }
 
@@ -421,7 +425,7 @@ class ARViewModel: ObservableObject {
     }
 
     @MainActor
-    private func captureForSharing(label: String) {
+    private func captureForSharing(label: String, subject: String?) {
         guard let arView = arView else { return }
         arView.snapshot(saveToHDR: false) { [weak self] image in
             guard let image = image else { return }
@@ -431,6 +435,7 @@ class ARViewModel: ObservableObject {
                     label: label,
                     caption: QuipEngine.caption(
                         creature: label,
+                        subject: subject,
                         seed: QuipEngine.seed(
                             for: label,
                             hourBucket: QuipEngine.currentHourBucket()

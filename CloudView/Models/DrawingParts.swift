@@ -57,6 +57,13 @@ struct DrawingPart: Codable, Equatable {
     /// Part extent as a fraction of the cloud's shorter bounding-box side.
     /// The assembler applies a default when nil.
     let scale: Double?
+
+    /// Optional display-name template, used by props to make the creativity
+    /// visible in the capsule/caption/quips: "Skateboarding {name}",
+    /// "{name} in a Party Hat". `{name}` is replaced with the drawing's
+    /// current display name when the part is included.
+    let display: String?
+
     let strokes: [DrawingTemplate.Stroke]
 
     func suits(_ creatureLabel: String) -> Bool {

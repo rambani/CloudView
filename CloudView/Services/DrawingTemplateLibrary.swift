@@ -210,6 +210,7 @@ final class DrawingTemplateLibrary {
                 template: template,
                 score: match.score
             )
+            concept.subject = template.label
             concept.style = DrawingAssembler.seededStyle(variation)
             return concept
         }
