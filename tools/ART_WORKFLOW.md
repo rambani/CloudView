@@ -109,6 +109,38 @@ Two tuning notes, learned building the current set:
   differences on symmetric shapes — and prefer slightly asymmetric prototype
   gestures where possible.
 
+## Previewing before you ship (the fast loop)
+
+You don't need a device build to see art. The pipeline renders a contact
+sheet of every creature fully assembled — each face, full-dress (all
+optional slots on), and every prop, placed with the exact landmark/scale
+math the app's `DrawingAssembler` uses, styled like the AR look:
+
+```bash
+cd tools
+python3 build_drawing_templates.py --manifest art/manifest.json \
+    --tolerance 0.002 --output ../CloudView/Resources/DrawingTemplates.json \
+    --preview /tmp/cloudoodle-preview.html
+open /tmp/cloudoodle-preview.html
+```
+
+The loop is: edit SVG → rerun → refresh browser (seconds). `--preview` also
+works standalone against the shipped file:
+`python3 build_drawing_templates.py --preview /tmp/preview.html`.
+
+Tile captions show the decorated display names ("Skateboarding Elephant"),
+so prop `display` templates are proofread here too. Keep the sizing
+constants in the tool (`DEFAULT_PART_SCALE`, `FLAT_SHAPE_BOOST`) in sync
+with `DrawingAssembler` if either changes.
+
+## Desk-testing the app itself (DEBUG builds)
+
+Settings → **Developer → Desk testing mode** (DEBUG builds only) bypasses
+the point-at-sky and daylight gates, so you can aim the phone at a photo of
+clouds on a monitor and exercise the full detect → match → assemble → quip
+pipeline from a desk. Use full-screen cloud photos with good sky/cloud
+contrast; the section is compiled out of release builds entirely.
+
 ## Verifying a rebuild
 
 ```bash

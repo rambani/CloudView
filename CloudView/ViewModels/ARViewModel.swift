@@ -68,6 +68,27 @@ class ARViewModel: ObservableObject {
     // Permission tracking
     @Published var hasRequiredPermissions = false
 
+#if DEBUG
+    /// Desk-testing mode: bypasses the point-at-sky and daylight gates so
+    /// the full detect→match→assemble pipeline can be exercised against a
+    /// photo of clouds on a monitor. Persisted so it survives relaunches
+    /// during a tuning session. Compiled out of Release entirely.
+    static var deskTestingEnabled: Bool {
+        get { UserDefaults.standard.bool(forKey: "cloudoodle.deskTesting") }
+        set { UserDefaults.standard.set(newValue, forKey: "cloudoodle.deskTesting") }
+    }
+#endif
+
+    /// True when environment gates (daylight, camera pitch) should be
+    /// skipped. Always false in Release builds.
+    private var bypassEnvironmentGates: Bool {
+#if DEBUG
+        return Self.deskTestingEnabled
+#else
+        return false
+#endif
+    }
+
     init() {
         startMotionTracking()
         checkARSupport()
@@ -178,22 +199,26 @@ class ARViewModel: ObservableObject {
 
         defer { isProcessing = false }
 
-        // Check time of day first
-        if !isDaytime() {
-            appState = .nightTime
-            consecutiveNoCloudFrames = 0
-            stableFrameCount = 0
-            lastCameraTransform = nil
-            return
-        }
+        // Environment gates (skipped in DEBUG desk-testing mode so the
+        // pipeline can run against a cloud photo on a monitor).
+        if !bypassEnvironmentGates {
+            // Check time of day first
+            if !isDaytime() {
+                appState = .nightTime
+                consecutiveNoCloudFrames = 0
+                stableFrameCount = 0
+                lastCameraTransform = nil
+                return
+            }
 
-        // Check camera orientation
-        if !isCameraPointingAtSky() {
-            appState = .pointAtSky
-            consecutiveNoCloudFrames = 0
-            stableFrameCount = 0
-            lastCameraTransform = nil
-            return
+            // Check camera orientation
+            if !isCameraPointingAtSky() {
+                appState = .pointAtSky
+                consecutiveNoCloudFrames = 0
+                stableFrameCount = 0
+                lastCameraTransform = nil
+                return
+            }
         }
 
         // Use Vision to detect bright regions (potential clouds)
@@ -311,7 +336,8 @@ class ARViewModel: ObservableObject {
         let concept: DrawingConcept
         if let templated = DrawingTemplateLibrary.shared.makeDrawing(
             forCloudContour: cloudShape.normalizedContour,
-            variation: variation
+            variation: variation,
+            aspectRatio: Double(cloudShape.aspectRatio)
         ) {
             concept = templated
         } else {

@@ -684,6 +684,186 @@ def build(manifest_path, output_path, tolerance, smooth, max_points):
 
 
 # ---------------------------------------------------------------------------
+# Preview contact sheet (--preview)
+#
+# Renders every creature fully assembled — body + face + required slots,
+# plus a tile per optional slot and per prop — the way the app's
+# DrawingAssembler places them (same landmarks, anchors, scales, display
+# templates), styled like the AR look: white line-art over sky. This is the
+# art-iteration loop: edit SVG -> rebuild -> refresh browser, no device
+# needed until the final check against a real sky.
+# ---------------------------------------------------------------------------
+
+DEFAULT_PART_SCALE = 0.35   # must match DrawingAssembler.defaultPartScale
+FLAT_SHAPE_BOOST = 0.45     # must match DrawingAssembler.flatShapeBoost
+
+
+def _rich_landmarks(contour):
+    """Port of CloudLandmarks.richReferencePoints — order and tie-breaking
+    (strict comparisons, first occurrence wins) must match the Swift."""
+    cx = sum(p[0] for p in contour) / len(contour)
+    cy = sum(p[1] for p in contour) / len(contour)
+    top = bottom = left = right = contour[0]
+    max_sum = min_sum = max_diff = max_neg = contour[0]
+    for p in contour:
+        if p[1] < top[1]: top = p
+        if p[1] > bottom[1]: bottom = p
+        if p[0] < left[0]: left = p
+        if p[0] > right[0]: right = p
+        if p[0] + p[1] > max_sum[0] + max_sum[1]: max_sum = p
+        if p[0] + p[1] < min_sum[0] + min_sum[1]: min_sum = p
+        if p[0] - p[1] > max_diff[0] - max_diff[1]: max_diff = p
+        if p[1] - p[0] > max_neg[1] - max_neg[0]: max_neg = p
+    return {
+        "centroid": (cx, cy), "top": top, "bottom": bottom,
+        "left": left, "right": right, "bottomRight": max_sum,
+        "topLeft": min_sum, "topRight": max_diff, "bottomLeft": max_neg,
+    }
+
+
+def _place_part(part, landmarks, effective_side):
+    """Map a part's strokes from local 0-1 space onto the cloud, exactly as
+    DrawingAssembler does: local (0.5, 0.5) lands on the anchor landmark.
+    Preview coordinates are aspect-true, so extents are isotropic here; the
+    app splits the same true side into per-axis extents."""
+    anchor = landmarks[part["anchor"]]
+    extent = part.get("scale", DEFAULT_PART_SCALE) * effective_side
+    placed = []
+    for stroke in sorted(part["strokes"], key=lambda s: s["order"]):
+        pts = [(anchor[0] + (p[0] - 0.5) * extent,
+                anchor[1] + (p[1] - 0.5) * extent) for p in stroke["points"]]
+        placed.append((pts, stroke["closed"]))
+    return placed
+
+
+def _tile_svg(body, part_strokes, label):
+    """One preview tile: the silhouette as a stand-in cloud (soft fill, the
+    strong-match cloud-as-body look) + white line-art on a sky gradient."""
+    def path_d(pts, closed):
+        d = "M " + " L ".join(f"{x:.4f} {y:.4f}" for x, y in pts)
+        return d + (" Z" if closed else "")
+
+    strokes_svg = "".join(
+        f'<path d="{path_d(pts, closed)}" class="ln"/>'
+        for pts, closed in part_strokes
+    )
+    body_d = path_d(body, True)
+    return f"""<figure>
+  <svg viewBox="-0.35 -0.35 1.7 1.7">
+    <path d="{body_d}" class="cloudfill"/>
+    <path d="{body_d}" class="ln"/>
+    {strokes_svg}
+  </svg>
+  <figcaption>{label}</figcaption>
+</figure>"""
+
+
+def _apply_display(name, part):
+    template = part.get("display")
+    return template.replace("{name}", name) if template else name
+
+
+def build_preview(doc, out_path):
+    if doc.get("version") != 2:
+        fail("--preview requires a schema v2 templates file")
+
+    parts = doc["parts"]
+
+    def candidates(kind, label):
+        return sorted(
+            (p for p in parts
+             if p["kind"] == kind and ("*" in p["creatures"] or label in p["creatures"])),
+            key=lambda p: p["id"],
+        )
+
+    sections = []
+    for creature in doc["creatures"]:
+        label = creature["label"]
+        body = creature["silhouette"]
+        landmarks = _rich_landmarks(body)
+        xs = [p[0] for p in body]; ys = [p[1] for p in body]
+        w = max(xs) - min(xs); h = max(ys) - min(ys)
+        # Same flat-shape sizing rule as DrawingAssembler: floor the
+        # effective side at a fraction of the longer side so parts stay
+        # visible on wide/tall silhouettes.
+        min_side = max(min(w, h), FLAT_SHAPE_BOOST * max(w, h))
+        display_base = label.title()
+
+        slot_kinds = sorted(creature["slots"].keys())
+        required = [k for k in slot_kinds if creature["slots"][k].get("required")]
+        optional = [k for k in slot_kinds
+                    if not creature["slots"][k].get("required") and k != "prop"]
+        faces = candidates("face", label) if "face" in slot_kinds else []
+        props = candidates("prop", label) if "prop" in slot_kinds else []
+
+        def assemble(face=None, extra_kinds=(), prop=None):
+            strokes, name = [], display_base
+            for kind in slot_kinds:
+                if kind == "face":
+                    chosen = face
+                elif kind == "prop":
+                    chosen = prop
+                elif kind in required or kind in extra_kinds:
+                    cs = candidates(kind, label)
+                    chosen = cs[0] if cs else None
+                else:
+                    chosen = None
+                if chosen is None:
+                    continue
+                name = _apply_display(name, chosen)
+                strokes.extend(_place_part(chosen, landmarks, min_side))
+            return strokes, name
+
+        tiles = []
+        for face in faces or [None]:
+            strokes, name = assemble(face=face)
+            suffix = f" · {face['id']}" if face else ""
+            tiles.append(_tile_svg(body, strokes, f"{name}{suffix}"))
+        if optional:
+            strokes, name = assemble(face=faces[0] if faces else None,
+                                     extra_kinds=tuple(optional))
+            tiles.append(_tile_svg(body, strokes, f"{name} · full dress"))
+        for prop in props:
+            strokes, name = assemble(face=faces[0] if faces else None, prop=prop)
+            tiles.append(_tile_svg(body, strokes, name))
+
+        sections.append(
+            f'<section><h2>{display_base} <span>({creature["category"]}, '
+            f'{len(tiles)} variants)</span></h2><div class="row">'
+            + "".join(tiles) + "</div></section>"
+        )
+
+    html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Cloudoodle art preview</title>
+<style>
+  body {{ background: #10151f; color: #e8edf5; font-family: -apple-system, 'Segoe UI', sans-serif;
+         margin: 0; padding: 28px; }}
+  h1 {{ font-weight: 700; margin: 0 0 4px; }}
+  p.sub {{ color: #93a1b8; margin: 0 0 24px; }}
+  h2 {{ font-weight: 650; margin: 26px 0 10px; font-size: 19px; }}
+  h2 span {{ color: #93a1b8; font-weight: 400; font-size: 14px; }}
+  .row {{ display: flex; flex-wrap: wrap; gap: 14px; }}
+  figure {{ margin: 0; width: 190px; }}
+  svg {{ width: 190px; height: 190px; border-radius: 14px; display: block;
+        background: linear-gradient(165deg, #7db4e8 0%, #4a86c9 55%, #38699f 100%); }}
+  .cloudfill {{ fill: rgba(255,255,255,0.30); stroke: none; }}
+  .ln {{ fill: none; stroke: #ffffff; stroke-width: 0.014; stroke-linecap: round;
+        stroke-linejoin: round; opacity: 0.96; }}
+  figcaption {{ font-size: 12.5px; color: #b9c4d6; margin-top: 6px; line-height: 1.35; }}
+</style></head><body>
+<h1>Cloudoodle art preview</h1>
+<p class="sub">{len(doc["creatures"])} creatures · every face, full-dress, and prop variant,
+placed exactly as the app's assembler places them (silhouette standing in for the cloud).
+Edit an SVG, rebuild, refresh.</p>
+{"".join(sections)}
+</body></html>"""
+
+    with open(out_path, "w") as fh:
+        fh.write(html)
+    print(f"wrote preview {out_path}: {len(doc['creatures'])} creatures")
+
+
+# ---------------------------------------------------------------------------
 # Validation (also exposed as --check for an existing file, v1 or v2)
 # ---------------------------------------------------------------------------
 
@@ -761,6 +941,14 @@ def main():
     ap.add_argument("--output", help="path to write DrawingTemplates.json")
     ap.add_argument("--check", metavar="JSON",
                     help="validate an existing DrawingTemplates.json (v1 or v2) and exit")
+    ap.add_argument("--preview", metavar="HTML",
+                    help="write an assembled-art contact sheet (HTML). Combine with "
+                         "--manifest/--output to preview a fresh build, or use alone "
+                         "with --templates to preview an existing file")
+    ap.add_argument("--templates", metavar="JSON",
+                    default="../CloudView/Resources/DrawingTemplates.json",
+                    help="templates file for standalone --preview "
+                         "(default: %(default)s)")
     ap.add_argument("--tolerance", type=float, default=0.006,
                     help="RDP tolerance in normalized 0-1 units (default 0.006)")
     ap.add_argument("--smooth", type=int, default=0,
@@ -772,9 +960,19 @@ def main():
     if args.check:
         check(args.check)
         return
-    if not args.manifest or not args.output:
-        ap.error("either --check, or both --manifest and --output, are required")
-    build(args.manifest, args.output, args.tolerance, args.smooth, args.max_points)
+    if args.manifest or args.output:
+        if not (args.manifest and args.output):
+            ap.error("--manifest and --output must be used together")
+        build(args.manifest, args.output, args.tolerance, args.smooth, args.max_points)
+        if args.preview:
+            with open(args.output) as fh:
+                build_preview(json.load(fh), args.preview)
+        return
+    if args.preview:
+        with open(args.templates) as fh:
+            build_preview(json.load(fh), args.preview)
+        return
+    ap.error("nothing to do: use --check, --preview, or --manifest with --output")
 
 
 if __name__ == "__main__":
