@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
+  <!-- Fierce dragon face, drawn for the left-facing v1 dragon silhouette:
+       slanted brow, keen eye with slit pupil, toothed jawline. -->
+  <path id="brow" d="M 18 26 Q 34 30 48 40"/>
+  <path id="eye" d="M 26 44 Q 36 38 46 45 Q 36 52 26 44 Z"/>
+  <path id="pupil" d="M 35 41 L 36 48"/>
+  <path id="nostril" d="M 10 58 Q 14 56 17 59"/>
+  <path id="jaw" d="M 8 68 Q 40 63 88 66"/>
+  <path id="teeth" d="M 14 68 L 22 80 L 30 68 L 40 79 L 50 68 L 60 78 L 70 67"/>
+  <path id="jawline" d="M 14 84 Q 45 90 78 80"/>
+</svg>

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Friendly round face: two eyes with pupils, gentle smile.
+       One SVG per face so the eye/mouth layout survives normalization. -->
+  <circle id="eye" cx="32" cy="34" r="7"/>
+  <circle id="pupil" cx="34" cy="36" r="2"/>
+  <circle id="eye" cx="68" cy="34" r="7"/>
+  <circle id="pupil" cx="70" cy="36" r="2"/>
+  <path id="mouth" d="M 30 64 Q 50 80 70 64"/>
+</svg>
