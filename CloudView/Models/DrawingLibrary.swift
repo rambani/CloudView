@@ -19,9 +19,21 @@ struct DrawingConcept {
     let paths: [DrawingPath]
     let preferredShape: CloudShape.ShapeCategory?
 
+    /// Seeded per-drawing presentation variation (line weight, reveal
+    /// timing). Defaults preserve the historical fixed look, so paths that
+    /// don't set a style render exactly as before.
+    var style: Style = Style()
+
     struct DrawingPath {
         let points: [CGPoint]
         let closed: Bool
         let order: Int
+    }
+
+    struct Style {
+        /// Stroke thickness in meters (AR world scale).
+        var lineWidth: Float = 0.003
+        /// Total reveal-animation duration in seconds.
+        var revealDuration: Double = 2.5
     }
 }

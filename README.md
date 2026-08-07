@@ -1,348 +1,179 @@
-# CloudView 🌤️✨
+# Cloudoodle 🌤️✨
 
-An innovative AR iOS app that brings clouds to life! Point your phone at the sky, and watch as AI transforms cloud shapes into delightful hand-drawn animations - like a turtle on a skateboard, a dragon eating burgers, or a surfing penguin!
+Point your phone at the sky and Cloudoodle figures out what your clouds look
+like — a turtle, a dragon, a castle — and traces an animated line drawing over
+them, anchored in AR so it stays with the cloud as you look around.
+
+> **Naming note:** the product is *Cloudoodle* (the `@main` app is
+> `CloudoodleApp`). The Xcode project, scheme, and bundle identifier are still
+> `CloudView` / `com.cloudview.app` for historical reasons.
 
 ## Features
 
-### 🎨 AI-Powered Cloud Drawings (Truly Whimsical!)
-- **Real Cloud Contour Tracing**: Uses Vision framework to extract the ACTUAL outline of clouds
-- **Shape-Adaptive Drawing**: Drawings literally use the cloud's real shape as the base - not generic templates!
-- **Intelligent Feature Placement**: Adds ears, tails, wings, etc. that extend FROM the cloud's actual edges
-- **Smart Expression Mapping**: Eyes and mouth positioned perfectly on each unique cloud shape
-- **Millions of Combinations**: 100+ subjects × 70+ actions × 90+ accessories × 10 expressions
-- **Animated Drawing**: Lines slowly trace out over 2-3 seconds for a magical effect
-- **Never Repeats**: Tracks last 50 combinations to ensure fresh content every time
+### ☁️ On-device cloud recognition
+- **Real cloud contours**: the Vision framework extracts the actual outline of
+  a cloud from the camera frame (`CloudDetector`).
+- **CLIP recognition, fully on-device**: a small open-weights vision model
+  (Apple's MobileCLIP-S0, compiled to Core ML) matches the cloud silhouette
+  against a pre-computed, kid-safe label allowlist. **$0 per recognition, no
+  network call, nothing leaves the device.** See
+  [`docs/RECOGNITION.md`](docs/RECOGNITION.md).
+- **Variety per scan**: instead of a strict top-1, the matcher softmax-samples
+  from the top matches, so different looks at the same cloud can surface
+  different ideas ("five viewers, five different things").
+- **Animated line drawing**: the recognized illustration traces out over ~2.5s
+  for a hand-drawn reveal (`AnimatedDrawing`).
 
-### 🌍 Persistent AR Experience
-- **Constellation Effect**: Drawings stay anchored in the sky as you move around
-- **Explore Freely**: Pan to different clouds and discover new drawings
-- **Session Memory**: All drawings persist until you close the app
+### 🌍 AR placement
+- Drawings are anchored in world space along the camera ray, so they stay put
+  in the sky as you pan and explore.
+- A bounded pool of concurrent drawings (oldest evicted) keeps memory in check.
 
-### ☀️ Weather Integration
-- **Real-time Weather**: Current conditions, temperature, and humidity
-- **Hourly Forecast**: Next 6 hours of weather predictions
-- **Beautiful UI**: Clean, glassmorphic design with weather emojis
-- **Location-based**: Automatic weather for your current location
+### ☀️ Weather (WeatherKit)
+- Current conditions, temperature, humidity, and an hourly forecast.
+- Uses Apple's **WeatherKit** — no API key to manage; it authenticates via the
+  app's signing identity.
+- Glassmorphic UI with a swipeable panel and playful, weather-aware copy.
 
-### 🎯 Kid-Friendly & Appropriate
-- All drawings are cute, funny, and family-friendly
-- Perfect for sparking creativity and imagination
-- Educational weather information
+### 🖼️ Save & share
+- Snapshots of finished drawings are saved to a local gallery
+  (`DrawingArchiveService` / `GalleryView`) and can be shared via the system
+  share sheet.
 
-## Modular Drawing System
+### 🔔 Opt-in community notifications (privacy-preserving)
+- Optionally reports **anonymous, city-level** scan themes (e.g. "animals") to a
+  serverless backend, which aggregates regional activity and can send a push
+  like *"lots of animals spotted in the sky near you today."*
+- No images, no precise location, no account. See
+  [`docs/PRIVACY.md`](docs/PRIVACY.md) and [`backend/`](backend/).
 
-The app uses an **advanced modular component system** that creates virtually unlimited unique combinations:
-
-### 🎭 Subjects (100+ options)
-
-**Animals:**
-- **Domestic**: Cat, Dog, Hamster, Rabbit, Parrot, Goldfish, Turtle
-- **Farm**: Cow, Pig, Sheep, Chicken, Horse, Duck, Goat, Llama
-- **Wild**: Lion, Tiger, Elephant, Giraffe, Zebra, Monkey, Panda, Koala, Kangaroo, Sloth
-- **Ocean**: Dolphin, Whale, Octopus, Starfish, Crab, Seahorse, Jellyfish, Penguin, Seal, Otter
-- **Arctic**: Polar Bear, Arctic Fox, Walrus, Reindeer, Snow Owl
-- **Desert**: Camel, Meerkat, Snake, Scorpion, Lizard
-- **Forest**: Bear, Deer, Fox, Owl, Squirrel, Raccoon, Hedgehog, Beaver
-- **Insects**: Butterfly, Ladybug, Bee, Caterpillar, Snail, Dragonfly
-
-**Mythical Creatures:**
-- Unicorn, Dragon, Phoenix, Pegasus, Griffin, Fairy, Mermaid, Yeti
-
-**Dinosaurs:**
-- T-Rex, Triceratops, Brontosaurus, Stegosaurus, Pterodactyl, Velociraptor
-
-**People & Professions:**
-- Astronaut, Chef, Artist, Scientist, Firefighter, Teacher, Doctor, Musician, Athlete, Explorer
-
-**World Landmarks:**
-- Pyramid, Eiffel Tower, Big Ben, Statue of Liberty, Taj Mahal, Great Wall, Colosseum, Christ the Redeemer
-
-**Vehicles:**
-- Car, Airplane, Boat, Submarine, Hot Air Balloon, Rocket, Train, Bicycle, Scooter, Helicopter
-
-**Food Characters:**
-- Apple, Banana, Pizza, Donut, Cupcake, Ice Cream, Cookie, Watermelon, Strawberry, Taco
-
-**Nature & Fantasy:**
-- Sun, Moon, Star, Cloud, Rainbow, Tree, Flower, Mountain, Volcano
-- Castle, Treasure, Magic Wand, Crown, Crystal Ball, Flying Carpet
-
-**Tech:**
-- Robot, Computer, Satellite, Drone
-
-### 🎯 Actions (70+ activities)
-
-**Sports:**
-- Skateboarding, Surfing, Skiing, Snowboarding, Rollerblading
-- Playing Basketball/Soccer/Tennis/Baseball/Golf
-- Swimming, Diving, Sailing, Kayaking, Paddleboarding
-- Cycling, Running, Jumping, Dancing, Gymnastics
-
-**Arts & Creativity:**
-- Painting, Drawing, Playing Guitar/Piano/Drums, Singing
-- Sculpting, Photography, Writing, Reading
-
-**Everyday Activities:**
-- Cooking, Baking, Gardening, Fishing, Camping
-- Flying Kite, Blowing Bubbles, Playing Chess, Juggling
-
-**Adventure & Exploration:**
-- Exploring, Climbing, Hiking, Treasure Hunting
-- Space Exploring, Deep Sea Diving, Flying, Soaring
-- Paragliding, Bungee Jumping, Ziplining
-
-**Magical:**
-- Casting Spells, Riding Broomstick, Granting Wishes, Breathing Fire
-
-**Relaxing:**
-- Sleeping, Meditating, Sunbathing, Stargazing, Cloud Watching
-- Drinking Tea, Eating Snacks, Napping
-
-**Playful:**
-- Playing with Toys, Hopscotch, Hide and Seek
-- Splashing in Puddles, Making Snow Angels, Catching Fireflies
-
-**Work & Career:**
-- Saving the Day, Performing Surgery, Conducting Experiments
-- Teaching Class, Fighting Fire, Launching Rocket
-
-### 🎩 Accessories (90+ items)
-
-**Headwear**: Wizard Hat, Baseball Cap, Crown, Cowboy Hat, Party Hat, Chef Hat, Pirate Hat, Beret, Beanie
-
-**Eyewear**: Sunglasses, Glasses, Goggles, Monocle, 3D Glasses, Heart Glasses
-
-**Items**: Umbrella, Balloon, Kite, Telescope, Magnifying Glass, Camera, Paintbrush, Book, Map, Compass
-
-**Sports Gear**: Skateboard, Surfboard, Skis, Snowboard, Bicycle, Basketball, Soccer Ball, Tennis Racket
-
-**Musical**: Guitar, Drums, Piano, Trumpet, Violin, Ukulele
-
-**Magical**: Crystal Ball, Spell Book, Potion Bottle, Magic Staff, Fairy Dust
-
-**Fun**: Bubbles, Confetti, Flowers, Butterfly, Sparkles, Hearts, Stars, Rainbow
-
-### 😊 Expressions (10 moods)
-Happy, Excited, Silly, Peaceful, Determined, Curious, Sleepy, Joyful, Surprised, Cool
-
-### 🎲 Total Combinations
-
-With smart combination rules that ensure kid-safe, sensible pairings:
-- **100+ subjects** × **70+ actions** × **90+ accessories** × **10 expressions**
-- **= Millions of possible combinations!**
-- **Repetition Prevention**: Tracks last 50 drawings to avoid repeats
-
-### Example Combinations
-
-- "Happy Penguin Surfing with Sunglasses and Balloon"
-- "Silly Dragon Eating Snacks with Wizard Hat"
-- "Excited Astronaut Exploring Space with Telescope and Flag"
-- "Peaceful Unicorn Cloud Watching with Sparkles"
-- "Cool T-Rex Playing Basketball with Baseball Cap"
-- "Joyful Giraffe in Scarf Dancing with Hearts"
+### 🎯 Kid-friendly by construction
+- The recognition label set is a curated, family-friendly allowlist
+  (`AnnotationHints.json` / the offline embedding tooling). No open-ended text
+  generation, so output stays appropriate.
 
 ## Requirements
 
 - iOS 16.0+
-- iPhone with ARKit support (iPhone 6s or newer)
-- Xcode 15.0+
-- Swift 5.9+
+- An iPhone with ARKit support (AR does **not** run in the simulator)
+- Xcode 15.0+, Swift 5.9+
 
 ## Setup
 
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/yourusername/CloudView.git
-cd CloudView
-```
-
-### 2. Open in Xcode
+### 1. Open the project
 
 ```bash
 open CloudView.xcodeproj
 ```
 
-### 3. Configure Weather (WeatherKit)
+### 2. Add the recognition model (one-time, manual)
 
-The app uses Apple's **WeatherKit** for live weather. There's no API key to
-manage — WeatherKit authenticates automatically via the app's signing
-identity. You do need to enable the capability once on the Apple Developer
-Portal:
+`MobileCLIP-S0.mlmodelc` (~26 MB) and `LabelEmbeddings.json` are **not** checked
+into git. Follow [`docs/CLIP_SETUP.md`](docs/CLIP_SETUP.md) to add them to the
+app bundle. Until you do, recognition falls back to a **deterministic stub** so
+the app still runs end to end — it just returns the same placeholder picks.
 
-1. https://developer.apple.com/account/resources/identifiers/list
-2. Open the App ID matching `PRODUCT_BUNDLE_IDENTIFIER` (default
-   `com.cloudview.app`) — or create one.
-3. Enable **WeatherKit** under *Capabilities*.
-4. Save.
+### 3. Enable WeatherKit
 
-That's it. The entitlement is already declared in
-`CloudView/CloudView.entitlements` and wired through `CODE_SIGN_ENTITLEMENTS`,
-so no further code changes are needed.
+WeatherKit needs the capability enabled once on the Apple Developer Portal for
+the App ID matching `PRODUCT_BUNDLE_IDENTIFIER` (default `com.cloudview.app`):
 
-If WeatherKit isn't reachable (the capability isn't enabled, the device is
-offline, or you're running an unsigned simulator build):
-- **DEBUG builds** show sample weather so the UI is still populated for dev.
-- **Release builds** show a "weather unavailable" placeholder.
+1. <https://developer.apple.com/account/resources/identifiers/list>
+2. Open (or create) the App ID → enable **WeatherKit** under *Capabilities* → Save.
 
-### 4. Build and Run
+The entitlement is already declared in `CloudView/CloudView.entitlements`. If
+WeatherKit isn't reachable, DEBUG builds show sample weather and Release builds
+show a "weather unavailable" placeholder.
 
-1. Select your iPhone as the target device (AR doesn't work in simulator)
-2. Press `Cmd + R` to build and run
-3. Allow camera and location permissions when prompted
-4. Point your phone at the sky and watch the magic happen!
+### 4. Build and run
 
-## How to Use
+1. Select a physical iPhone as the target (AR requires a real device).
+2. `Cmd + R`.
+3. Allow camera, location, and motion permissions when prompted.
+4. Point at the sky and hold steady.
 
-1. **Launch the app** on your iPhone
-2. **Point at clouds** in the sky
-3. **Hold still** for a few seconds
-4. **Watch** as lines slowly draw a cute illustration over the cloud
-5. **Pan around** to explore more clouds and create more drawings
-6. **Check weather** at the bottom of the screen
+## How to use
 
-## Technical Architecture
+1. Launch on your iPhone.
+2. Point at clouds and **hold still** for ~2 seconds.
+3. Watch a line illustration draw itself over the cloud.
+4. Pan around to discover more.
+5. Swipe up the bottom panel for weather; open the gallery to revisit and share.
 
-### Core Components
+## Architecture
 
-- **ARViewModel**: Manages AR session, cloud detection, and drawing placement
-- **CloudDetector**: Extracts ACTUAL cloud contours using Vision framework
-- **DrawingLibrary**: Modular system with 100+ subjects, 70+ actions, 90+ accessories
-- **AnimatedDrawing**: Handles line-by-line drawing animation
-- **WeatherService**: Fetches current weather and forecasts
-- **ARViewContainer**: SwiftUI wrapper for RealityKit ARView
+```
+CloudView/
+├── ViewModels/ARViewModel.swift        AR session, detection→recognition→draw loop
+├── Services/
+│   ├── CloudDetector.swift             Vision contour extraction of cloud shapes
+│   ├── CloudClusteringService.swift    groups shapes into clusters (1:1 today)
+│   ├── CloudSilhouetteRenderer.swift   cluster → 224×224 buffer for CLIP
+│   ├── CLIPImageEncoder.swift          Core ML MobileCLIP image encoder
+│   ├── LabelEmbeddingMatcher.swift     cosine match + weighted-random sampling
+│   ├── CloudRecognitionService.swift   orchestrator (+ deterministic stub fallback)
+│   ├── RecognitionToDrawingAdapter.swift  Interpretation → DrawingConcept
+│   ├── WeatherService.swift            WeatherKit integration
+│   ├── DrawingArchiveService.swift     local gallery persistence
+│   ├── ScanReportingService.swift      opt-in anonymous scan reporting
+│   ├── NotificationService.swift       APNs registration + handling
+│   └── DiagnosticsService.swift        MetricKit diagnostics (no vendor)
+├── Models/
+│   ├── AnimatedDrawing.swift           line-mesh generation + reveal animation
+│   ├── DrawingLibrary.swift            DrawingConcept wire format
+│   ├── CloudCluster.swift / Interpretation.swift / AppState.swift
+└── Views/                              ContentView, WeatherView, GalleryView, …
 
-### Technologies Used
-
-- **ARKit**: World tracking and AR anchor management
-- **RealityKit**: 3D rendering and entity management
-- **Vision**: Advanced contour detection to extract cloud outlines
-- **CoreLocation**: Location services for weather
-- **SwiftUI**: Modern declarative UI
-- **Combine**: Reactive programming for weather data
-
-### Cloud-Aware Drawing System (The Magic!)
-
-This is what makes CloudView truly special:
-
-1. **Contour Extraction**: Vision framework detects the actual cloud outline (up to 100 points)
-2. **Normalization**: Cloud contours normalized to 0-1 space within bounding box
-3. **Adaptive Base**: The cloud's REAL outline becomes the drawing's body/outline
-4. **Intelligent Features**:
-   - **Animals**: Ears placed at cloud's top, tail extends from rightmost point
-   - **Ocean Creatures**: Fins extend from cloud's sides
-   - **Mythical**: Wings extend from sides, horn from top
-   - **Dinosaurs**: Spikes along cloud's top edge
-   - **Vehicles**: Wheels at cloud's bottom
-5. **Smart Expression**: Eyes and mouth positioned in cloud's center-top region
-6. **Context-Aware Accessories**: Hats on top, glasses across face, balloons from edges
-
-**Result**: Every cloud's unique shape creates a truly unique drawing. A round puffy cloud becomes a round penguin. An elongated wispy cloud becomes a long dragon. The drawings feel MAGICAL because they actually trace the cloud!
-
-## Customization
-
-### Adding New Subjects, Actions, or Accessories
-
-The modular system makes it incredibly easy to expand:
-
-1. **Add a New Subject:**
-```swift
-// In DrawingLibrary.swift, add to DrawingSubject enum:
-enum DrawingSubject: String, CaseIterable {
-    // ... existing subjects
-    case yourNewAnimal // Add your new subject here
-}
+backend/                                Vercel edge functions + Upstash Redis + APNs
 ```
 
-2. **Add a New Action:**
-```swift
-// Add to DrawingAction enum:
-enum DrawingAction: String, CaseIterable {
-    // ... existing actions
-    case yourNewActivity // Add your new action here
-}
+### Recognition pipeline
+
+```
+Cloud silhouette → CLIP image encoder → 512-dim embedding
+                                             ↓
+        pre-computed label text embeddings (kid-safe allowlist)
+                                             ↓
+             cosine similarity → top-K → weighted-random sample
+                                             ↓
+        Interpretation → DrawingConcept → animated line drawing in AR
 ```
 
-3. **Add a New Accessory:**
-```swift
-// Add to DrawingAccessory enum:
-enum DrawingAccessory: String, CaseIterable {
-    // ... existing accessories
-    case yourNewAccessory // Add your new accessory here
-}
-```
+If the top match is below a confidence floor, the app shows a gentle
+"Cool cloud!" state rather than a confidently-wrong label. Full rationale,
+cost analysis, and failure modes are in [`docs/RECOGNITION.md`](docs/RECOGNITION.md).
 
-The system will automatically:
-- Generate unique combinations
-- Apply smart compatibility rules
-- Create procedural drawings
-- Avoid repetition
+### Technologies
 
-### Adjusting Detection Sensitivity
+ARKit · RealityKit · Vision · Core ML (MobileCLIP) · WeatherKit · CoreLocation ·
+CoreMotion · SwiftUI · Combine. Backend: TypeScript on Vercel edge runtime,
+Upstash Redis, APNs.
 
-In `ARViewModel.swift`, modify:
-- `processingInterval`: How often to process frames (default: 1.0 second)
-- `requiredStableFrames`: How many frames before drawing (default: 15)
+## Backend
 
-### Customizing Animation
+See [`backend/README.md`](backend/README.md) and
+[`backend/DEPLOYMENT_GUIDE.md`](backend/DEPLOYMENT_GUIDE.md). It exposes health,
+device registration, anonymous scan reporting, and regional-activity endpoints,
+with rate limiting, atomic notification de-duplication, and end-of-day TTLs.
+Typechecked and unit-tested in CI.
 
-In `AnimatedDrawing.swift`, adjust:
-- `duration`: Total drawing animation time (default: 2.5 seconds)
-- `lineWidth`: Thickness of drawn lines (default: 0.003 meters)
+## Testing & CI
 
-## Troubleshooting
-
-### App crashes on launch
-- Make sure you're running on a physical device, not simulator
-- Check that ARKit is supported on your device
-
-### No clouds detected
-- Ensure you're pointing at actual clouds in the sky
-- Try on a day with visible cloud coverage
-- Make sure camera permissions are granted
-
-### Weather not loading
-- Check internet connection
-- Verify location permissions are granted
-- Add your own OpenWeatherMap API key (free tier available)
-
-### Drawings appear in wrong location
-- Hold phone steady while drawing is being created
-- Point directly at clouds, not at horizon or ground
-
-## Future Enhancements
-
-Potential features for future versions:
-- [ ] Save and share cloud drawings
-- [ ] Social features (share with friends)
-- [ ] More drawing concepts (100+ variations)
-- [ ] Custom drawing creation
-- [ ] Drawing gallery/history
-- [ ] Time-lapse video recording
-- [ ] Multiplayer (see friends' drawings)
-- [ ] Achievement system
-- [ ] Sound effects and music
+- **Backend**: `cd backend && npm install && npm run typecheck && npm test`
+- **iOS**: build + unit tests run in CI on a macOS runner against an iOS
+  simulator (see [`.github/workflows/ci.yml`](.github/workflows/ci.yml)). The
+  workflow also fails fast if the App Icon slot is empty.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome — please open a PR. When changing the recognition
+label set, regenerate the embeddings with `tools/generate_label_embeddings.py`
+(see [`docs/RECOGNITION.md`](docs/RECOGNITION.md)).
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Credits
-
-- Developed with ARKit, RealityKit, and Vision
-- Weather data from OpenWeatherMap
-- Inspired by the beauty of clouds and childhood imagination
-
-## Support
-
-For questions or issues, please open an issue on GitHub.
+MIT — see the LICENSE file.
 
 ---
 
 Made with ☁️ and ❤️
-
-Enjoy discovering magical creatures in the clouds!

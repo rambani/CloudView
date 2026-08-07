@@ -48,6 +48,15 @@
 		A1000120000000000000001 /* RecognitionToDrawingAdapterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000121000000000000001 /* RecognitionToDrawingAdapterTests.swift */; };
 		A1000103000000000000001 /* AnnotationHints.json in Resources */ = {isa = PBXBuildFile; fileRef = A1000104000000000000001 /* AnnotationHints.json */; };
 		A1000106000000000000001 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A1000107000000000000001 /* Localizable.xcstrings */; };
+		A1000130000000000000001 /* DrawingTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000131000000000000001 /* DrawingTemplate.swift */; };
+		A1000132000000000000001 /* DrawingTemplateLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000133000000000000001 /* DrawingTemplateLibrary.swift */; };
+		A1000134000000000000001 /* TemplateFitting.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000135000000000000001 /* TemplateFitting.swift */; };
+		A1000136000000000000001 /* TemplateDrawingComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000137000000000000001 /* TemplateDrawingComposer.swift */; };
+		A1000138000000000000001 /* DrawingTemplates.json in Resources */ = {isa = PBXBuildFile; fileRef = A1000139000000000000001 /* DrawingTemplates.json */; };
+		A1000140000000000000001 /* TemplateDrawingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000141000000000000001 /* TemplateDrawingTests.swift */; };
+		A1000142000000000000001 /* DrawingParts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000143000000000000001 /* DrawingParts.swift */; };
+		A1000144000000000000001 /* DrawingAssembler.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000145000000000000001 /* DrawingAssembler.swift */; };
+		A1000146000000000000001 /* DrawingAssemblyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000147000000000000001 /* DrawingAssemblyTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -96,6 +105,15 @@
 		A1000121000000000000001 /* RecognitionToDrawingAdapterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecognitionToDrawingAdapterTests.swift; sourceTree = "<group>"; };
 		A1000104000000000000001 /* AnnotationHints.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = AnnotationHints.json; sourceTree = "<group>"; };
 		A1000107000000000000001 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		A1000131000000000000001 /* DrawingTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrawingTemplate.swift; sourceTree = "<group>"; };
+		A1000133000000000000001 /* DrawingTemplateLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrawingTemplateLibrary.swift; sourceTree = "<group>"; };
+		A1000135000000000000001 /* TemplateFitting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateFitting.swift; sourceTree = "<group>"; };
+		A1000137000000000000001 /* TemplateDrawingComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateDrawingComposer.swift; sourceTree = "<group>"; };
+		A1000139000000000000001 /* DrawingTemplates.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = DrawingTemplates.json; sourceTree = "<group>"; };
+		A1000141000000000000001 /* TemplateDrawingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateDrawingTests.swift; sourceTree = "<group>"; };
+		A1000143000000000000001 /* DrawingParts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrawingParts.swift; sourceTree = "<group>"; };
+		A1000145000000000000001 /* DrawingAssembler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrawingAssembler.swift; sourceTree = "<group>"; };
+		A1000147000000000000001 /* DrawingAssemblyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrawingAssemblyTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXContainerItemProxy section */
@@ -158,6 +176,7 @@
 			children = (
 				A1000104000000000000001 /* AnnotationHints.json */,
 				A1000107000000000000001 /* Localizable.xcstrings */,
+				A1000139000000000000001 /* DrawingTemplates.json */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -212,6 +231,10 @@
 				A1000111000000000000001 /* FeedbackService.swift */,
 				A1000115000000000000001 /* DrawingArchiveService.swift */,
 				A1000119000000000000001 /* RecognitionToDrawingAdapter.swift */,
+				A1000133000000000000001 /* DrawingTemplateLibrary.swift */,
+				A1000135000000000000001 /* TemplateFitting.swift */,
+				A1000137000000000000001 /* TemplateDrawingComposer.swift */,
+				A1000145000000000000001 /* DrawingAssembler.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -225,6 +248,8 @@
 				A1000084000000000000001 /* CloudCluster.swift */,
 				A1000086000000000000001 /* Interpretation.swift */,
 				A1000113000000000000001 /* ArchivedDrawing.swift */,
+				A1000131000000000000001 /* DrawingTemplate.swift */,
+				A1000143000000000000001 /* DrawingParts.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -245,6 +270,8 @@
 				A1000063000000000000001 /* BackendConfigTests.swift */,
 				A1000092000000000000001 /* CloudShapeSignatureTests.swift */,
 				A1000121000000000000001 /* RecognitionToDrawingAdapterTests.swift */,
+				A1000141000000000000001 /* TemplateDrawingTests.swift */,
+				A1000147000000000000001 /* DrawingAssemblyTests.swift */,
 			);
 			path = CloudViewTests;
 			sourceTree = "<group>";
@@ -333,6 +360,7 @@
 				A1000019000000000000001 /* Assets.xcassets in Resources */,
 				A1000103000000000000001 /* AnnotationHints.json in Resources */,
 				A1000106000000000000001 /* Localizable.xcstrings in Resources */,
+				A1000138000000000000001 /* DrawingTemplates.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -383,6 +411,12 @@
 				A1000114000000000000001 /* DrawingArchiveService.swift in Sources */,
 				A1000116000000000000001 /* GalleryView.swift in Sources */,
 				A1000118000000000000001 /* RecognitionToDrawingAdapter.swift in Sources */,
+				A1000130000000000000001 /* DrawingTemplate.swift in Sources */,
+				A1000132000000000000001 /* DrawingTemplateLibrary.swift in Sources */,
+				A1000134000000000000001 /* TemplateFitting.swift in Sources */,
+				A1000136000000000000001 /* TemplateDrawingComposer.swift in Sources */,
+				A1000142000000000000001 /* DrawingParts.swift in Sources */,
+				A1000144000000000000001 /* DrawingAssembler.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -395,6 +429,8 @@
 				A1000062000000000000001 /* BackendConfigTests.swift in Sources */,
 				A1000091000000000000001 /* CloudShapeSignatureTests.swift in Sources */,
 				A1000120000000000000001 /* RecognitionToDrawingAdapterTests.swift in Sources */,
+				A1000140000000000000001 /* TemplateDrawingTests.swift in Sources */,
+				A1000146000000000000001 /* DrawingAssemblyTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

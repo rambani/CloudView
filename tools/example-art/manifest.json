@@ -1,0 +1,32 @@
+{
+  "_comment": "Example manifest demonstrating the art pipeline. Run: python3 build_drawing_templates.py --manifest example-art/manifest.json --output /tmp/example-templates.json",
+  "creatures": [
+    {
+      "label": "blob",
+      "category": "animals",
+      "silhouette": "blob/silhouette.svg",
+      "slots": {
+        "eye": { "required": true },
+        "crest": { "required": false, "probability": 0.6 }
+      }
+    }
+  ],
+  "parts": [
+    {
+      "id": "blob-eye-01",
+      "kind": "eye",
+      "creatures": ["*"],
+      "anchor": "centroid",
+      "scale": 0.18,
+      "source": "blob/eye-01.svg"
+    },
+    {
+      "id": "blob-crest-01",
+      "kind": "crest",
+      "creatures": ["blob"],
+      "anchor": "top",
+      "scale": 0.3,
+      "source": "blob/crest-01.svg"
+    }
+  ]
+}
