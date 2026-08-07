@@ -196,7 +196,9 @@ enum DrawingCategory: String, Codable {
            name.contains("elephant") || name.contains("penguin") || name.contains("fox") ||
            name.contains("wolf") || name.contains("deer") || name.contains("rabbit") ||
            name.contains("whale") || name.contains("fish") || name.contains("turtle") ||
-           name.contains("swan") {
+           name.contains("swan") || name.contains("giraffe") || name.contains("duck") ||
+           name.contains("dolphin") || name.contains("octopus") || name.contains("butterfly") ||
+           name.contains("snail") || name.contains("dinosaur") {
             return .animals
         }
 

@@ -56,17 +56,40 @@ struct SwipeableWeatherPanel: View {
                         MagicalPlaceholderView()
                     }
                 } else {
-                    // Collapsed: Just quirky statement
+                    // Collapsed bar: big temperature on the left, the
+                    // creature-meets-weather quip on the right. Slide up
+                    // for the full forecast.
                     if weatherService.locationPermissionDenied {
                         LocationDeniedCollapsedView()
                             .transition(.opacity)
                     } else if let weather = weatherService.currentWeather {
-                        QuirkyWeatherStatement(
-                            drawingName: arViewModel.lastDrawingName,
-                            weather: weather,
-                            forecast: weatherService.forecast,
-                            appState: arViewModel.appState
-                        )
+                        HStack(alignment: .center, spacing: 14) {
+                            Text("\(Int(weather.main.temp.rounded()))°")
+                                .font(.system(size: 46, weight: .bold, design: .rounded))
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [.white, .white.opacity(0.85)],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                                .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 2)
+                                .layoutPriority(1)
+                                .accessibilityLabel("Current temperature \(Int(weather.main.temp.rounded())) degrees")
+
+                            Rectangle()
+                                .fill(Color.white.opacity(0.25))
+                                .frame(width: 1, height: 44)
+                                .accessibilityHidden(true)
+
+                            QuirkyWeatherStatement(
+                                drawingName: arViewModel.lastDrawingName,
+                                weather: weather,
+                                forecast: weatherService.forecast,
+                                appState: arViewModel.appState
+                            )
+                        }
+                        .padding(.horizontal, 22)
                         .transition(.opacity)
                     } else {
                         // No weather data but show app state
@@ -281,26 +304,22 @@ struct QuirkyWeatherStatement: View {
         return (.stable, WeatherDetails(currentTemp: Int(currentTemp)))
     }
     var body: some View {
-        VStack(spacing: 0) {
-            Spacer()
-
-            // Quirky statement at bottom
-            Text(quirkyStatement)
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [.white.opacity(0.95), .white.opacity(0.8)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
+        // Rendered as the right column of the collapsed weather bar
+        // (temperature sits to the left), so lead-align and let the bar
+        // own the outer padding.
+        Text(quirkyStatement)
+            .font(.system(size: 14, weight: .semibold, design: .rounded))
+            .foregroundStyle(
+                LinearGradient(
+                    colors: [.white.opacity(0.95), .white.opacity(0.8)],
+                    startPoint: .top,
+                    endPoint: .bottom
                 )
-                .multilineTextAlignment(.center)
-                .lineLimit(3)
-                .padding(.horizontal, 32)
-                .padding(.vertical, 16)
-                .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
-        }
-        .frame(maxWidth: .infinity)
+            )
+            .multilineTextAlignment(.leading)
+            .lineLimit(3)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
     }
 }
 
