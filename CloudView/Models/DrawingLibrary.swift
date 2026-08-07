@@ -15,9 +15,15 @@ import CoreGraphics
 /// is the one piece worth keeping — it's the wire format between the
 /// recognition adapter in ARViewModel and AnimatedDrawing.
 struct DrawingConcept {
+    /// Display name, possibly prop-decorated ("Skateboarding Elephant").
     let name: String
     let paths: [DrawingPath]
     let preferredShape: CloudShape.ShapeCategory?
+
+    /// Base creature label ("elephant") when known — lets the quip engine
+    /// keep the creature's personality no matter how the display name is
+    /// decorated. Nil on legacy paths; consumers fall back to `name`.
+    var subject: String? = nil
 
     /// Seeded per-drawing presentation variation (line weight, reveal
     /// timing). Defaults preserve the historical fixed look, so paths that

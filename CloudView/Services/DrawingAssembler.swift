@@ -179,6 +179,11 @@ enum DrawingAssembler {
 
         let flipped = variation.chance(flipProbability, decision: "orientation")
 
+        // Display name starts as the creature and gets decorated by any
+        // included part that carries a display template — "Elephant" becomes
+        // "Skateboarding Elephant" when the skateboard prop lands.
+        var displayName = creature.label.capitalized
+
         // Fill slots in sorted-key order so assembly is order-deterministic.
         var order = 1
         for slotKind in creature.slots.keys.sorted() {
@@ -197,6 +202,10 @@ enum DrawingAssembler {
             guard !candidates.isEmpty else { continue }
 
             let part = candidates[variation.pick(count: candidates.count, decision: "slot-pick:\(slotKind)")]
+
+            if let template = part.display {
+                displayName = template.replacingOccurrences(of: "{name}", with: displayName)
+            }
 
             let anchor = flipped ? part.anchor.mirrored : part.anchor
             let anchorPoint = anchor.point(in: landmarks)
@@ -217,9 +226,10 @@ enum DrawingAssembler {
         }
 
         return DrawingConcept(
-            name: creature.label.capitalized,
+            name: displayName,
             paths: paths,
             preferredShape: nil,
+            subject: creature.label,
             style: seededStyle(variation)
         )
     }

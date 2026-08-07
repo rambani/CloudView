@@ -10,7 +10,22 @@ class ARViewModel: ObservableObject {
     @Published var detectedClouds: [CloudRegion] = []
     @Published var currentDrawingName: String?
     @Published var lastDrawingName: String? // Persists for quirky weather statements
+    /// Base creature label behind `lastDrawingName` (a "Skateboarding
+    /// Elephant" is still, at heart, an elephant). Drives quip personality.
+    @Published var lastDrawingSubject: String?
     @Published var appState: AppState = .scanning
+
+    /// The most recent finished drawing, held in memory only for the
+    /// instant-share affordance on the drawing capsule. Nothing is ever
+    /// persisted — the moment passes unless the user shares it.
+    @Published var latestShareable: ShareableDrawing?
+
+    struct ShareableDrawing: Identifiable {
+        let id = UUID()
+        let image: UIImage
+        let label: String
+        let caption: String
+    }
 
     var arView: ARView?
     private let cloudDetector = CloudDetector()
@@ -320,6 +335,7 @@ class ARViewModel: ObservableObject {
         // Update UI with the recognized label
         currentDrawingName = concept.name
         lastDrawingName = concept.name // Persist for quirky weather statements
+        lastDrawingSubject = concept.subject
 
         // Report scan anonymously for community notifications (privacy-preserving)
         ScanReportingService.shared.reportScan(
@@ -372,13 +388,14 @@ class ARViewModel: ObservableObject {
         // Haptic + audio cue: "look what we made"
         FeedbackService.shared.fire(.drawingRevealed)
 
-        // Save a snapshot to the local gallery once the line-drawing
+        // Capture a snapshot for instant sharing once the line-drawing
         // animation has had time to render: the (seeded) reveal duration
-        // + a little buffer gives the kid a satisfying complete image.
-        let archiveDelay = concept.style.revealDuration + 0.3
+        // + a little buffer gives a satisfying complete image. The image
+        // lives only in memory; there is deliberately no saved archive.
+        let captureDelay = concept.style.revealDuration + 0.3
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: UInt64(archiveDelay * 1_000_000_000))
-            captureAndArchive(label: concept.name)
+            try? await Task.sleep(nanoseconds: UInt64(captureDelay * 1_000_000_000))
+            captureForSharing(label: concept.name, subject: concept.subject)
         }
     }
 
@@ -408,12 +425,23 @@ class ARViewModel: ObservableObject {
     }
 
     @MainActor
-    private func captureAndArchive(label: String) {
+    private func captureForSharing(label: String, subject: String?) {
         guard let arView = arView else { return }
-        arView.snapshot(saveToHDR: false) { image in
+        arView.snapshot(saveToHDR: false) { [weak self] image in
             guard let image = image else { return }
             Task { @MainActor in
-                _ = DrawingArchiveService.shared.save(image: image, label: label)
+                self?.latestShareable = ShareableDrawing(
+                    image: image,
+                    label: label,
+                    caption: QuipEngine.caption(
+                        creature: label,
+                        subject: subject,
+                        seed: QuipEngine.seed(
+                            for: label,
+                            hourBucket: QuipEngine.currentHourBucket()
+                        )
+                    )
+                )
             }
         }
     }

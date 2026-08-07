@@ -5,8 +5,10 @@ struct ContentView: View {
     @StateObject private var arViewModel = ARViewModel()
     @StateObject private var weatherService = WeatherService()
     @EnvironmentObject var notificationService: NotificationService
-    @State private var showInstructions = true
-    @State private var hasShownInstructions = false
+    @State private var showInstructions = false
+    // Persisted so the overlay genuinely shows once per install, not once
+    // per launch (the old @State reset every cold start).
+    @AppStorage("hasSeenInstructions") private var hasSeenInstructions = false
     @State private var showSettings = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -82,16 +84,35 @@ struct ContentView: View {
                     }
                     .buttonStyle(BouncyButtonStyle())
                     .shadow(color: Color.glassShadow, radius: 12, x: 0, y: 6)
-                    .padding(.trailing, .spacing_md)
                     .accessibilityLabel(showInstructions ? "Close instructions" : "Show instructions")
-                    .accessibilityHint("Tap to toggle instructions. Long press for settings.")
-                    .simultaneousGesture(
-                        LongPressGesture(minimumDuration: 0.6)
-                            .onEnded { _ in showSettings = true }
-                    )
-                    .accessibilityAction(named: "Settings") {
-                        showSettings = true
+                    .padding(.top, 50)
+
+                    // Settings — a small, visible gear (was hidden behind a
+                    // long-press, which nobody finds).
+                    Button(action: { showSettings = true }) {
+                        ZStack {
+                            Circle()
+                                .fill(.ultraThinMaterial)
+                                .frame(width: 48, height: 48)
+                                .overlay(
+                                    Circle()
+                                        .strokeBorder(
+                                            LinearGradient.glassShine,
+                                            lineWidth: 1
+                                        )
+                                )
+
+                            Image(systemName: "gearshape.fill")
+                                .font(.system(size: 20))
+                                .foregroundColor(.white)
+                                .accessibilityHidden(true)
+                        }
                     }
+                    .buttonStyle(BouncyButtonStyle())
+                    .shadow(color: Color.glassShadow, radius: 12, x: 0, y: 6)
+                    .padding(.leading, .spacing_sm)
+                    .padding(.trailing, .spacing_md)
+                    .accessibilityLabel("Settings")
                     .padding(.top, 50)
                 }
 
@@ -102,7 +123,7 @@ struct ContentView: View {
                     InstructionsView(onDismiss: {
                         withAnimation(.spring()) {
                             showInstructions = false
-                            hasShownInstructions = true
+                            hasSeenInstructions = true
                         }
                     })
                     .transition(.opacity.combined(with: .scale))
@@ -194,6 +215,27 @@ struct ContentView: View {
                             .foregroundColor(.white)
                             .lineLimit(2)
                             .multilineTextAlignment(.center)
+
+                        // Instant share — the only way to keep a drawing.
+                        // Nothing is archived; share it now or let the
+                        // moment drift on.
+                        if let shareable = arViewModel.latestShareable,
+                           shareable.label == drawingName {
+                            ShareLink(
+                                item: Image(uiImage: shareable.image),
+                                subject: Text(shareable.caption),
+                                message: Text(shareable.caption),
+                                preview: SharePreview(
+                                    shareable.caption,
+                                    image: Image(uiImage: shareable.image)
+                                )
+                            ) {
+                                Image(systemName: "square.and.arrow.up")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(.white)
+                            }
+                            .accessibilityLabel("Share this drawing")
+                        }
                     }
                     .padding(.horizontal, .spacing_lg)
                     .padding(.vertical, .spacing_sm + 6)
@@ -233,10 +275,12 @@ struct ContentView: View {
                         argument: "Cloudoodle drew \(drawingName)"
                     )
 
-                    // Auto-dismiss after 4 seconds
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+                    // Auto-dismiss after 8 seconds — long enough to notice
+                    // the share button and tap it before the moment passes.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) {
                         withAnimation(.easeOut(duration: 0.3)) {
                             arViewModel.currentDrawingName = nil
+                            arViewModel.latestShareable = nil
                         }
                     }
                 }
@@ -246,18 +290,18 @@ struct ContentView: View {
             // Wire up services for privacy-preserving notifications
             arViewModel.weatherService = weatherService
 
-            // Request notification permission for community features
-            notificationService.requestNotificationPermission()
+            // Note: notification permission is intentionally NOT requested
+            // here. The system prompt fires only when the user opts in to
+            // community notifications from Settings — never on first launch.
 
-            // Fetch real weather for the user's current location. WeatherService
-            // falls back to mock data on its own if OPEN_WEATHER_API_KEY isn't
-            // configured or the user denies location, so this path is always
-            // safe — no need to opt in to mock data from here.
+            // Fetch live weather (WeatherKit) for the user's current
+            // location. WeatherService shows sample data in DEBUG and a
+            // graceful placeholder in Release when unavailable.
             weatherService.requestLocationAndFetchWeather()
 
-            // Show instructions on first launch
+            // Show instructions once per install.
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                if !hasShownInstructions {
+                if !hasSeenInstructions {
                     withAnimation(.spring()) {
                         showInstructions = true
                     }

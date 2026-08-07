@@ -172,63 +172,9 @@ class NotificationService: ObservableObject {
     }
 }
 
-// MARK: - Notification Content Examples
-
-extension NotificationService {
-    // Example notification messages based on regional data
-    static func generateNotificationMessage(for category: DrawingCategory, count: Int, region: String) -> (title: String, body: String) {
-        switch category {
-        case .animals:
-            if count > 20 {
-                return ("Animals Everywhere! 🦁☁️", "Lots of animal shapes spotted in \(region) clouds today!")
-            } else if count > 10 {
-                return ("Animal Sightings! 🐻", "People are finding animal drawings in \(region) - look up!")
-            }
-
-        case .mythical:
-            if count > 15 {
-                return ("Magical Skies! 🐉✨", "Dragons and unicorns appearing in \(region) clouds!")
-            } else if count > 8 {
-                return ("Mythical Creatures! 🦄", "Magical beings spotted in the clouds near you!")
-            }
-
-        case .landmarks:
-            if count > 10 {
-                return ("Architectural Wonders! 🗼", "Famous landmarks forming in \(region) clouds!")
-            }
-
-        case .vehicles:
-            if count > 10 {
-                return ("Sky Traffic! ✈️", "Vehicles and aircraft appearing in \(region) skies!")
-            }
-
-        case .food:
-            if count > 10 {
-                return ("Tasty Clouds! 🍕", "Delicious shapes forming in \(region) - take a look!")
-            }
-
-        case .nature:
-            if count > 10 {
-                return ("Natural Beauty! 🌸", "Beautiful nature patterns in \(region) clouds!")
-            }
-        }
-
-        // Default
-        return ("Cloud Watching Time! ☁️", "Perfect conditions in \(region) - others finding amazing shapes!")
-    }
-
-    static func generateGeneralActivityMessage(totalCount: Int, region: String) -> (title: String, body: String) {
-        if totalCount > 50 {
-            return ("Amazing Cloud Day! 🌤️", "\(totalCount) drawings found in \(region) today - don't miss out!")
-        } else if totalCount > 30 {
-            return ("Active Sky Watching! ☁️", "People in \(region) are spotting great clouds right now!")
-        } else {
-            return ("Cloud Watching Weather! 🌤️", "Perfect conditions in \(region) - look at the sky!")
-        }
-    }
-}
-
-// Drawing categories for privacy-preserving aggregation
+// Drawing categories for privacy-preserving aggregation. The notification
+// COPY lives server-side (backend/api/lib/notifications.ts) — the app only
+// classifies drawings into these coarse buckets for anonymous reporting.
 enum DrawingCategory: String, Codable {
     case animals = "animals"
     case mythical = "mythical"
@@ -237,15 +183,22 @@ enum DrawingCategory: String, Codable {
     case food = "food"
     case nature = "nature"
 
-    // Helper to categorize a drawing by its subject
+    // Helper to categorize a drawing by its subject. Must cover the CURRENT
+    // template-library vocabulary (see Resources/DrawingTemplates.json) —
+    // whale/fish/turtle/swan were missing after the library migration and
+    // silently fell through to .nature.
     static func categorize(drawingName: String) -> DrawingCategory {
         let name = drawingName.lowercased()
 
-        // Animals
+        // Animals — the template library's creatures plus common extras.
         if name.contains("cat") || name.contains("dog") || name.contains("bird") ||
            name.contains("bear") || name.contains("lion") || name.contains("tiger") ||
            name.contains("elephant") || name.contains("penguin") || name.contains("fox") ||
-           name.contains("wolf") || name.contains("deer") || name.contains("rabbit") {
+           name.contains("wolf") || name.contains("deer") || name.contains("rabbit") ||
+           name.contains("whale") || name.contains("fish") || name.contains("turtle") ||
+           name.contains("swan") || name.contains("giraffe") || name.contains("duck") ||
+           name.contains("dolphin") || name.contains("octopus") || name.contains("butterfly") ||
+           name.contains("snail") || name.contains("dinosaur") {
             return .animals
         }
 
@@ -264,7 +217,8 @@ enum DrawingCategory: String, Codable {
 
         // Vehicles
         if name.contains("car") || name.contains("plane") || name.contains("boat") ||
-           name.contains("train") || name.contains("rocket") || name.contains("helicopter") {
+           name.contains("train") || name.contains("rocket") || name.contains("helicopter") ||
+           name.contains("balloon") {
             return .vehicles
         }
 

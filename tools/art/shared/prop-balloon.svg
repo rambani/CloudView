@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 100">
+  <circle id="balloon" cx="30" cy="22" r="16"/>
+  <path id="knot" d="M 26 38 L 30 42 L 34 38"/>
+  <path id="string" d="M 30 42 Q 22 60 32 74 Q 40 86 28 96"/>
+</svg>

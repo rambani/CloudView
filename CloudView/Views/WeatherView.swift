@@ -56,17 +56,41 @@ struct SwipeableWeatherPanel: View {
                         MagicalPlaceholderView()
                     }
                 } else {
-                    // Collapsed: Just quirky statement
+                    // Collapsed bar: big temperature on the left, the
+                    // creature-meets-weather quip on the right. Slide up
+                    // for the full forecast.
                     if weatherService.locationPermissionDenied {
                         LocationDeniedCollapsedView()
                             .transition(.opacity)
                     } else if let weather = weatherService.currentWeather {
-                        QuirkyWeatherStatement(
-                            drawingName: arViewModel.lastDrawingName,
-                            weather: weather,
-                            forecast: weatherService.forecast,
-                            appState: arViewModel.appState
-                        )
+                        HStack(alignment: .center, spacing: 14) {
+                            Text("\(Int(weather.main.temp.rounded()))°")
+                                .font(.system(size: 46, weight: .bold, design: .rounded))
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [.white, .white.opacity(0.85)],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                                .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 2)
+                                .layoutPriority(1)
+                                .accessibilityLabel("Current temperature \(Int(weather.main.temp.rounded())) degrees")
+
+                            Rectangle()
+                                .fill(Color.white.opacity(0.25))
+                                .frame(width: 1, height: 44)
+                                .accessibilityHidden(true)
+
+                            QuirkyWeatherStatement(
+                                drawingName: arViewModel.lastDrawingName,
+                                drawingSubject: arViewModel.lastDrawingSubject,
+                                weather: weather,
+                                forecast: weatherService.forecast,
+                                appState: arViewModel.appState
+                            )
+                        }
+                        .padding(.horizontal, 22)
                         .transition(.opacity)
                     } else {
                         // No weather data but show app state
@@ -105,8 +129,15 @@ struct DragHandle: View {
 }
 
 // Quirky weather statement based on drawing + forecast + app state
+// Trend analysis feeds QuipEngine, which owns these types now.
+private typealias WeatherTrend = QuipEngine.WeatherTrend
+private typealias WeatherDetails = QuipEngine.WeatherDetails
+
 struct QuirkyWeatherStatement: View {
     let drawingName: String?
+    /// Base creature behind the (possibly prop-decorated) drawing name, so
+    /// "Skateboarding Elephant" still gets elephant-flavored quips.
+    var drawingSubject: String? = nil
     let weather: WeatherData
     let forecast: [ForecastData.ForecastItem]
     let appState: AppState
@@ -144,8 +175,18 @@ struct QuirkyWeatherStatement: View {
         case .scanning:
             // Check if we have a drawing
             if let drawing = drawingName {
-                let (trend, _) = analyzeWeatherTrend()
-                return generateQuirkyStatement(for: drawing, trend: trend)
+                let (trend, details) = analyzeWeatherTrend()
+                // Seeded copy: stable for this drawing within the hour,
+                // fresh for a new drawing or a new hour. See QuipEngine.
+                return QuipEngine.quip(
+                    creature: drawingSubject ?? drawing,
+                    trend: trend,
+                    details: details,
+                    seed: QuipEngine.seed(
+                        for: drawing,
+                        hourBucket: QuipEngine.currentHourBucket()
+                    )
+                )
             } else {
                 // No drawing yet, but scanning - check weather conditions
                 return generateNoCloudWeatherMessage()
@@ -266,124 +307,23 @@ struct QuirkyWeatherStatement: View {
 
         return (.stable, WeatherDetails(currentTemp: Int(currentTemp)))
     }
-
-    private func generateQuirkyStatement(for drawing: String, trend: WeatherTrend) -> String {
-        let drawingLower = drawing.lowercased()
-        let details = analyzeWeatherTrend().details
-
-        // Generate contextual statements based on drawing and weather
-        switch trend {
-        case .rainComing:
-            let hours = details.hoursAway ?? 2
-            let timeStr = hours <= 1 ? "within the hour" : "in the next \(hours) hours"
-
-            if drawingLower.contains("surf") || drawingLower.contains("swim") {
-                return "Better grab your board - waves incoming with rain \(timeStr)! 🌊"
-            } else if drawingLower.contains("cat") || drawingLower.contains("lion") || drawingLower.contains("tiger") {
-                return "Time to find some shelter - rain drops expected \(timeStr)! 🌧️"
-            } else if drawingLower.contains("paint") || drawingLower.contains("draw") || drawingLower.contains("art") {
-                return "Better pack up the easel - precipitation \(timeStr)! 🎨"
-            } else if drawingLower.contains("garden") || drawingLower.contains("flower") || drawingLower.contains("plant") {
-                return "The garden will love this - rain showers \(timeStr)! 🌱"
-            } else {
-                return "Umbrellas recommended - rain moving in \(timeStr)! ☔"
-            }
-
-        case .gettingWarmer:
-            let targetTemp = details.targetTemp ?? 75
-            let change = details.tempChange ?? 8
-
-            if drawingLower.contains("snow") || drawingLower.contains("ski") || drawingLower.contains("polar") {
-                return "Time to get off the slopes - temperatures climbing to \(targetTemp)° soon! ⛷️"
-            } else if drawingLower.contains("ice") || drawingLower.contains("frost") {
-                return "Things are melting fast - warming up \(change) degrees to \(targetTemp)°! 🧊"
-            } else if drawingLower.contains("surf") || drawingLower.contains("beach") || drawingLower.contains("swim") {
-                return "Perfect beach weather incoming - heating up to \(targetTemp)°! 🏖️"
-            } else if drawingLower.contains("ice cream") || drawingLower.contains("popsicle") {
-                return "Now we're talking - temperatures rising to \(targetTemp)°! 🍦"
-            } else {
-                return "Warming trend ahead - expect \(targetTemp)° by this afternoon! ☀️"
-            }
-
-        case .gettingColder:
-            let targetTemp = details.targetTemp ?? 45
-            let change = details.tempChange ?? 8
-
-            if drawingLower.contains("snow") || drawingLower.contains("ski") {
-                return "Perfect slope conditions - dropping \(change) degrees to \(targetTemp)°! ❄️"
-            } else if drawingLower.contains("hot") || drawingLower.contains("fire") || drawingLower.contains("summer") {
-                return "Time to cool off - temperatures falling to \(targetTemp)° today! 🧊"
-            } else if drawingLower.contains("tropical") || drawingLower.contains("beach") {
-                return "Grab a jacket - cooling down \(change) degrees to \(targetTemp)°! 🧥"
-            } else if drawingLower.contains("coffee") || drawingLower.contains("tea") || drawingLower.contains("cocoa") {
-                return "Perfect sipping weather - dropping to a crisp \(targetTemp)°! ☕"
-            } else {
-                return "Bundle up - temperatures falling \(change) degrees to \(targetTemp)°! 🧣"
-            }
-
-        case .stormyComing:
-            let hours = details.hoursAway ?? 3
-            let timeStr = hours <= 1 ? "within the hour" : "in \(hours) hours"
-
-            if drawingLower.contains("wizard") || drawingLower.contains("magic") {
-                return "Powerful magic brewing - thunderstorms expected \(timeStr)! ⚡"
-            } else if drawingLower.contains("sail") || drawingLower.contains("boat") || drawingLower.contains("ship") {
-                return "Head to port - rough seas with storms \(timeStr)! ⛵"
-            } else if drawingLower.contains("dragon") || drawingLower.contains("lightning") {
-                return "Electricity in the air - lightning strikes \(timeStr)! 🐉"
-            } else if drawingLower.contains("kite") || drawingLower.contains("fly") {
-                return "Ground all aircraft - thunderstorms rolling in \(timeStr)! ⛈️"
-            } else {
-                return "Seek shelter - severe weather approaching \(timeStr)! ⚡"
-            }
-
-        case .windy:
-            let windSpeed = details.windSpeed ?? 15
-
-            if drawingLower.contains("kite") || drawingLower.contains("fly") {
-                return "Excellent launch conditions - winds at \(windSpeed)mph! 🪁"
-            } else if drawingLower.contains("sail") || drawingLower.contains("boat") {
-                return "Full sails ahead - strong winds at \(windSpeed)mph! ⛵"
-            } else if drawingLower.contains("sing") || drawingLower.contains("music") || drawingLower.contains("guitar") {
-                return "Perfect singing weather - breezy winds at \(windSpeed)mph! 🎸"
-            } else if drawingLower.contains("dance") || drawingLower.contains("ballet") {
-                return "Graceful conditions - winds swirling at \(windSpeed)mph! 💃"
-            } else {
-                return "Hold onto your hat - winds gusting to \(windSpeed)mph! 💨"
-            }
-
-        case .stable:
-            let temp = details.currentTemp ?? Int(weather.main.temp)
-
-            if drawingLower.contains("perfect") || drawingLower.contains("paradise") {
-                return "Living up to the name - beautiful \(temp)° conditions! ✨"
-            } else {
-                return "Gorgeous conditions holding steady at \(temp)°! ☀️"
-            }
-        }
-    }
-
     var body: some View {
-        VStack(spacing: 0) {
-            Spacer()
-
-            // Quirky statement at bottom
-            Text(quirkyStatement)
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [.white.opacity(0.95), .white.opacity(0.8)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
+        // Rendered as the right column of the collapsed weather bar
+        // (temperature sits to the left), so lead-align and let the bar
+        // own the outer padding.
+        Text(quirkyStatement)
+            .font(.system(size: 14, weight: .semibold, design: .rounded))
+            .foregroundStyle(
+                LinearGradient(
+                    colors: [.white.opacity(0.95), .white.opacity(0.8)],
+                    startPoint: .top,
+                    endPoint: .bottom
                 )
-                .multilineTextAlignment(.center)
-                .lineLimit(3)
-                .padding(.horizontal, 32)
-                .padding(.vertical, 16)
-                .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
-        }
-        .frame(maxWidth: .infinity)
+            )
+            .multilineTextAlignment(.leading)
+            .lineLimit(3)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
     }
 }
 
@@ -435,40 +375,6 @@ struct AppStateMessage: View {
     }
 }
 
-struct WeatherDetails {
-    var hoursAway: Int?
-    var targetTemp: Int?
-    var tempChange: Int?
-    var windSpeed: Int?
-    var currentTemp: Int?
-}
-
-enum WeatherTrend {
-    case rainComing
-    case gettingWarmer
-    case gettingColder
-    case stormyComing
-    case windy
-    case stable
-}
-
-// Legacy view for backward compatibility
-struct WeatherView: View {
-    @ObservedObject var weatherService: WeatherService
-
-    var body: some View {
-        VStack(spacing: 0) {
-            if weatherService.isLoading {
-                EnhancedMagicalLoadingView()
-            } else if let weather = weatherService.currentWeather {
-                MagicalWeatherContentView(weather: weather, forecast: weatherService.forecast)
-            } else {
-                MagicalPlaceholderView()
-            }
-        }
-        .frame(maxWidth: .infinity)
-    }
-}
 
 struct MagicalWeatherContentView: View {
     let weather: WeatherData

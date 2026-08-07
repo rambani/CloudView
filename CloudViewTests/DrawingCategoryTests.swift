@@ -8,6 +8,21 @@ final class DrawingCategoryTests: XCTestCase {
         XCTAssertEqual(DrawingCategory.categorize(drawingName: "Excited Dog Playing"), .animals)
         XCTAssertEqual(DrawingCategory.categorize(drawingName: "Polar Bear Skating"), .animals)
         XCTAssertEqual(DrawingCategory.categorize(drawingName: "Silly Penguin Dancing"), .animals)
+        // The current template-library vocabulary must all classify as
+        // animals (these regressed to .nature after the library migration).
+        XCTAssertEqual(DrawingCategory.categorize(drawingName: "Whale"), .animals)
+        XCTAssertEqual(DrawingCategory.categorize(drawingName: "Fish"), .animals)
+        XCTAssertEqual(DrawingCategory.categorize(drawingName: "Turtle"), .animals)
+        XCTAssertEqual(DrawingCategory.categorize(drawingName: "Swan"), .animals)
+        XCTAssertEqual(DrawingCategory.categorize(drawingName: "Giraffe"), .animals)
+        XCTAssertEqual(DrawingCategory.categorize(drawingName: "Duck"), .animals)
+        XCTAssertEqual(DrawingCategory.categorize(drawingName: "Dolphin"), .animals)
+        XCTAssertEqual(DrawingCategory.categorize(drawingName: "Octopus"), .animals)
+        XCTAssertEqual(DrawingCategory.categorize(drawingName: "Butterfly"), .animals)
+        XCTAssertEqual(DrawingCategory.categorize(drawingName: "Snail"), .animals)
+        XCTAssertEqual(DrawingCategory.categorize(drawingName: "Dinosaur"), .animals)
+        XCTAssertEqual(DrawingCategory.categorize(drawingName: "Unicorn"), .mythical)
+        XCTAssertEqual(DrawingCategory.categorize(drawingName: "Sailboat"), .vehicles)
     }
 
     func testMythicalKeywordsMapToMythicalCategory() {
