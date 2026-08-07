@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 30">
+  <!-- Zigzag crest ridge as a polyline. -->
+  <polyline id="crest" points="0,30 10,5 20,25 30,2 40,25 50,5 60,30"/>
+</svg>

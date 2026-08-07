@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Rounded blob body: cubic curves, closed with Z. -->
+  <path d="M 20 60
+           C 10 40, 25 20, 50 22
+           C 75 20, 92 38, 85 60
+           C 80 78, 60 84, 45 80
+           C 30 86, 24 74, 20 60
+           Z"/>
+</svg>

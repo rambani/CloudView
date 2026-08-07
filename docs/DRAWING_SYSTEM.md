@@ -114,13 +114,22 @@ safe to ship incrementally.
 
 ### Adding a creature
 
-1. Get clean line-art (see **Art sourcing** below).
-2. Trace its body outline into `silhouette` and its details into `strokes`,
-   normalized 0–1. Keep the silhouette to ~10–24 points and details minimal —
-   the cloud carries the body in the common case.
-3. Rebuild. The library precomputes the Hu signature at load; no code change.
-4. Add a decode/compose case to `TemplateDrawingTests` if the creature has an
-   unusual shape you want to lock in.
+Don't hand-trace coordinates — use the offline pipeline tool:
+
+```bash
+cd tools
+python3 build_drawing_templates.py --manifest your-art/manifest.json \
+    --output ../CloudView/Resources/DrawingTemplates.json
+```
+
+It takes SVG art (from an AI image-gen → vectorizer flow, an illustrator's
+export, or hand drawing), flattens curves/arcs/transforms, normalizes into the
+schema's local space, simplifies (RDP, optional Chaikin smoothing), and emits
+schema v2 (creatures + parts, the format `DrawingAssembler` consumes) with
+validation. `--check` validates an existing v1 or v2 JSON. A runnable example
+lives in `tools/example-art/`; schema v2 itself is documented in
+`docs/GENERATIVE_DRAWING_DESIGN.md` and `CloudView/Models/DrawingParts.swift`.
+The library precomputes Hu signatures at load; adding art needs no code change.
 
 ## Art sourcing (licensing)
 

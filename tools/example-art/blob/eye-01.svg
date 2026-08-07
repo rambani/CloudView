@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20">
+  <!-- Pair of eyes: circle + an arc-drawn wink, inside a transformed group. -->
+  <circle id="eye" cx="10" cy="10" r="4"/>
+  <g transform="translate(20, 0)">
+    <path id="wink" d="M 4 10 A 6 6 0 0 1 16 10"/>
+  </g>
+</svg>
