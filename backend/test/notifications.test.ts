@@ -1,6 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { checkThresholds } from '../api/lib/notifications.js';
+import {
+  checkThresholds,
+  getNotificationMessage,
+  getGeneralActivityMessage,
+} from '../api/lib/notifications.js';
 import { endOfDayTtlSeconds } from '../api/lib/redis.js';
 import type { RegionalActivity } from '../api/lib/redis.js';
 
@@ -57,6 +61,51 @@ test('checkThresholds: unknown category gets default threshold of 10', () => {
   });
   assert.equal(hits.length, 1);
   assert.equal(hits[0]!.category, 'somethingNew');
+});
+
+test('copy: every category produces non-empty region-mentioning copy', () => {
+  const categories = ['animals', 'mythical', 'landmarks', 'vehicles', 'food', 'nature', 'unknownFuture'];
+  for (const category of categories) {
+    const msg = getNotificationMessage(category, 25, 'Oakland', '2026-08-07');
+    assert.ok(msg.title.length > 0, `${category}: empty title`);
+    assert.ok(msg.body.includes('Oakland'), `${category}: body must mention the region: ${msg.body}`);
+  }
+  const total = getGeneralActivityMessage(60, 'Oakland', '2026-08-07');
+  assert.ok(total.title.length > 0);
+  assert.ok(total.body.includes('Oakland'));
+});
+
+test('copy: deterministic for same (category, region, date)', () => {
+  const a = getNotificationMessage('animals', 25, 'Oakland', '2026-08-07');
+  const b = getNotificationMessage('animals', 25, 'Oakland', '2026-08-07');
+  assert.deepEqual(a, b);
+});
+
+test('copy: varies across days for the same region+category', () => {
+  // With 3 variants, 10 consecutive days must hit at least 2 distinct
+  // messages unless seeding is broken.
+  const titles = new Set(
+    Array.from({ length: 10 }, (_, i) =>
+      getNotificationMessage('animals', 25, 'Oakland', `2026-08-${String(i + 1).padStart(2, '0')}`).title,
+    ),
+  );
+  assert.ok(titles.size > 1, `expected variety across days, got only: ${[...titles]}`);
+});
+
+test('checkThresholds: copy is seeded by the activity date', () => {
+  const day1 = checkThresholds({
+    ...baseActivity,
+    date: '2026-08-01',
+    categories: { animals: 25 },
+    totalScans: 25,
+  });
+  const day1again = checkThresholds({
+    ...baseActivity,
+    date: '2026-08-01',
+    categories: { animals: 25 },
+    totalScans: 25,
+  });
+  assert.deepEqual(day1, day1again, 'same day must produce identical copy');
 });
 
 test('endOfDayTtlSeconds: positive, less than 24h, at least 1h floor', () => {

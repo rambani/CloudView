@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// Lightweight settings sheet — currently the privacy / community
-/// opt-in surface plus a way to exercise right-to-erasure. Reachable
-/// from a long-press on the info button in ContentView.
+/// Lightweight settings sheet — the privacy / community opt-in surface
+/// plus a way to exercise right-to-erasure. Reachable from the gear
+/// button in ContentView.
 ///
 /// The community toggle is the only knob we expose; camera / location /
 /// notifications stay in iOS Settings per Apple HIG.
@@ -23,9 +23,12 @@ struct SettingsView: View {
                         .onChange(of: communityEnabled) { newValue in
                             ScanReportingService.shared.isEnabled = newValue
                             if newValue {
-                                // User just opted in — register the cached
-                                // device token with the backend so they
-                                // start getting regional pings.
+                                // User just opted in — this is the ONE place
+                                // the iOS notification prompt fires (never at
+                                // launch). Granting it registers with APNs,
+                                // and the token flows to the backend via
+                                // the consented registration path.
+                                notificationService.requestNotificationPermission()
                                 notificationService.registerWithBackendIfConsented()
                             } else {
                                 // User just opted out — pull their record
@@ -39,29 +42,13 @@ struct SettingsView: View {
                     Text("When on, Cloudoodle sends an anonymous city-level count of the drawings you create so others can see what people are spotting near them. We never send your exact location, your account, or the cloud images. You can turn this off any time.")
                 }
 
-                Section("My drawings") {
-                    NavigationLink {
-                        GalleryView()
-                    } label: {
-                        Label {
-                            HStack {
-                                Text("View saved drawings")
-                                Spacer()
-                                Text("\(DrawingArchiveService.shared.drawings.count)")
-                                    .foregroundStyle(.secondary)
-                                    .monospacedDigit()
-                            }
-                        } icon: {
-                            Image(systemName: "photo.on.rectangle")
-                        }
-                    }
-                }
-
                 Section("Privacy") {
                     Link("Privacy policy", destination: privacyPolicyURL)
                     Button(role: .destructive) {
+                        // Nothing is stored on-device anymore (drawings are
+                        // share-in-the-moment only), so erasure = removing
+                        // the device token from the backend.
                         notificationService.deleteFromBackend()
-                        DrawingArchiveService.shared.deleteAll()
                         communityEnabled = false
                     } label: {
                         Text("Delete my data")

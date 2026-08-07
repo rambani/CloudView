@@ -8,6 +8,12 @@ final class DrawingCategoryTests: XCTestCase {
         XCTAssertEqual(DrawingCategory.categorize(drawingName: "Excited Dog Playing"), .animals)
         XCTAssertEqual(DrawingCategory.categorize(drawingName: "Polar Bear Skating"), .animals)
         XCTAssertEqual(DrawingCategory.categorize(drawingName: "Silly Penguin Dancing"), .animals)
+        // The current template-library vocabulary must all classify as
+        // animals (these regressed to .nature after the library migration).
+        XCTAssertEqual(DrawingCategory.categorize(drawingName: "Whale"), .animals)
+        XCTAssertEqual(DrawingCategory.categorize(drawingName: "Fish"), .animals)
+        XCTAssertEqual(DrawingCategory.categorize(drawingName: "Turtle"), .animals)
+        XCTAssertEqual(DrawingCategory.categorize(drawingName: "Swan"), .animals)
     }
 
     func testMythicalKeywordsMapToMythicalCategory() {
