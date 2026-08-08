@@ -316,6 +316,43 @@ struct ContentView: View {
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
+
+            // Arrival greeting after a community-notification tap — connects
+            // the push ("dragons near you!") to the sky above instead of
+            // landing cold on the camera.
+            if let greeting = notificationService.arrivalGreeting {
+                VStack {
+                    Spacer()
+                        .frame(height: 190)
+
+                    Text(greeting)
+                        .font(.cloudoodleBody)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, .spacing_lg)
+                        .padding(.vertical, .spacing_sm + 6)
+                        .background(
+                            Capsule()
+                                .fill(.ultraThinMaterial)
+                                .overlay(
+                                    Capsule()
+                                        .strokeBorder(LinearGradient.glassShine, lineWidth: 1)
+                                )
+                        )
+                        .shadow(color: Color.glassShadow, radius: 12, x: 0, y: 6)
+
+                    Spacer()
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+                .task(id: greeting) {
+                    try? await Task.sleep(nanoseconds: 6_000_000_000)
+                    guard !Task.isCancelled else { return }
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        notificationService.arrivalGreeting = nil
+                    }
+                }
+            }
         }
         .onChange(of: scenePhase) { phase in
             // Re-check camera permission whenever the app becomes active
@@ -492,6 +529,7 @@ struct CommunityInviteCard: View {
 struct InstructionsView: View {
     let onDismiss: () -> Void
     @State private var sparkleRotation = 0.0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 24) {
@@ -523,6 +561,7 @@ struct InstructionsView: View {
                     )
             }
             .onAppear {
+                guard !reduceMotion else { return }
                 sparkleRotation = 10
             }
 

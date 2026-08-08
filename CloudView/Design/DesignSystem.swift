@@ -151,6 +151,9 @@ struct GlassCard<Content: View>: View {
 
 struct FloatingModifier: ViewModifier {
     @State private var isFloating = false
+    // Looping decorative motion sits still under Reduce Motion. One
+    // guard here covers every .floating() call site in the app.
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let duration: Double
     let distance: CGFloat
 
@@ -158,6 +161,7 @@ struct FloatingModifier: ViewModifier {
         content
             .offset(y: isFloating ? -distance : 0)
             .onAppear {
+                guard !reduceMotion else { return }
                 withAnimation(
                     Animation.easeInOut(duration: duration)
                         .repeatForever(autoreverses: true)
@@ -178,6 +182,7 @@ extension View {
 
 struct ShimmerModifier: ViewModifier {
     @State private var phase: CGFloat = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
         content
@@ -196,6 +201,7 @@ struct ShimmerModifier: ViewModifier {
                 .mask(content)
             )
             .onAppear {
+                guard !reduceMotion else { return }
                 withAnimation(
                     Animation.linear(duration: 2.0)
                         .repeatForever(autoreverses: false)
@@ -288,6 +294,7 @@ struct MagicalHintView: View {
 
 struct EnhancedMagicalLoadingView: View {
     @State private var isAnimating = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: .spacing_lg) {
@@ -341,6 +348,9 @@ struct EnhancedMagicalLoadingView: View {
             }
         }
         .onAppear {
+            // Under Reduce Motion the loading view stays static (the
+            // "Finding clouds..." text carries the state on its own).
+            guard !reduceMotion else { return }
             isAnimating = true
         }
     }
