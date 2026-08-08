@@ -4,10 +4,10 @@ import SwiftUI
 
 extension Color {
     // Sky Blues - matched to the Cloudoodle app-icon sky gradient
-    // (#2453C6 top, #3E82E6 mid, #8FBDF2 bottom).
-    static let cloudBlue = Color(red: 0.243, green: 0.510, blue: 0.902)
-    static let skyMist = Color(red: 0.561, green: 0.741, blue: 0.949)
-    static let deepSky = Color(red: 0.141, green: 0.325, blue: 0.776)
+    // (#1D55D8 top, #3B7EE6 mid, #6FA6EF low, fading to #C4DEFA).
+    static let cloudBlue = Color(red: 0.231, green: 0.494, blue: 0.902)
+    static let skyMist = Color(red: 0.435, green: 0.651, blue: 0.937)
+    static let deepSky = Color(red: 0.114, green: 0.333, blue: 0.847)
 
     // Magical Accents - Playful and vibrant
     static let cloudPink = Color(red: 1.0, green: 0.7, blue: 0.9)
