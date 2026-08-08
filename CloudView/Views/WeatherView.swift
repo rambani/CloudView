@@ -736,12 +736,21 @@ struct MagicalPlaceholderView: View {
                     )
                     .frame(width: 56, height: 56)
 
-                Image(systemName: "cloud.sun.fill")
-                    .font(.system(size: 28))
-                    .foregroundStyle(LinearGradient.cloudoodleSky)
-                    .scaleEffect(isAnimating ? 1.1 : 1.0)
-                    .animation(.gentle, value: isAnimating)
-                    .floating(duration: 2.5, distance: 4)
+                // Cloudoodle logo motif: cloud with a sparkle, matching
+                // the app icon.
+                ZStack {
+                    Image(systemName: "cloud.fill")
+                        .font(.system(size: 28))
+                        .foregroundStyle(LinearGradient.cloudoodleSky)
+
+                    Image(systemName: "sparkle")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.white)
+                        .offset(y: 2)
+                }
+                .scaleEffect(isAnimating ? 1.1 : 1.0)
+                .animation(.gentle, value: isAnimating)
+                .floating(duration: 2.5, distance: 4)
             }
 
             VStack(alignment: .leading, spacing: .spacing_xs) {
