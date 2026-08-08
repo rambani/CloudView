@@ -65,6 +65,12 @@ Your backend is **ready to deploy**! Follow these steps to get it live.
    - **In which directory?** → `./` (press Enter)
    - **Override settings?** → No
 
+   > ⚠️ **Project name must match the app.** The iOS app's fallback backend
+   > URL is `https://cloud-view-backend.vercel.app` (see
+   > `CloudView/Services/BackendConfig.swift`). Either name the Vercel
+   > project `cloud-view-backend`, or set `CLOUDOODLE_BACKEND_URL` in the
+   > app's Info.plist to your deployment URL.
+
 5. **Add environment variables**:
    ```bash
    vercel env add UPSTASH_REDIS_REST_URL
@@ -75,6 +81,21 @@ Your backend is **ready to deploy**! Follow these steps to get it live.
    vercel env add UPSTASH_REDIS_REST_TOKEN
    ```
    Paste your token from Step 1
+
+   **For real push delivery, also add the APNs variables** (without them
+   the backend runs in mock mode — notifications are logged, never sent):
+
+   ```bash
+   vercel env add APNS_KEY_ID        # 10-char key ID from the developer portal
+   vercel env add APNS_TEAM_ID       # 10-char Apple Team ID
+   vercel env add APNS_KEY           # contents of the AuthKey_*.p8 file
+   vercel env add APNS_ENVIRONMENT   # 'production' for TestFlight/App Store
+   vercel env add APNS_TOPIC         # app bundle ID: com.cloudview.app
+   ```
+
+   See `.env.example` for the full reference. Note that **TestFlight uses
+   production APNs** — `APNS_ENVIRONMENT=development` only works for
+   direct Xcode installs.
 
 6. **Deploy to production**:
    ```bash

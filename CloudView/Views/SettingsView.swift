@@ -104,7 +104,9 @@ struct SettingsView: View {
 
     // TODO: point at the hosted policy URL once published.
     private var privacyPolicyURL: URL {
-        URL(string: "https://github.com/rambani/CloudView/blob/main/docs/PRIVACY.md")!
+        // NOTE: this repo's default branch is not "main" — keep the branch
+        // segment in sync or the link 404s from inside the shipped app.
+        URL(string: "https://github.com/rambani/CloudView/blob/claude/ar-cloud-ai-drawing-011CUwfP2cRwmrR6APo4mKNJ/docs/PRIVACY.md")!
     }
 
     private var appVersion: String {

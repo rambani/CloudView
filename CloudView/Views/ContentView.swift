@@ -24,11 +24,19 @@ struct ContentView: View {
                 // Top: App title and info - Enhanced glassmorphic
                 HStack {
                     HStack(spacing: .spacing_sm + 2) {
-                        // Magical sparkle icon with floating animation
-                        Image(systemName: "cloud.sun.fill")
-                            .font(.system(size: 24))
-                            .foregroundStyle(LinearGradient.cloudoodleSky)
-                            .floating(duration: 2.5, distance: 3)
+                        // Cloudoodle logo motif: white cloud with a blue
+                        // sparkle, echoing the app icon's doodle cutout.
+                        ZStack {
+                            Image(systemName: "cloud.fill")
+                                .font(.system(size: 26))
+                                .foregroundColor(.white)
+
+                            Image(systemName: "sparkle")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(LinearGradient.cloudoodleSky)
+                                .offset(y: 2)
+                        }
+                        .floating(duration: 2.5, distance: 3)
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Cloudoodle")
@@ -359,6 +367,7 @@ struct ContentView: View {
             // (e.g. returning from Settings after granting access).
             if phase == .active {
                 arViewModel.checkPermissions()
+                notificationService.clearBadge()
             }
         }
         .onAppear {

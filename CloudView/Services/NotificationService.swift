@@ -12,6 +12,14 @@ class NotificationService: ObservableObject {
 
     init() {
         checkNotificationAuthorization()
+
+        // Keep the backend's region fan-out set current: whenever a scan
+        // geocodes a fresh region, move the push token under it. Without
+        // this, devices sit in region "Unknown" and are excluded from
+        // community-notification delivery entirely.
+        ScanReportingService.shared.onRegionUpdate = { [weak self] region in
+            self?.updateRegion(region)
+        }
     }
 
     // MARK: - Permission Handling
@@ -150,9 +158,13 @@ class NotificationService: ObservableObject {
     private func registerDeviceWithBackend(token: String, region: String? = nil) {
         let url = backendURL
 
+        // Fall back to the last geocoded region so the token lands in a
+        // real fan-out set even when the caller doesn't have one handy.
+        let resolvedRegion = region ?? ScanReportingService.shared.lastKnownRegion ?? "Unknown"
+
         let payload: [String: Any] = [
             "deviceToken": token,
-            "region": region ?? "Unknown",
+            "region": resolvedRegion,
             "notificationsEnabled": true
         ]
 
@@ -185,10 +197,19 @@ class NotificationService: ObservableObject {
     }
 
     func updateRegion(_ region: String) {
-        // Update region when location becomes available
-        if let token = deviceToken {
-            registerDeviceWithBackend(token: token, region: region)
-        }
+        // Re-home the token when the user's region changes. Gated on
+        // community consent — region + token only ever ship together
+        // after the user opts in.
+        guard region != "Unknown",
+              ScanReportingService.shared.isEnabled,
+              let token = deviceToken else { return }
+        registerDeviceWithBackend(token: token, region: region)
+    }
+
+    /// Clear the app's badge. The backend sends `badge: 1` with each
+    /// community push; without this the red badge sticks forever.
+    func clearBadge() {
+        notificationCenter.setBadgeCount(0)
     }
 }
 

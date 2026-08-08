@@ -27,8 +27,9 @@ interface APNsPayload {
   data?: Record<string, string>;
 }
 
-// APNs topic (bundle ID) — set APNS_TOPIC env var, fall back to the published one.
-const APNS_TOPIC = process.env.APNS_TOPIC || 'com.cloudoodle.app';
+// APNs topic — must match the app's bundle ID (PRODUCT_BUNDLE_IDENTIFIER)
+// or Apple rejects every push with TopicDisallowed. Overridable via env.
+const APNS_TOPIC = process.env.APNS_TOPIC || 'com.cloudview.app';
 
 // JWT cache: APNs allows the same token for up to 60 minutes; refresh proactively.
 let cachedJwt: { token: string; expiresAt: number; signingKey: CryptoKey } | null = null;
