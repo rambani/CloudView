@@ -11,6 +11,7 @@ struct ContentView: View {
     @AppStorage("hasSeenInstructions") private var hasSeenInstructions = false
     @State private var showSettings = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         ZStack {
@@ -149,11 +150,7 @@ struct ContentView: View {
                     }
 
                 case .permissionsNeeded:
-                    MagicalHintView(
-                        icon: "lock.shield.fill",
-                        message: "Permissions needed",
-                        color: .red
-                    )
+                    CameraPermissionView()
 
                 case .arNotSupported:
                     MagicalHintView(
@@ -266,29 +263,71 @@ struct ContentView: View {
 
                     Spacer()
                 }
-                .onAppear {
-                    // Push a focused VoiceOver announcement so blind users
-                    // know something happened — the AR scene itself is
-                    // unreachable through accessibility.
+                // task(id:) instead of onAppear: it restarts per DRAWING,
+                // not per view appearance — so a second drawing landing
+                // within the window gets its own announcement and its own
+                // full dismiss timer (onAppear-based timers dismissed the
+                // new capsule early and cleared its share button).
+                .task(id: drawingName) {
+                    // VoiceOver announcement per drawing — the AR scene
+                    // itself is unreachable through accessibility.
                     UIAccessibility.post(
                         notification: .announcement,
                         argument: "Cloudoodle drew \(drawingName)"
                     )
 
-                    // Auto-dismiss after 8 seconds — long enough to notice
-                    // the share button and tap it before the moment passes.
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) {
-                        withAnimation(.easeOut(duration: 0.3)) {
-                            arViewModel.currentDrawingName = nil
-                            arViewModel.latestShareable = nil
-                        }
+                    // Long enough to notice and tap the share button; more
+                    // generous when VoiceOver users need to navigate to it.
+                    let seconds: UInt64 = UIAccessibility.isVoiceOverRunning ? 16 : 8
+                    try? await Task.sleep(nanoseconds: seconds * 1_000_000_000)
+                    // A new drawing cancels this task — don't let the old
+                    // timer fall through and clear the new capsule.
+                    guard !Task.isCancelled else { return }
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        arViewModel.currentDrawingName = nil
+                        arViewModel.latestShareable = nil
                     }
                 }
+            }
+
+            // One-time community invite, earned after a few drawings —
+            // the only discovery moment for geo notifications besides
+            // digging through Settings.
+            if arViewModel.showCommunityInvite {
+                VStack {
+                    Spacer()
+                    CommunityInviteCard(
+                        onAccept: {
+                            ScanReportingService.shared.isEnabled = true
+                            notificationService.requestNotificationPermission()
+                            notificationService.registerWithBackendIfConsented()
+                            withAnimation(.spring()) {
+                                arViewModel.showCommunityInvite = false
+                            }
+                        },
+                        onDecline: {
+                            withAnimation(.spring()) {
+                                arViewModel.showCommunityInvite = false
+                            }
+                        }
+                    )
+                    Spacer()
+                        .frame(height: 160)
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .onChange(of: scenePhase) { phase in
+            // Re-check camera permission whenever the app becomes active
+            // (e.g. returning from Settings after granting access).
+            if phase == .active {
+                arViewModel.checkPermissions()
             }
         }
         .onAppear {
             // Wire up services for privacy-preserving notifications
             arViewModel.weatherService = weatherService
+            arViewModel.checkPermissions()
 
             // Note: notification permission is intentionally NOT requested
             // here. The system prompt fires only when the user opts in to
@@ -319,6 +358,134 @@ struct ContentView: View {
             SettingsView()
                 .environmentObject(notificationService)
         }
+    }
+}
+
+/// Shown when camera access is denied or restricted — the one state the
+/// app cannot function in at all. Friendly, actionable, no dead end.
+struct CameraPermissionView: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "camera.fill")
+                .font(.system(size: 40))
+                .foregroundStyle(LinearGradient.cloudoodleSky)
+
+            Text("Cloudoodle needs the camera to see the sky")
+                .font(.cloudoodleBody)
+                .fontWeight(.semibold)
+                .foregroundColor(.white)
+                .multilineTextAlignment(.center)
+
+            Text("Allow camera access in Settings and the cloud drawings can begin.")
+                .font(.cloudoodleMini)
+                .foregroundColor(.white.opacity(0.8))
+                .multilineTextAlignment(.center)
+
+            Button {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            } label: {
+                Text("Open Settings")
+                    .font(.cloudoodleBody)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, .spacing_lg)
+                    .padding(.vertical, .spacing_sm + 4)
+                    .background(
+                        Capsule().fill(
+                            LinearGradient(
+                                colors: [Color.cloudBlue, Color.lavenderDream],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                    )
+            }
+            .buttonStyle(BouncyButtonStyle())
+        }
+        .padding(.spacing_lg)
+        .background(
+            RoundedRectangle(cornerRadius: .radius_lg)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: .radius_lg)
+                        .strokeBorder(LinearGradient.glassShine, lineWidth: 1)
+                )
+        )
+        .shadow(color: Color.glassShadow, radius: 12, x: 0, y: 6)
+        .padding(.horizontal, 40)
+    }
+}
+
+/// One-time invite to the community notifications, shown after a few
+/// drawings. Copy is kid-friendly and privacy-honest: anonymous,
+/// city-level, opt-in.
+struct CommunityInviteCard: View {
+    let onAccept: () -> Void
+    let onDecline: () -> Void
+
+    var body: some View {
+        VStack(spacing: 14) {
+            HStack(spacing: 8) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 20))
+                    .foregroundStyle(LinearGradient.magicalGlow)
+                Text("The sky has more secrets")
+                    .font(.cloudoodleBody)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+            }
+
+            Text("Get a friendly ping when dragons and other doodles start gathering near your city. Anonymous and city-level only — never your exact location.")
+                .font(.cloudoodleMini)
+                .foregroundColor(.white.opacity(0.85))
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 12) {
+                Button(action: onDecline) {
+                    Text("Not now")
+                        .font(.cloudoodleMini)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white.opacity(0.85))
+                        .padding(.horizontal, .spacing_md)
+                        .padding(.vertical, .spacing_sm + 2)
+                        .background(Capsule().fill(.white.opacity(0.12)))
+                }
+                .buttonStyle(BouncyButtonStyle())
+
+                Button(action: onAccept) {
+                    Text("Notify me")
+                        .font(.cloudoodleMini)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, .spacing_lg)
+                        .padding(.vertical, .spacing_sm + 2)
+                        .background(
+                            Capsule().fill(
+                                LinearGradient(
+                                    colors: [Color.cloudBlue, Color.lavenderDream],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                        )
+                }
+                .buttonStyle(BouncyButtonStyle())
+            }
+        }
+        .padding(.spacing_lg)
+        .background(
+            RoundedRectangle(cornerRadius: .radius_lg)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: .radius_lg)
+                        .strokeBorder(LinearGradient.glassShine, lineWidth: 1)
+                )
+        )
+        .shadow(color: Color.glassShadow, radius: 14, x: 0, y: 8)
+        .padding(.horizontal, 32)
     }
 }
 

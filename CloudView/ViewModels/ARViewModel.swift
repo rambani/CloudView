@@ -4,6 +4,7 @@ import ARKit
 import Combine
 import CoreMotion
 import CoreLocation
+import AVFoundation
 
 class ARViewModel: ObservableObject {
     @Published var isProcessing = false
@@ -19,6 +20,11 @@ class ARViewModel: ObservableObject {
     /// instant-share affordance on the drawing capsule. Nothing is ever
     /// persisted — the moment passes unless the user shares it.
     @Published var latestShareable: ShareableDrawing?
+
+    /// One-time community-notifications invite, offered after the user has
+    /// made a few drawings (the earned moment) — otherwise the feature only
+    /// exists behind Settings and nobody ever finds it.
+    @Published var showCommunityInvite = false
 
     struct ShareableDrawing: Identifiable {
         let id = UUID()
@@ -109,12 +115,26 @@ class ARViewModel: ObservableObject {
         }
     }
 
+    /// Real camera-authorization check. Called on launch and whenever the
+    /// app becomes active (so returning from Settings recovers). Denied
+    /// camera means the app fundamentally cannot work — surface the one
+    /// state with an actionable path instead of a silent black screen.
+    /// (.notDetermined is fine: ARKit presents the system prompt when the
+    /// session starts.)
     func checkPermissions() {
-        // In production, you'd check actual permission status
-        // For now, assume they'll be requested by system
-        // ARKit automatically requests camera permission
-        // Location will be requested by WeatherService
-        hasRequiredPermissions = true
+        let status = AVCaptureDevice.authorizationStatus(for: .video)
+        DispatchQueue.main.async {
+            switch status {
+            case .denied, .restricted:
+                self.hasRequiredPermissions = false
+                self.appState = .permissionsNeeded
+            default:
+                self.hasRequiredPermissions = true
+                if self.appState == .permissionsNeeded {
+                    self.appState = .scanning
+                }
+            }
+        }
     }
 
     // MARK: - Motion Tracking
@@ -195,6 +215,9 @@ class ARViewModel: ObservableObject {
     @MainActor
     private func detectClouds(in frame: ARFrame) async {
         guard !isProcessing else { return }
+        // Camera denied: nothing below can help; keep the actionable
+        // permission screen up rather than letting scan states replace it.
+        guard appState != .permissionsNeeded else { return }
         isProcessing = true
 
         defer { isProcessing = false }
@@ -237,11 +260,13 @@ class ARViewModel: ObservableObject {
         if cloudShapes.isEmpty {
             consecutiveNoCloudFrames += 1
 
-            // After 5 seconds of no clouds, update state
+            // After ~5 seconds of genuinely no clouds, tell the user WHY
+            // via the weather: a clear blue day gets the cheerful "no
+            // clouds to doodle yet" message instead of scanning forever.
             if consecutiveNoCloudFrames >= noCloudThreshold {
-                // State will be determined by weather panel (clear sky vs overcast)
-                // For now, set to scanning and let weather panel provide context
-                appState = .scanning
+                appState = Self.noCloudState(
+                    condition: weatherService?.currentWeather?.weather.first?.main
+                )
             }
             stableFrameCount = 0
         } else {
@@ -259,6 +284,18 @@ class ARViewModel: ObservableObject {
                 }
             }
         }
+    }
+
+    /// Map the current weather condition to the right "no clouds found"
+    /// state. Static + condition-string-in so it stays trivially testable.
+    static func noCloudState(condition: String?) -> AppState {
+        guard let condition = condition?.lowercased(), !condition.isEmpty else {
+            return .noWeatherData
+        }
+        if condition.contains("clear") || condition.contains("sun") {
+            return .noCloudsClearSky
+        }
+        return .noCloudsOvercast
     }
 
     private func isCameraStable(_ frame: ARFrame) -> Bool {
@@ -410,6 +447,7 @@ class ARViewModel: ObservableObject {
         activeDrawings[cloudRegion.id] = drawingAnchor
         drawingOrder.append(cloudRegion.id)
         drawingCreationCount += 1
+        maybeOfferCommunityInvite()
 
         // Haptic + audio cue: "look what we made"
         FeedbackService.shared.fire(.drawingRevealed)
@@ -421,7 +459,36 @@ class ARViewModel: ObservableObject {
         let captureDelay = concept.style.revealDuration + 0.3
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: UInt64(captureDelay * 1_000_000_000))
-            captureForSharing(label: concept.name, subject: concept.subject)
+            captureForSharing(
+                label: concept.name,
+                subject: concept.subject,
+                anchorPosition: position
+            )
+        }
+    }
+
+    // MARK: - Community invite
+
+    /// Lifetime drawing count, persisted so the invite threshold survives
+    /// relaunches (the in-memory counter resets with "clear all").
+    private static let drawingsCountKey = "cloudoodle.totalDrawings"
+    private static let inviteShownKey = "cloudoodle.communityInviteShown"
+
+    private func maybeOfferCommunityInvite() {
+        let defaults = UserDefaults.standard
+        let total = defaults.integer(forKey: Self.drawingsCountKey) + 1
+        defaults.set(total, forKey: Self.drawingsCountKey)
+
+        guard total >= 3,
+              !defaults.bool(forKey: Self.inviteShownKey),
+              !ScanReportingService.shared.isEnabled
+        else { return }
+
+        // One shot: mark shown when offered. Settings remains the
+        // always-available opt-in path if they tap "Not now".
+        defaults.set(true, forKey: Self.inviteShownKey)
+        withAnimation(.spring()) {
+            showCommunityInvite = true
         }
     }
 
@@ -451,8 +518,18 @@ class ARViewModel: ObservableObject {
     }
 
     @MainActor
-    private func captureForSharing(label: String, subject: String?) {
+    private func captureForSharing(label: String, subject: String?, anchorPosition: simd_float3) {
         guard let arView = arView else { return }
+
+        // Only offer the share button if the drawing is actually in frame —
+        // the user may have panned away during the reveal, and a keepsake
+        // photo of empty sky is worse than no share button. project() is
+        // nil when the point is behind the camera.
+        let margin: CGFloat = 40
+        guard let screenPoint = arView.project(anchorPosition),
+              arView.bounds.insetBy(dx: -margin, dy: -margin).contains(screenPoint)
+        else { return }
+
         arView.snapshot(saveToHDR: false) { [weak self] image in
             guard let image = image else { return }
             Task { @MainActor in
