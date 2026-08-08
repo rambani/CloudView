@@ -367,6 +367,7 @@ struct ContentView: View {
             // (e.g. returning from Settings after granting access).
             if phase == .active {
                 arViewModel.checkPermissions()
+                notificationService.clearBadge()
             }
         }
         .onAppear {

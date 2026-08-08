@@ -13,6 +13,7 @@ class ScanReportingService {
     static let shared = ScanReportingService()
 
     private static let consentKey = "ScanReporting.userConsented"
+    private static let lastRegionKey = "ScanReporting.lastKnownRegion"
 
     // Backend API endpoint — points at BackendConfig by default.
     private var backendURL: URL = BackendConfig.reportScanURL
@@ -25,6 +26,22 @@ class ScanReportingService {
     }
 
     private init() {}
+
+    // MARK: - Region tracking for notification fan-out
+
+    /// Most recent successfully geocoded region (city granularity),
+    /// persisted so device registration can attach it even before the
+    /// next scan. Nil until the first successful geocode.
+    private(set) var lastKnownRegion: String? {
+        get { UserDefaults.standard.string(forKey: Self.lastRegionKey) }
+        set { UserDefaults.standard.set(newValue, forKey: Self.lastRegionKey) }
+    }
+
+    /// Fired when a geocode produces a different region than last time.
+    /// NotificationService uses this to move the push token into the new
+    /// region's fan-out set on the backend — without it, devices register
+    /// as "Unknown" and never receive community notifications.
+    var onRegionUpdate: ((String) -> Void)?
 
     // MARK: - Anonymous Scan Reporting
 
@@ -73,6 +90,11 @@ class ScanReportingService {
 
         let region = await reverseGeocode(location)
         cachedRegion = (location, region, Date().addingTimeInterval(regionCacheTTL))
+
+        if region != "Unknown", region != lastKnownRegion {
+            lastKnownRegion = region
+            onRegionUpdate?(region)
+        }
         return region
     }
 

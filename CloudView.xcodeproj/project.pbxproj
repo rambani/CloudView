@@ -55,6 +55,7 @@
 		A1000146000000000000001 /* DrawingAssemblyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000147000000000000001 /* DrawingAssemblyTests.swift */; };
 		A1000148000000000000001 /* QuipEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000149000000000000001 /* QuipEngine.swift */; };
 		A1000150000000000000001 /* QuipEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000151000000000000001 /* QuipEngineTests.swift */; };
+		A1000152000000000000001 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A1000153000000000000001 /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -104,6 +105,7 @@
 		A1000135000000000000001 /* TemplateFitting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateFitting.swift; sourceTree = "<group>"; };
 		A1000137000000000000001 /* TemplateDrawingComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateDrawingComposer.swift; sourceTree = "<group>"; };
 		A1000139000000000000001 /* DrawingTemplates.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = DrawingTemplates.json; sourceTree = "<group>"; };
+		A1000153000000000000001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		A1000141000000000000001 /* TemplateDrawingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateDrawingTests.swift; sourceTree = "<group>"; };
 		A1000143000000000000001 /* DrawingParts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrawingParts.swift; sourceTree = "<group>"; };
 		A1000145000000000000001 /* DrawingAssembler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrawingAssembler.swift; sourceTree = "<group>"; };
@@ -163,6 +165,7 @@
 				A1000020000000000000001 /* Assets.xcassets */,
 				A1000022000000000000001 /* Info.plist */,
 				A1000080000000000000001 /* CloudView.entitlements */,
+				A1000153000000000000001 /* PrivacyInfo.xcprivacy */,
 			);
 			path = CloudView;
 			sourceTree = "<group>";
@@ -355,6 +358,7 @@
 				A1000103000000000000001 /* AnnotationHints.json in Resources */,
 				A1000106000000000000001 /* Localizable.xcstrings in Resources */,
 				A1000138000000000000001 /* DrawingTemplates.json in Resources */,
+				A1000152000000000000001 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
