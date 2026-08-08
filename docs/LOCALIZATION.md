@@ -94,3 +94,23 @@ If budget is bounded, my recommendation by ROI for a 4+ kids' app:
 
 Skipping localization just means losing those markets, not breaking the
 app. The fallback is always English.
+
+## v1 decision: English-only, with one deliberate exception to the catalog
+
+Shipping decision (2026-08): v1 launches English-only. Chrome strings
+(Settings, instructions, hints, accessibility labels) flow through the
+String Catalog as described above and translate for free when languages
+are added.
+
+The **QuipEngine copy** (quips, captions) deliberately does NOT go through
+the catalog. Those lines are a seeded, creature × weather template matrix
+with token substitution (`{time}`, `{temp}`, `{wind}`) — the humor lives in
+the phrasing, and word-for-word translation of ~150 jokes produces stiff
+copy. Localizing them properly means **authoring a parallel template bank
+per language** inside `QuipEngine` (the engine's structure supports a
+per-locale matrix without API changes), written by someone funny in that
+language — treat it like the art library, not like UI strings.
+
+The backend notification copy (`backend/api/lib/notifications.ts`) has the
+same character and the same plan; it would key off the device's locale
+reported at registration time.

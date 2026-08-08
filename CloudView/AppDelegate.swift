@@ -2,7 +2,18 @@ import UIKit
 import UserNotifications
 
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
-    var notificationService: NotificationService?
+    // On a cold launch from a notification tap, didReceive can fire before
+    // ContentView wires the service in — buffer the tap and deliver it as
+    // soon as the service arrives.
+    var notificationService: NotificationService? {
+        didSet {
+            if let pending = pendingNotificationTap {
+                notificationService?.handleNotificationTap(userInfo: pending)
+                pendingNotificationTap = nil
+            }
+        }
+    }
+    private var pendingNotificationTap: [AnyHashable: Any]?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
         // Set notification delegate
@@ -40,11 +51,12 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         let userInfo = response.notification.request.content.userInfo
 
-        // Extract notification data
-        if let region = userInfo["region"] as? String,
-           let category = userInfo["category"] as? String {
-            print("📬 User tapped notification: \(category) in \(region)")
-            // Could navigate to specific view or show relevant content here
+        // Greet the arrival in-app so the tap connects to the sky above
+        // instead of landing cold on the camera.
+        if let service = notificationService {
+            service.handleNotificationTap(userInfo: userInfo)
+        } else {
+            pendingNotificationTap = userInfo
         }
 
         completionHandler()

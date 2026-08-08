@@ -14,6 +14,10 @@ struct SettingsView: View {
     // immediately and we can intercept the change to fire side effects.
     @State private var communityEnabled: Bool = ScanReportingService.shared.isEnabled
 
+#if DEBUG
+    @State private var deskTesting: Bool = ARViewModel.deskTestingEnabled
+#endif
+
     var body: some View {
         NavigationStack {
             Form {
@@ -62,6 +66,20 @@ struct SettingsView: View {
                             .monospacedDigit()
                     }
                 }
+
+#if DEBUG
+                Section {
+                    Toggle("Desk testing mode", isOn: $deskTesting)
+                        .tint(.orange)
+                        .onChange(of: deskTesting) { newValue in
+                            ARViewModel.deskTestingEnabled = newValue
+                        }
+                } header: {
+                    Text("Developer")
+                } footer: {
+                    Text("Bypasses the point-at-sky and daylight checks so you can test against a photo of clouds on a monitor. This section does not exist in release builds.")
+                }
+#endif
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)

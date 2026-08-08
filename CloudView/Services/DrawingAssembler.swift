@@ -145,17 +145,36 @@ enum DrawingAssembler {
     /// so tests can pin it to 0 or 1.
     static let defaultFlipProbability = 0.5
 
+    /// On very wide or tall clouds, sizing parts purely by the shorter side
+    /// makes them vanish; the effective side is floored at this fraction of
+    /// the longer side so faces/props stay visible on flat shapes.
+    static let flatShapeBoost = 0.45
+
     static func assemble(
         creature: CreatureSpec,
         parts: [DrawingPart],
         cloudContour: [CGPoint],
         score: Double,
         variation: VariationSeed,
+        aspectRatio: Double = 1.0,
         strongMatchThreshold: Double = TemplateDrawingComposer.defaultStrongThreshold,
         flipProbability: Double = DrawingAssembler.defaultFlipProbability
     ) -> DrawingConcept {
         let landmarks = CloudLandmarks.richReferencePoints(cloudContour)
         let bbox = boundingBox(of: cloudContour)
+
+        // Part sizing must account for the cloud's TRUE aspect: the contour
+        // arrives normalized per-axis (both spans ≈ 1), and rendering
+        // re-applies the real width/height — so an uncorrected square part
+        // would stretch on a wide cloud. Work in height units: the part's
+        // true square side, then split into per-axis normalized extents.
+        let aspect = max(aspectRatio, 0.001)
+        let trueWidth = Double(bbox.width) * aspect
+        let trueHeight = Double(bbox.height)
+        let effectiveSide = max(
+            min(trueWidth, trueHeight),
+            flatShapeBoost * max(trueWidth, trueHeight)
+        )
 
         var paths: [DrawingConcept.DrawingPath] = []
 
@@ -209,14 +228,16 @@ enum DrawingAssembler {
 
             let anchor = flipped ? part.anchor.mirrored : part.anchor
             let anchorPoint = anchor.point(in: landmarks)
-            let extent = CGFloat(part.scale ?? defaultPartScale) * min(bbox.width, bbox.height)
+            let side = CGFloat((part.scale ?? defaultPartScale) * effectiveSide)
+            let extentX = side / CGFloat(aspect)
+            let extentY = side
 
             for stroke in part.strokes.sorted(by: { $0.order < $1.order }) {
                 let pts: [CGPoint] = stroke.points.map { p in
                     let lx = flipped ? 1 - p.x : p.x
                     return CGPoint(
-                        x: anchorPoint.x + (CGFloat(lx) - 0.5) * extent,
-                        y: anchorPoint.y + (CGFloat(p.y) - 0.5) * extent
+                        x: anchorPoint.x + (CGFloat(lx) - 0.5) * extentX,
+                        y: anchorPoint.y + (CGFloat(p.y) - 0.5) * extentY
                     )
                 }
                 guard pts.count >= 2 else { continue }

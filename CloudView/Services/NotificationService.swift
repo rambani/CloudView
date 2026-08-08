@@ -106,6 +106,26 @@ class NotificationService: ObservableObject {
         print("❌ Failed to register for remote notifications: \(error.localizedDescription)")
     }
 
+    // MARK: - Notification tap → in-app greeting
+
+    /// Set when the app was opened from a community-notification tap, so the
+    /// UI can greet the arrival instead of landing cold on the camera.
+    /// Cleared by the UI after it's been shown.
+    @Published var arrivalGreeting: String?
+
+    /// Called by AppDelegate when the user taps a push. Builds a short
+    /// welcome line that connects the notification to the sky above them.
+    func handleNotificationTap(userInfo: [AnyHashable: Any]) {
+        let region = userInfo["region"] as? String
+        DispatchQueue.main.async {
+            if let region = region, !region.isEmpty {
+                self.arrivalGreeting = "The sky is busy over \(region) — look up! ✨"
+            } else {
+                self.arrivalGreeting = "The sky is putting on a show — look up! ✨"
+            }
+        }
+    }
+
     // MARK: - Local Notification (for testing)
 
     func scheduleTestNotification() {

@@ -544,6 +544,7 @@ struct WeatherPill: View {
     let value: String
     let color: Color
     @State private var shimmerOffset: CGFloat = -200
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 8) {
@@ -587,6 +588,7 @@ struct WeatherPill: View {
                 .strokeBorder(color.opacity(0.3), lineWidth: 0.5)
         )
         .onAppear {
+            guard !reduceMotion else { return }
             withAnimation(
                 Animation.linear(duration: 3.0)
                     .delay(Double.random(in: 0...2))
@@ -601,6 +603,7 @@ struct WeatherPill: View {
 struct ForecastCard: View {
     let item: ForecastData.ForecastItem
     @State private var isPulsing = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var timeString: String {
         let formatter = DateFormatter()
@@ -639,7 +642,7 @@ struct ForecastCard: View {
                     .foregroundColor(isNow ? .yellow : .white.opacity(0.8))
             }
             .onAppear {
-                if isNow {
+                if isNow && !reduceMotion {
                     withAnimation(
                         Animation.easeInOut(duration: 1.5).repeatForever(autoreverses: true)
                     ) {
@@ -789,6 +792,7 @@ struct MagicalSparkles: View {
     @State private var sparkleOpacity: Double = 0.6
     @State private var sparkleScale: CGFloat = 1.0
     @State private var rotationAngle: Double = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack {
@@ -825,6 +829,11 @@ struct MagicalSparkles: View {
                 .padding(.spacing_md)
                 .onAppear {
                     // Breathing animation
+                    guard !reduceMotion else {
+                        sparkleOpacity = 1.0
+                        sparkleScale = 1.0
+                        return
+                    }
                     withAnimation(.gentle) {
                         sparkleOpacity = 1.0
                         sparkleScale = 1.2

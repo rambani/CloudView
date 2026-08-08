@@ -282,6 +282,32 @@ final class DrawingAssemblyTests: XCTestCase {
         XCTAssertGreaterThan(observed.count, 1)
     }
 
+    func testAspectCompensationKeepsPartsSquareInWorldSpace() {
+        // The cloud contour is normalized per-axis; rendering re-applies the
+        // true aspect. On a wide cloud (aspect 2) a part's normalized
+        // x-extent must shrink so it renders square instead of stretched.
+        //
+        // Cloud bbox 0.6×0.4, part scale 0.2, local x-spread 0.2:
+        //   aspect 1: side = 0.2·max(min(0.6,0.4), 0.45·max) = 0.2·0.4 = 0.08
+        //             → x-spread = 0.2·0.08 = 0.016
+        //   aspect 2: trueW = 1.2 → side = 0.2·max(0.4, 0.54) = 0.108
+        //             → x-extent = 0.108/2 → x-spread = 0.2·0.054 = 0.0108
+        let creature = makeCreature(slots: ["eye": SlotSpec(required: true, probability: nil)])
+        let parts = [makePart(id: "eye-01", kind: "eye", anchor: .centroid)]
+
+        func xSpread(aspect: Double) -> CGFloat {
+            let concept = DrawingAssembler.assemble(
+                creature: creature, parts: parts, cloudContour: cloud,
+                score: 0.9, variation: seed, aspectRatio: aspect
+            )
+            let pts = concept.paths.first { $0.order == 1 }!.points
+            return pts.map(\.x).max()! - pts.map(\.x).min()!
+        }
+
+        XCTAssertEqual(xSpread(aspect: 1.0), 0.016, accuracy: 1e-9)
+        XCTAssertEqual(xSpread(aspect: 2.0), 0.0108, accuracy: 1e-9)
+    }
+
     func testPropDisplayTemplateDecoratesName() {
         // A required prop with a display template must rewrite the drawing's
         // display name — "Blob" becomes "Skateboarding Blob".

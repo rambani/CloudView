@@ -185,7 +185,11 @@ final class DrawingTemplateLibrary {
     /// across the top shape matches), drives part assembly for v2 creatures,
     /// and styles the strokes/animation — deterministically, so the same
     /// cloud + seed always yields the same drawing.
-    func makeDrawing(forCloudContour contour: [CGPoint], variation: VariationSeed) -> DrawingConcept? {
+    func makeDrawing(
+        forCloudContour contour: [CGPoint],
+        variation: VariationSeed,
+        aspectRatio: Double = 1.0
+    ) -> DrawingConcept? {
         let ranked = rankedMatches(forCloudContour: contour)
         guard !ranked.isEmpty else { return nil }
 
@@ -202,7 +206,8 @@ final class DrawingTemplateLibrary {
                 parts: parts,
                 cloudContour: contour,
                 score: match.score,
-                variation: variation
+                variation: variation,
+                aspectRatio: aspectRatio
             )
         case .template(let template):
             var concept = TemplateDrawingComposer.compose(
