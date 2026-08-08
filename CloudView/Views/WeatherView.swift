@@ -544,6 +544,7 @@ struct WeatherPill: View {
     let value: String
     let color: Color
     @State private var shimmerOffset: CGFloat = -200
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 8) {
@@ -791,6 +792,7 @@ struct MagicalSparkles: View {
     @State private var sparkleOpacity: Double = 0.6
     @State private var sparkleScale: CGFloat = 1.0
     @State private var rotationAngle: Double = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack {
