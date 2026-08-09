@@ -153,7 +153,12 @@ struct ContentView: View {
                 // Show different indicators based on app state
                 switch arViewModel.appState {
                 case .scanning:
-                    if arViewModel.isProcessing {
+                    // Coach mark for the hidden mechanic: holding still is
+                    // what summons the drawing. The ring fills across the
+                    // ~2s stability window so first-timers learn the trigger.
+                    if arViewModel.stabilityProgress > 0 {
+                        HoldSteadyRing(progress: arViewModel.stabilityProgress)
+                    } else if arViewModel.isProcessing {
                         EnhancedMagicalLoadingView()
                     }
 
@@ -209,17 +214,37 @@ struct ContentView: View {
                         .frame(height: 120)
 
                     HStack(spacing: .spacing_md) {
-                        // Animated sparkles with floating effect
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(LinearGradient.magicalGlow)
-                            .floating(duration: 1.5, distance: 4)
+                        // Name + sparkles read as one VoiceOver element;
+                        // the buttons stay separate, reachable siblings.
+                        HStack(spacing: .spacing_md) {
+                            // Animated sparkles with floating effect
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(LinearGradient.magicalGlow)
+                                .floating(duration: 1.5, distance: 4)
 
-                        Text(drawingName)
-                            .font(.cloudoodleBody)
-                            .foregroundColor(.white)
-                            .lineLimit(2)
-                            .multilineTextAlignment(.center)
+                            Text(drawingName)
+                                .font(.cloudoodleBody)
+                                .foregroundColor(.white)
+                                .lineLimit(2)
+                                .multilineTextAlignment(.center)
+                        }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("Cloudoodle drew \(drawingName)")
+                        .accessibilityAddTraits(.updatesFrequently)
+
+                        // Retake the share photo: the auto-capture fires
+                        // once and may have missed the framing — or been
+                        // skipped entirely if the drawing was out of frame.
+                        Button {
+                            arViewModel.recaptureShareable()
+                        } label: {
+                            Image(systemName: "camera")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(.white)
+                        }
+                        .buttonStyle(BouncyButtonStyle())
+                        .accessibilityLabel("Retake share photo")
 
                         // Instant share — the only way to keep a drawing.
                         // Nothing is archived; share it now or let the
@@ -261,13 +286,10 @@ struct ContentView: View {
                     )
                     .shadow(color: Color.sunGlow.opacity(0.3), radius: 12, x: 0, y: 6)
                     .transition(.opacity.combined(with: .scale))
-                    // VoiceOver users can't see the AR drawing appear; this
-                    // node aggregates the visual + text into one
-                    // announcement so a swipe-right after launch lands here
-                    // and reads "Cloudoodle drew a Happy Penguin Surfing".
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("Cloudoodle drew \(drawingName)")
-                    .accessibilityAddTraits(.updatesFrequently)
+                    // VoiceOver: the name reads as one element (labeled on
+                    // the inner HStack above) while the retake and share
+                    // buttons remain individually reachable — a container-
+                    // level .ignore here would swallow them.
 
                     Spacer()
                 }
@@ -409,6 +431,51 @@ struct ContentView: View {
 
 /// Shown when camera access is denied or restricted — the one state the
 /// app cannot function in at all. Friendly, actionable, no dead end.
+/// Coach mark shown while the hold-steady window fills: a progress ring
+/// that teaches the app's hidden mechanic (stillness summons the drawing)
+/// and rewards it with visible momentum toward the reveal.
+struct HoldSteadyRing: View {
+    let progress: Double
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        VStack(spacing: .spacing_sm) {
+            ZStack {
+                Circle()
+                    .stroke(Color.white.opacity(0.25), lineWidth: 5)
+
+                Circle()
+                    .trim(from: 0, to: progress)
+                    .stroke(
+                        LinearGradient.magicalGlow,
+                        style: StrokeStyle(lineWidth: 5, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
+                    .animation(
+                        reduceMotion ? nil : .linear(duration: 0.25),
+                        value: progress
+                    )
+
+                Image(systemName: "cloud.fill")
+                    .font(.system(size: 18))
+                    .foregroundColor(.white)
+            }
+            .frame(width: 56, height: 56)
+
+            Text("Hold steady…")
+                .font(.cloudoodleCaption)
+                .foregroundColor(.white)
+        }
+        .padding(.spacing_md)
+        .background(
+            RoundedRectangle(cornerRadius: .radius_lg)
+                .fill(.ultraThinMaterial)
+        )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Hold steady, drawing on its way")
+    }
+}
+
 struct CameraPermissionView: View {
     var body: some View {
         VStack(spacing: 16) {

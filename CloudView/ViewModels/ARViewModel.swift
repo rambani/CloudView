@@ -9,6 +9,9 @@ import AVFoundation
 class ARViewModel: ObservableObject {
     @Published var isProcessing = false
     @Published var detectedClouds: [CloudRegion] = []
+    /// 0...1 fill of the hold-steady window while aiming at a fresh cloud.
+    /// Drives the coach-mark progress ring; 0 whenever no drawing is imminent.
+    @Published var stabilityProgress: Double = 0
     @Published var currentDrawingName: String?
     @Published var lastDrawingName: String? // Persists for quirky weather statements
     /// Base creature label behind `lastDrawingName` (a "Skateboarding
@@ -70,6 +73,17 @@ class ARViewModel: ObservableObject {
     // Performance limits
     private let maxDrawings = 20 // Max concurrent drawings to prevent memory issues
     private var drawingCreationCount = 0 // Track total drawings created
+
+    // Drawing placement
+    private let drawingDistance: Float = 50.0 // Anchor drawings this far out
+    // Minimum separation between drawing anchors. At 50 m out this is ~11°
+    // of sky — tight enough that neighboring clouds each get a doodle,
+    // wide enough that the same cloud isn't re-doodled every window.
+    private let nearbyDrawingRadius: Float = 10.0
+
+    // Context of the most recent drawing so the user can re-take the share
+    // snapshot with better framing than the one-shot automatic capture.
+    private var lastCaptureContext: (label: String, subject: String?, position: simd_float3)?
 
     // Permission tracking
     @Published var hasRequiredPermissions = false
@@ -230,6 +244,7 @@ class ARViewModel: ObservableObject {
                 appState = .nightTime
                 consecutiveNoCloudFrames = 0
                 stableFrameCount = 0
+                updateStabilityProgress(0)
                 lastCameraTransform = nil
                 return
             }
@@ -239,6 +254,7 @@ class ARViewModel: ObservableObject {
                 appState = .pointAtSky
                 consecutiveNoCloudFrames = 0
                 stableFrameCount = 0
+                updateStabilityProgress(0)
                 lastCameraTransform = nil
                 return
             }
@@ -253,6 +269,7 @@ class ARViewModel: ObservableObject {
         if !isStable {
             appState = .movingTooFast
             stableFrameCount = 0
+            updateStabilityProgress(0)
             return
         }
 
@@ -269,20 +286,66 @@ class ARViewModel: ObservableObject {
                 )
             }
             stableFrameCount = 0
+            updateStabilityProgress(0)
         } else {
             // Found clouds - reset counter and process normally
             consecutiveNoCloudFrames = 0
             appState = .scanning
 
             if let primaryCloud = cloudShapes.first {
-                stableFrameCount += 1
-
-                // If camera has been stable long enough, create drawing
-                if stableFrameCount >= requiredStableFrames {
-                    await createDrawingForCloud(primaryCloud, frame: frame)
+                // Only count stability toward a cloud that doesn't already
+                // have a drawing — otherwise the hold-steady ring fills and
+                // resets in a loop promising a drawing that never comes.
+                let position = anchorPosition(for: primaryCloud, frame: frame)
+                if hasDrawing(near: position) {
                     stableFrameCount = 0
+                    updateStabilityProgress(0)
+                } else {
+                    stableFrameCount += 1
+                    updateStabilityProgress(
+                        Double(stableFrameCount) / Double(requiredStableFrames)
+                    )
+
+                    // If camera has been stable long enough, create drawing
+                    if stableFrameCount >= requiredStableFrames {
+                        await createDrawingForCloud(primaryCloud, frame: frame)
+                        stableFrameCount = 0
+                        updateStabilityProgress(0)
+                    }
                 }
             }
+        }
+    }
+
+    /// Publish only on change — this runs 4x/second and mostly writes 0.
+    private func updateStabilityProgress(_ value: Double) {
+        let clamped = min(1, max(0, value))
+        if stabilityProgress != clamped {
+            stabilityProgress = clamped
+        }
+    }
+
+    /// Where a drawing for this cloud would be anchored: along the
+    /// unprojected camera ray at the fixed sky distance. We don't raycast —
+    /// clouds aren't surfaces, so the AR session has nothing to hit.
+    private func anchorPosition(for cloudShape: CloudShape, frame: ARFrame) -> simd_float3 {
+        let cameraTransform = frame.camera.transform
+        let direction = screenPointToWorldDirection(cloudShape.screenPosition, camera: frame.camera)
+        return simd_float3(
+            cameraTransform.columns.3.x + direction.x * drawingDistance,
+            cameraTransform.columns.3.y + direction.y * drawingDistance,
+            cameraTransform.columns.3.z + direction.z * drawingDistance
+        )
+    }
+
+    /// Whether an active drawing is already anchored near this position.
+    /// Compared in world space against the stored anchor positions — the
+    /// previous check used CloudShape.center, which the detector always
+    /// fills with (0,0,0), so it never fired and the same cloud was
+    /// re-doodled every stability window.
+    private func hasDrawing(near position: simd_float3) -> Bool {
+        activeDrawings.values.contains { drawing in
+            simd_distance(drawing.cloudRegion.center, position) < nearbyDrawingRadius
         }
     }
 
@@ -328,6 +391,11 @@ class ARViewModel: ObservableObject {
     private func createDrawingForCloud(_ cloudShape: CloudShape, frame: ARFrame) async {
         guard let arView = arView else { return }
 
+        // Backstop dedup (detectClouds already checks before counting
+        // stability): never stack a second drawing on the same cloud.
+        let position = anchorPosition(for: cloudShape, frame: frame)
+        guard !hasDrawing(near: position) else { return }
+
         // Performance limit: evict the actual oldest drawing if we're at the cap.
         while activeDrawings.count >= maxDrawings, let oldestID = drawingOrder.first {
             if let oldest = activeDrawings.removeValue(forKey: oldestID) {
@@ -335,15 +403,6 @@ class ARViewModel: ObservableObject {
             }
             drawingOrder.removeFirst()
         }
-
-        // Check if we already have a drawing near this location
-        let cloudCenter = cloudShape.center
-        let hasNearbyDrawing = activeDrawings.values.contains { drawing in
-            let distance = simd_distance(drawing.cloudRegion.center, cloudCenter)
-            return distance < 2.0 // Within 2 meters
-        }
-
-        guard !hasNearbyDrawing else { return }
 
         // Quiet "I see something" cue while recognition runs.
         FeedbackService.shared.fire(.sightingBegan)
@@ -406,23 +465,9 @@ class ARViewModel: ObservableObject {
             location: weatherService?.currentLocation
         )
 
-        // Create anchor in the sky direction. We don't raycast — clouds aren't
-        // surfaces, so the AR session has nothing to hit — and instead place
-        // the drawing along the unprojected camera ray at a fixed distance.
+        // Anchor at the position computed up top (unprojected camera ray at
+        // the fixed sky distance — see anchorPosition(for:frame:)).
         let anchor = AnchorEntity()
-        let distance: Float = 50.0 // Place drawing 50 meters away
-
-        let cameraTransform = frame.camera.transform
-        let screenPoint = cloudShape.screenPosition
-
-        // Convert screen point to world direction
-        let direction = screenPointToWorldDirection(screenPoint, camera: frame.camera)
-        let position = simd_float3(
-            cameraTransform.columns.3.x + direction.x * distance,
-            cameraTransform.columns.3.y + direction.y * distance,
-            cameraTransform.columns.3.z + direction.z * distance
-        )
-
         anchor.position = position
         arView.scene.addAnchor(anchor)
 
@@ -451,6 +496,10 @@ class ARViewModel: ObservableObject {
 
         // Haptic + audio cue: "look what we made"
         FeedbackService.shared.fire(.drawingRevealed)
+
+        // Remember the capture context so the user can re-take the share
+        // snapshot later with framing of their choosing.
+        lastCaptureContext = (concept.name, concept.subject, position)
 
         // Capture a snapshot for instant sharing once the line-drawing
         // animation has had time to render: the (seeded) reveal duration
@@ -515,6 +564,20 @@ class ARViewModel: ObservableObject {
         let lat = (coordinate.latitude * 5).rounded() / 5
         let lon = (coordinate.longitude * 5).rounded() / 5
         return "\(lat):\(lon)"
+    }
+
+    /// Re-take the share snapshot for the most recent drawing — the
+    /// automatic capture fires exactly once and may have caught poor
+    /// framing (or skipped entirely if the drawing was out of frame).
+    /// Same in-frame guard as the auto capture: aiming away is a no-op.
+    @MainActor
+    func recaptureShareable() {
+        guard let context = lastCaptureContext else { return }
+        captureForSharing(
+            label: context.label,
+            subject: context.subject,
+            anchorPosition: context.position
+        )
     }
 
     @MainActor
