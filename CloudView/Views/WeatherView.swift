@@ -268,18 +268,21 @@ struct QuirkyWeatherStatement: View {
                 item.weather.first?.main.lowercased().contains("rain") ?? false
             }) {
                 let hoursUntilRain = rainItem.date.timeIntervalSince(Date()) / 3600
-                return (.rainComing, WeatherDetails(hoursAway: Int(hoursUntilRain)))
+                return (.rainComing, WeatherDetails(hoursAway: Int(hoursUntilRain.rounded())))
             }
         }
 
-        // Check temperature trend
+        // Check temperature trend. Threshold matches the unit system the
+        // values were converted to (5°F ≈ 3°C) so metric users don't need
+        // a 9°F-equivalent swing before the trend registers.
         let avgFutureTemp = futureTemps.reduce(0, +) / Double(futureTemps.count)
         let tempDiff = avgFutureTemp - currentTemp
         let maxTemp = futureTemps.max() ?? currentTemp
+        let tempThreshold = WeatherService.tempTrendThreshold
 
-        if tempDiff > 5 {
+        if tempDiff > tempThreshold {
             return (.gettingWarmer, WeatherDetails(targetTemp: Int(maxTemp), tempChange: Int(tempDiff)))
-        } else if tempDiff < -5 {
+        } else if tempDiff < -tempThreshold {
             let minTemp = futureTemps.min() ?? currentTemp
             return (.gettingColder, WeatherDetails(targetTemp: Int(minTemp), tempChange: Int(abs(tempDiff))))
         }
@@ -296,13 +299,16 @@ struct QuirkyWeatherStatement: View {
                 return condition.contains("storm") || condition.contains("thunder")
             }) {
                 let hoursUntilStorm = stormItem.date.timeIntervalSince(Date()) / 3600
-                return (.stormyComing, WeatherDetails(hoursAway: Int(hoursUntilStorm)))
+                return (.stormyComing, WeatherDetails(hoursAway: Int(hoursUntilStorm.rounded())))
             }
         }
 
-        // Check wind
-        if weather.wind.speed > 10 {
-            return (.windy, WeatherDetails(windSpeed: Int(weather.wind.speed)))
+        // Check wind — threshold in the user's unit (10 mph ≈ 16 km/h).
+        if weather.wind.speed > WeatherService.windyThreshold {
+            return (.windy, WeatherDetails(
+                windSpeed: Int(weather.wind.speed),
+                windUnit: WeatherService.windUnitLabel
+            ))
         }
 
         return (.stable, WeatherDetails(currentTemp: Int(currentTemp)))
@@ -414,7 +420,7 @@ struct MagicalWeatherContentView: View {
                 // Right: Additional details in pills
                 VStack(alignment: .trailing, spacing: 10) {
                     WeatherPill(icon: "drop.fill", value: "\(weather.main.humidity)%", color: .cyan)
-                    WeatherPill(icon: "wind", value: "\(Int(weather.wind.speed)) mph", color: .blue)
+                    WeatherPill(icon: "wind", value: "\(Int(weather.wind.speed)) \(WeatherService.windUnitLabel)", color: .blue)
                     WeatherPill(icon: "thermometer.medium", value: "Feels \(Int(weather.main.feelsLike))°", color: .orange)
                 }
             }

@@ -34,14 +34,18 @@ enum QuipEngine {
         var tempChange: Int?
         var windSpeed: Int?
         var currentTemp: Int?
+        /// Unit label for {wind} values. Authored lines say "{wind} mph";
+        /// render() swaps the unit when the caller's locale reads km/h.
+        var windUnit: String
 
         init(hoursAway: Int? = nil, targetTemp: Int? = nil, tempChange: Int? = nil,
-             windSpeed: Int? = nil, currentTemp: Int? = nil) {
+             windSpeed: Int? = nil, currentTemp: Int? = nil, windUnit: String = "mph") {
             self.hoursAway = hoursAway
             self.targetTemp = targetTemp
             self.tempChange = tempChange
             self.windSpeed = windSpeed
             self.currentTemp = currentTemp
+            self.windUnit = windUnit
         }
     }
 
@@ -344,6 +348,9 @@ enum QuipEngine {
             out = out.replacingOccurrences(of: "{temp}", with: String(temp))
         }
         if out.contains("{wind}") {
+            // Authored copy writes "{wind} mph"; retarget the unit before
+            // filling the number so km/h locales read the right label.
+            out = out.replacingOccurrences(of: "{wind} mph", with: "{wind} \(details.windUnit)")
             out = out.replacingOccurrences(of: "{wind}", with: String(details.windSpeed ?? 15))
         }
         return out
