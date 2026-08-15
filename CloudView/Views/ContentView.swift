@@ -390,6 +390,9 @@ struct ContentView: View {
             if phase == .active {
                 arViewModel.checkPermissions()
                 notificationService.clearBadge()
+                // Weather that sat in the background goes stale — the
+                // quips and panel should describe the sky as it is now.
+                weatherService.refreshIfStale()
             }
         }
         .onAppear {

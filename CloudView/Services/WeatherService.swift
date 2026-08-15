@@ -69,6 +69,38 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
     // hit at one fetch per launch.
     private let weatherKit = WeatherKit.WeatherService.shared
 
+    private var lastFetchDate: Date?
+
+    // MARK: - Locale-aware unit labels & thresholds
+    //
+    // Values are CONVERTED to the user's units at fetch time (see
+    // preferredTempUnit / preferredWindUnit), so every label and threshold
+    // downstream must agree with that system — a hardcoded "mph" next to a
+    // km/h number is worse than no label.
+
+    /// Display label matching preferredWindUnit (US/UK read wind in mph).
+    static var windUnitLabel: String {
+        switch Locale.current.measurementSystem {
+        case .us, .uk:  return "mph"
+        case .metric:   return "km/h"
+        default:        return "mph"
+        }
+    }
+
+    /// Temp swing that counts as "getting warmer/colder": 5°F ≈ 3°C.
+    static var tempTrendThreshold: Double {
+        Locale.current.measurementSystem == .us ? 5 : 3
+    }
+
+    /// Wind speed that counts as "windy": 10 mph ≈ 16 km/h.
+    static var windyThreshold: Double {
+        switch Locale.current.measurementSystem {
+        case .us, .uk:  return 10
+        case .metric:   return 16
+        default:        return 10
+        }
+    }
+
     private var locationManager: CLLocationManager?
     private var cancellables = Set<AnyCancellable>()
     private let geocoder = CLGeocoder()
@@ -158,6 +190,7 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
 
             self.currentWeather = mapCurrent(weather.currentWeather, name: cityName)
             self.forecast = mapForecast(weather.hourlyForecast)
+            self.lastFetchDate = Date()
             self.isLoading = false
         } catch {
             print("WeatherKit fetch failed: \(error.localizedDescription)")
@@ -201,6 +234,17 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
     func retryLocationPermission() {
         // This will prompt the user to go to Settings if permission was denied
         checkLocationAuthorization()
+    }
+
+    /// Refetch when the data has gone stale — called on app foreground so
+    /// the panel, trend, and quips don't describe weather from hours ago
+    /// after the app sat in the background. Also retries a fetch that never
+    /// succeeded (e.g. offline at launch).
+    func refreshIfStale(maxAge: TimeInterval = 30 * 60) {
+        if let last = lastFetchDate, Date().timeIntervalSince(last) <= maxAge {
+            return
+        }
+        requestLocationAndFetchWeather()
     }
 
     // MARK: - Mapping WeatherKit → local model
