@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Pirate ship: billowed sail, pennant flying, wide curved hull. -->
+  <path d="M 44 10
+           L 58 14 L 46 18
+           L 46 22
+           C 60 23 70 31 73 43
+           C 74 48 73 52 71 55
+           L 82 55
+           C 87 55 89 59 87 63
+           C 80 72 62 76 48 76
+           C 34 76 18 71 13 63
+           C 11 59 13 55 17 55
+           L 40 55
+           C 36 48 34 38 37 27
+           C 39 23 41 22 43 22
+           L 43 14
+           C 43 12 43 10 44 10 Z"/>
+</svg>

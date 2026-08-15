@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Crescent moon: the classic sliver, horns pointing right. -->
+  <path d="M 60 8
+           C 34 12 16 30 16 50
+           C 16 70 34 88 60 92
+           C 66 93 70 90 66 87
+           C 52 78 44 64 44 50
+           C 44 36 52 22 66 13
+           C 70 10 66 7 60 8 Z"/>
+</svg>

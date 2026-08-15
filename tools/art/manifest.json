@@ -389,6 +389,314 @@
      "probability": 0.35
     }
    }
+  },
+  {
+   "label": "car",
+   "category": "vehicles",
+   "silhouette": "car/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "train",
+   "category": "vehicles",
+   "silhouette": "train/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "pirate ship",
+   "category": "vehicles",
+   "silhouette": "pirateship/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "submarine",
+   "category": "vehicles",
+   "silhouette": "submarine/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "paper plane",
+   "category": "vehicles",
+   "silhouette": "paperplane/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "lighthouse",
+   "category": "landmarks",
+   "silhouette": "lighthouse/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "teapot",
+   "category": "food",
+   "silhouette": "teapot/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "cupcake",
+   "category": "food",
+   "silhouette": "cupcake/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "mushroom",
+   "category": "food",
+   "silhouette": "mushroom/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "banana",
+   "category": "food",
+   "silhouette": "banana/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "pumpkin",
+   "category": "food",
+   "silhouette": "pumpkin/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "robot",
+   "category": "mythical",
+   "silhouette": "robot/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "snowman",
+   "category": "mythical",
+   "silhouette": "snowman/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "tree",
+   "category": "nature",
+   "silhouette": "tree/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "cactus",
+   "category": "nature",
+   "silhouette": "cactus/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "umbrella",
+   "category": "nature",
+   "silhouette": "umbrella/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "kite",
+   "category": "nature",
+   "silhouette": "kite/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "top hat",
+   "category": "nature",
+   "silhouette": "tophat/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "crown",
+   "category": "nature",
+   "silhouette": "crown/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "guitar",
+   "category": "nature",
+   "silhouette": "guitar/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "moon",
+   "category": "nature",
+   "silhouette": "moon/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "heart",
+   "category": "nature",
+   "silhouette": "heart/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
   }
  ],
  "parts": [

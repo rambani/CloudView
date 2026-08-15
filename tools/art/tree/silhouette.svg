@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Pine tree: three tiers and a little trunk. -->
+  <path d="M 50 8
+           L 66 30 L 58 30
+           L 72 50 L 62 50
+           L 78 72 L 56 72
+           L 56 82
+           C 56 86 44 86 44 82
+           L 44 72 L 22 72
+           L 38 50 L 28 50
+           L 42 30 L 34 30 Z"/>
+</svg>

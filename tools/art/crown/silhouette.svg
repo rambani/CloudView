@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Crown: five points with rounded tips, sturdy band. -->
+  <path d="M 14 72
+           L 10 32
+           C 9 28 13 27 15 30
+           L 26 44
+           L 36 24
+           C 38 20 42 20 44 24
+           L 50 40
+           L 56 24
+           C 58 20 62 20 64 24
+           L 74 44
+           L 85 30
+           C 87 27 91 28 90 32
+           L 86 72
+           C 62 78 38 78 14 72 Z"/>
+</svg>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Heart: the shape every cloud-watcher hopes to find. -->
+  <path d="M 50 86
+           C 30 70 12 54 12 36
+           C 12 22 24 14 36 18
+           C 42 20 47 25 50 30
+           C 53 25 58 20 64 18
+           C 76 14 88 22 88 36
+           C 88 54 70 70 50 86 Z"/>
+</svg>

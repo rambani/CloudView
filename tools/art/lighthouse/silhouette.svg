@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Lighthouse: tapered tower, gallery ledges, peaked lamp roof. -->
+  <path d="M 40 88
+           L 44 40 L 38 40 L 38 34 L 44 34
+           L 44 28 L 42 28 L 42 24 L 46 24
+           L 46 20 L 50 12 L 54 20
+           L 54 24 L 58 24 L 58 28 L 56 28
+           L 56 34 L 62 34 L 62 40 L 56 40
+           L 60 88
+           C 60 91 56 92 50 92
+           C 44 92 40 91 40 88 Z"/>
+</svg>

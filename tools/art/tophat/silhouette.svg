@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Top hat: tall crown with gently curved sides, wide brim. -->
+  <path d="M 20 62
+           C 14 62 14 56 20 56
+           L 30 56
+           C 31 44 31 32 32 20
+           C 32 16 36 14 40 14
+           L 60 14
+           C 64 14 68 16 68 20
+           C 69 32 69 44 70 56
+           L 80 56
+           C 86 56 86 62 80 62
+           C 62 68 38 68 20 62 Z"/>
+</svg>

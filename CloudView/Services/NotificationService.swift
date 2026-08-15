@@ -252,20 +252,23 @@ enum DrawingCategory: String, Codable {
 
         // Landmarks
         if name.contains("tower") || name.contains("castle") || name.contains("bridge") ||
-           name.contains("statue") || name.contains("temple") || name.contains("pyramid") {
+           name.contains("statue") || name.contains("temple") || name.contains("pyramid") ||
+           name.contains("lighthouse") {
             return .landmarks
         }
 
         // Vehicles
         if name.contains("car") || name.contains("plane") || name.contains("boat") ||
            name.contains("train") || name.contains("rocket") || name.contains("helicopter") ||
-           name.contains("balloon") {
+           name.contains("balloon") || name.contains("ship") || name.contains("submarine") {
             return .vehicles
         }
 
         // Food
         if name.contains("pizza") || name.contains("burger") || name.contains("cake") ||
-           name.contains("ice cream") || name.contains("donut") || name.contains("taco") {
+           name.contains("ice cream") || name.contains("donut") || name.contains("taco") ||
+           name.contains("banana") || name.contains("pumpkin") || name.contains("mushroom") ||
+           name.contains("teapot") {
             return .food
         }
 

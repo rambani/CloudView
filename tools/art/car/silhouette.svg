@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Friendly little car: rounded cabin, long body, two wheel bumps. -->
+  <path d="M 10 62
+           C 8 56 10 50 16 48
+           C 20 38 30 32 42 32
+           C 54 32 64 37 68 46
+           C 78 47 86 52 88 58
+           C 90 62 89 66 86 68
+           C 83 68 81 68 79 68
+           C 78 75 68 77 66 70
+           C 65 68 65 67 66 66
+           L 38 66
+           C 38 68 38 69 37 71
+           C 34 77 25 75 24 68
+           C 18 68 13 66 10 62 Z"/>
+</svg>

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Cupcake: ruffled wrapper, billowy frosting swirl. -->
+  <path d="M 30 52
+           L 26 78
+           C 26 83 31 85 36 85
+           L 64 85
+           C 69 85 74 83 74 78
+           L 70 52
+           C 77 50 80 43 75 38
+           C 81 33 79 24 70 23
+           C 68 15 56 12 49 17
+           C 47 12 41 12 39 17
+           C 30 18 26 26 30 32
+           C 24 36 24 47 30 52 Z"/>
+</svg>

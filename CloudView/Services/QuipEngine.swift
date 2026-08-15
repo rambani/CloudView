@@ -59,6 +59,12 @@ enum QuipEngine {
         "unicorn": "🦄", "snail": "🐌", "sailboat": "⛵",
         "wizard": "🧙", "castle": "🏰", "basketball": "🏀", "astronaut": "🧑‍🚀",
         "rocket": "🚀", "hot air balloon": "🎈", "ice cream": "🍦",
+        "car": "🚗", "train": "🚂", "pirate ship": "🏴‍☠️", "submarine": "🚢",
+        "paper plane": "🛩", "lighthouse": "🗼", "teapot": "🫖",
+        "cupcake": "🧁", "mushroom": "🍄", "banana": "🍌", "pumpkin": "🎃",
+        "robot": "🤖", "snowman": "⛄", "tree": "🌲", "cactus": "🌵",
+        "umbrella": "☂️", "kite": "🪁", "top hat": "🎩", "crown": "👑",
+        "guitar": "🎸", "moon": "🌙", "heart": "💛",
     ]
     private static let genericEmoji = "✨"
 
@@ -260,6 +266,50 @@ enum QuipEngine {
             .gettingWarmer: ["Warming to {temp}° — the ice cream is officially on a deadline."],
             .gettingColder: ["Cooling to {temp}° — the ice cream can finally relax."],
             .stable: ["Holding at {temp}° — the ice cream approves of this forecast."],
+        ],
+        "car": [
+            .rainComing: ["The car's getting a free wash — rain rolls in {time}."],
+            .windy: ["A {wind} mph tailwind — the car swears it's not speeding."],
+            .stable: ["Top down, {temp}° — the car votes for the scenic route."],
+        ],
+        "train": [
+            .rainComing: ["The train runs on time, rain or shine — and rain's due {time}."],
+            .stormyComing: ["Thunder {time}? The train will out-rumble it."],
+            .stable: ["Right on schedule at {temp}° — all aboard the cloud express."],
+        ],
+        "pirate ship": [
+            .rainComing: ["Rain {time} — the pirate ship calls that fine sailing weather."],
+            .stormyComing: ["Batten the hatches — the pirate ship smells a storm {time}."],
+            .windy: ["{wind} mph winds — the pirate ship is making excellent time."],
+            .stable: ["Calm seas at {temp}° — suspiciously quiet, says the crow's nest."],
+        ],
+        "submarine": [
+            .rainComing: ["Rain {time}? The submarine fails to see the problem."],
+            .stormyComing: ["The submarine will just duck under this one — storms {time}."],
+            .stable: ["Periscope up: {temp}° and all clear."],
+        ],
+        "teapot": [
+            .rainComing: ["Perfect brewing weather — the teapot approves of rain {time}."],
+            .gettingColder: ["Dropping to {temp}° — the teapot puts the kettle on for everyone."],
+            .stable: ["Steady at {temp}° — the teapot calls it a two-cup afternoon."],
+        ],
+        "robot": [
+            .rainComing: ["The robot requests an umbrella — rain detected {time}. Beep."],
+            .gettingColder: ["{temp}° incoming. The robot does not compute 'sweater weather'."],
+            .stable: ["Systems nominal: {temp}°, skies calm. The robot is pleased. Beep."],
+        ],
+        "snowman": [
+            .gettingWarmer: ["Uh oh — {temp}° on the way. The snowman is sweating."],
+            .gettingColder: ["Dropping to {temp}° — the snowman's favorite forecast."],
+            .stable: ["The snowman holds formation at {temp}° — so far, so solid."],
+        ],
+        "moon": [
+            .rainComing: ["The moon came out early and brought rain clouds {time} with it."],
+            .stable: ["A daytime moon at {temp}° — the sky is showing off."],
+        ],
+        "heart": [
+            .rainComing: ["The sky sent a heart before the rain {time} — how thoughtful."],
+            .stable: ["It's {temp}° and the sky just sent you a heart. Nice day, that."],
         ],
     ]
 

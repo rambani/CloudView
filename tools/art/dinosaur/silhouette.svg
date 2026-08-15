@@ -1,17 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <!-- Gentle brontosaurus: small head, arched neck, round body, long tail. -->
-  <path d="M 16 19
-           C 12 19 10 23 12 27
-           C 13 30 17 31 20 30
-           C 24 38 27 46 29 54
-           C 23 58 19 64 19 71
-           C 20 81 32 87 48 87
-           C 60 87 70 84 76 78
-           C 82 74 89 66 95 56
-           C 97 53 97 50 95 48
-           C 90 52 84 56 78 59
-           C 68 58 56 51 48 49
-           C 40 47 31 40 26 31
-           C 24 28 22 24 22 21
-           C 20 19 18 19 16 19 Z"/>
+  <!-- Gentle brontosaurus: small head on a tall neck, round body with
+       two leg bumps, thick tapering tail. -->
+  <path d="M 20 14
+           C 15 13 12 17 14 21
+           C 15 24 19 25 22 24
+           C 26 34 28 44 29 54
+           C 22 58 17 64 17 72
+           C 18 80 24 85 32 86
+           C 33 89 37 90 39 87
+           C 46 88 52 88 56 87
+           C 57 90 61 90 62 87
+           C 70 85 76 80 78 74
+           C 84 70 90 62 95 52
+           C 97 48 95 45 92 46
+           C 87 50 82 55 76 58
+           C 68 62 58 60 50 55
+           C 42 50 34 40 30 30
+           C 27 24 25 20 25 17
+           C 23 14 21 13 20 14 Z"/>
 </svg>

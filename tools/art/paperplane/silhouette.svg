@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Paper plane: classic dart with a fold notch. -->
+  <path d="M 10 50
+           L 90 20
+           L 55 80
+           L 48 58
+           L 40 66
+           L 42 52 Z"/>
+</svg>

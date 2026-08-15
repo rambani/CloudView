@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Snowman: little hat, three stacked snowballs. -->
+  <path d="M 34 22
+           L 34 17 L 40 17 L 40 8 L 60 8 L 60 17 L 66 17 L 66 22
+           C 72 26 74 32 71 38
+           C 79 42 82 50 78 57
+           C 87 63 88 74 80 80
+           C 70 87 30 87 20 80
+           C 12 74 13 63 22 57
+           C 18 50 21 42 29 38
+           C 26 32 28 26 34 22 Z"/>
+</svg>
