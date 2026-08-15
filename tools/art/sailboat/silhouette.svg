@@ -1,3 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <polygon points="52,6 54,58 84,58 90,66 82,80 24,80 14,66 44,58 20,52"/>
+  <!-- Sailboat: tall curved sail over a wide rounded hull. -->
+  <path d="M 49 8
+           C 56 20 66 36 75 52
+           L 84 56
+           C 88 58 89 62 86 65
+           C 74 73 44 74 22 68
+           C 15 66 12 61 15 58
+           L 20 56
+           C 29 42 39 26 46 12
+           C 47 10 48 9 49 8 Z"/>
 </svg>

@@ -1,500 +1,510 @@
 {
-  "_comment": "Source of truth for CloudView/Resources/DrawingTemplates.json (schema v2). Regenerate with: python3 build_drawing_templates.py --manifest art/manifest.json --output ../CloudView/Resources/DrawingTemplates.json  \u2014 see ART_WORKFLOW.md for the art production process.",
-  "creatures": [
-    {
-      "label": "rabbit",
-      "category": "animals",
-      "silhouette": "rabbit/silhouette.svg",
-      "slots": {
-        "face": {
-          "required": true
-        },
-        "prop": {
-          "required": false,
-          "probability": 0.35
-        }
-      }
+ "_comment": "Source of truth for CloudView/Resources/DrawingTemplates.json (schema v2). Regenerate with: python3 build_drawing_templates.py --manifest art/manifest.json --output ../CloudView/Resources/DrawingTemplates.json  \u2014 see ART_WORKFLOW.md for the art production process.",
+ "creatures": [
+  {
+   "label": "rabbit",
+   "category": "animals",
+   "silhouette": "rabbit/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
     },
-    {
-      "label": "fish",
-      "category": "animals",
-      "silhouette": "fish/silhouette.svg",
-      "slots": {
-        "face": {
-          "required": true
-        },
-        "prop": {
-          "required": false,
-          "probability": 0.35
-        }
-      }
-    },
-    {
-      "label": "cat",
-      "category": "animals",
-      "silhouette": "cat/silhouette.svg",
-      "slots": {
-        "face": {
-          "required": true
-        },
-        "prop": {
-          "required": false,
-          "probability": 0.35
-        }
-      }
-    },
-    {
-      "label": "bird",
-      "category": "animals",
-      "silhouette": "bird/silhouette.svg",
-      "slots": {
-        "face": {
-          "required": true
-        },
-        "prop": {
-          "required": false,
-          "probability": 0.35
-        }
-      }
-    },
-    {
-      "label": "whale",
-      "category": "animals",
-      "silhouette": "whale/silhouette.svg",
-      "slots": {
-        "face": {
-          "required": true
-        },
-        "prop": {
-          "required": false,
-          "probability": 0.35
-        }
-      }
-    },
-    {
-      "label": "turtle",
-      "category": "animals",
-      "silhouette": "turtle/silhouette.svg",
-      "slots": {
-        "face": {
-          "required": true
-        },
-        "prop": {
-          "required": false,
-          "probability": 0.35
-        }
-      }
-    },
-    {
-      "label": "dragon",
-      "category": "mythical",
-      "silhouette": "dragon/silhouette.svg",
-      "slots": {
-        "face": {
-          "required": true
-        },
-        "crest": {
-          "required": true
-        },
-        "breath": {
-          "required": false,
-          "probability": 0.4
-        },
-        "companion": {
-          "required": false,
-          "probability": 0.3
-        },
-        "prop": {
-          "required": false,
-          "probability": 0.35
-        }
-      }
-    },
-    {
-      "label": "swan",
-      "category": "animals",
-      "silhouette": "swan/silhouette.svg",
-      "slots": {
-        "face": {
-          "required": true
-        },
-        "prop": {
-          "required": false,
-          "probability": 0.35
-        }
-      }
-    },
-    {
-      "label": "bear",
-      "category": "animals",
-      "silhouette": "bear/silhouette.svg",
-      "slots": {
-        "face": {
-          "required": true
-        },
-        "prop": {
-          "required": false,
-          "probability": 0.35
-        }
-      }
-    },
-    {
-      "label": "elephant",
-      "category": "animals",
-      "silhouette": "elephant/silhouette.svg",
-      "slots": {
-        "face": {
-          "required": true
-        },
-        "prop": {
-          "required": false,
-          "probability": 0.35
-        }
-      }
-    },
-    {
-      "label": "giraffe",
-      "category": "animals",
-      "silhouette": "giraffe/silhouette.svg",
-      "slots": {
-        "face": {
-          "required": true
-        },
-        "prop": {
-          "required": false,
-          "probability": 0.35
-        }
-      }
-    },
-    {
-      "label": "butterfly",
-      "category": "animals",
-      "silhouette": "butterfly/silhouette.svg",
-      "slots": {
-        "face": {
-          "required": true
-        },
-        "prop": {
-          "required": false,
-          "probability": 0.35
-        }
-      }
-    },
-    {
-      "label": "octopus",
-      "category": "animals",
-      "silhouette": "octopus/silhouette.svg",
-      "slots": {
-        "face": {
-          "required": true
-        },
-        "prop": {
-          "required": false,
-          "probability": 0.35
-        }
-      }
-    },
-    {
-      "label": "dog",
-      "category": "animals",
-      "silhouette": "dog/silhouette.svg",
-      "slots": {
-        "face": {
-          "required": true
-        },
-        "prop": {
-          "required": false,
-          "probability": 0.35
-        }
-      }
-    },
-    {
-      "label": "duck",
-      "category": "animals",
-      "silhouette": "duck/silhouette.svg",
-      "slots": {
-        "face": {
-          "required": true
-        },
-        "prop": {
-          "required": false,
-          "probability": 0.35
-        }
-      }
-    },
-    {
-      "label": "dolphin",
-      "category": "animals",
-      "silhouette": "dolphin/silhouette.svg",
-      "slots": {
-        "face": {
-          "required": true
-        },
-        "prop": {
-          "required": false,
-          "probability": 0.35
-        }
-      }
-    },
-    {
-      "label": "dinosaur",
-      "category": "animals",
-      "silhouette": "dinosaur/silhouette.svg",
-      "slots": {
-        "face": {
-          "required": true
-        },
-        "prop": {
-          "required": false,
-          "probability": 0.35
-        }
-      }
-    },
-    {
-      "label": "unicorn",
-      "category": "mythical",
-      "silhouette": "unicorn/silhouette.svg",
-      "slots": {
-        "face": {
-          "required": true
-        },
-        "prop": {
-          "required": false,
-          "probability": 0.35
-        }
-      }
-    },
-    {
-      "label": "snail",
-      "category": "animals",
-      "silhouette": "snail/silhouette.svg",
-      "slots": {
-        "face": {
-          "required": true
-        },
-        "prop": {
-          "required": false,
-          "probability": 0.35
-        }
-      }
-    },
-    {
-      "label": "sailboat",
-      "category": "vehicles",
-      "silhouette": "sailboat/silhouette.svg",
-      "slots": {
-        "face": {
-          "required": true
-        },
-        "prop": {
-          "required": false,
-          "probability": 0.35
-        }
-      }
-    },
-    {
-      "label": "wizard",
-      "category": "mythical",
-      "silhouette": "wizard/silhouette.svg",
-      "slots": {
-        "face": {
-          "required": true
-        },
-        "prop": {
-          "required": false,
-          "probability": 0.35
-        }
-      }
-    },
-    {
-      "label": "castle",
-      "category": "landmarks",
-      "silhouette": "castle/silhouette.svg",
-      "slots": {
-        "face": {
-          "required": true
-        },
-        "prop": {
-          "required": false,
-          "probability": 0.35
-        }
-      }
-    },
-    {
-      "label": "basketball",
-      "category": "nature",
-      "silhouette": "basketball/silhouette.svg",
-      "slots": {
-        "face": {
-          "required": true
-        },
-        "prop": {
-          "required": false,
-          "probability": 0.35
-        }
-      }
-    },
-    {
-      "label": "astronaut",
-      "category": "nature",
-      "silhouette": "astronaut/silhouette.svg",
-      "slots": {
-        "face": {
-          "required": true
-        },
-        "prop": {
-          "required": false,
-          "probability": 0.35
-        }
-      }
-    },
-    {
-      "label": "rocket",
-      "category": "vehicles",
-      "silhouette": "rocket/silhouette.svg",
-      "slots": {
-        "face": {
-          "required": true
-        },
-        "prop": {
-          "required": false,
-          "probability": 0.35
-        }
-      }
-    },
-    {
-      "label": "hot air balloon",
-      "category": "vehicles",
-      "silhouette": "hotairballoon/silhouette.svg",
-      "slots": {
-        "face": {
-          "required": true
-        },
-        "prop": {
-          "required": false,
-          "probability": 0.35
-        }
-      }
-    },
-    {
-      "label": "ice cream",
-      "category": "food",
-      "silhouette": "icecream/silhouette.svg",
-      "slots": {
-        "face": {
-          "required": true
-        },
-        "prop": {
-          "required": false,
-          "probability": 0.35
-        }
-      }
+    "prop": {
+     "required": false,
+     "probability": 0.35
     }
-  ],
-  "parts": [
-    {
-      "id": "face-round-01",
-      "kind": "face",
-      "creatures": [
-        "*"
-      ],
-      "anchor": "centroid",
-      "scale": 0.4,
-      "source": "shared/face-round-01.svg"
+   }
+  },
+  {
+   "label": "fish",
+   "category": "animals",
+   "silhouette": "fish/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
     },
-    {
-      "id": "face-sleepy-02",
-      "kind": "face",
-      "creatures": [
-        "*"
-      ],
-      "anchor": "centroid",
-      "scale": 0.4,
-      "source": "shared/face-sleepy-02.svg"
-    },
-    {
-      "id": "dragon-face-fierce-01",
-      "kind": "face",
-      "creatures": [
-        "dragon"
-      ],
-      "anchor": "centroid",
-      "scale": 0.45,
-      "source": "dragon/face-fierce-01.svg"
-    },
-    {
-      "id": "dragon-crest-01",
-      "kind": "crest",
-      "creatures": [
-        "dragon"
-      ],
-      "anchor": "top",
-      "scale": 0.5,
-      "source": "dragon/crest-01.svg"
-    },
-    {
-      "id": "dragon-breath-01",
-      "kind": "breath",
-      "creatures": [
-        "dragon"
-      ],
-      "anchor": "left",
-      "scale": 0.35,
-      "source": "dragon/breath-01.svg"
-    },
-    {
-      "id": "dragon-companion-castle-01",
-      "kind": "companion",
-      "creatures": [
-        "dragon"
-      ],
-      "anchor": "right",
-      "scale": 0.6,
-      "source": "dragon/companion-castle-01.svg"
-    },
-    {
-      "id": "prop-wizard-hat",
-      "kind": "prop",
-      "creatures": [
-        "*"
-      ],
-      "anchor": "top",
-      "scale": 0.3,
-      "display": "Wizard {name}",
-      "source": "shared/prop-wizard-hat.svg"
-    },
-    {
-      "id": "prop-party-hat",
-      "kind": "prop",
-      "creatures": [
-        "*"
-      ],
-      "anchor": "top",
-      "scale": 0.25,
-      "display": "{name} in a Party Hat",
-      "source": "shared/prop-party-hat.svg"
-    },
-    {
-      "id": "prop-skateboard",
-      "kind": "prop",
-      "creatures": [
-        "*"
-      ],
-      "anchor": "bottom",
-      "scale": 0.45,
-      "display": "Skateboarding {name}",
-      "source": "shared/prop-skateboard.svg"
-    },
-    {
-      "id": "prop-balloon",
-      "kind": "prop",
-      "creatures": [
-        "*"
-      ],
-      "anchor": "topRight",
-      "scale": 0.35,
-      "display": "{name} with a Balloon",
-      "source": "shared/prop-balloon.svg"
+    "prop": {
+     "required": false,
+     "probability": 0.35
     }
-  ]
+   }
+  },
+  {
+   "label": "cat",
+   "category": "animals",
+   "silhouette": "cat/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "bird",
+   "category": "animals",
+   "silhouette": "bird/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "whale",
+   "category": "animals",
+   "silhouette": "whale/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "turtle",
+   "category": "animals",
+   "silhouette": "turtle/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "dragon",
+   "category": "mythical",
+   "silhouette": "dragon/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "crest": {
+     "required": true
+    },
+    "breath": {
+     "required": false,
+     "probability": 0.4
+    },
+    "companion": {
+     "required": false,
+     "probability": 0.3
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "swan",
+   "category": "animals",
+   "silhouette": "swan/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "bear",
+   "category": "animals",
+   "silhouette": "bear/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "elephant",
+   "category": "animals",
+   "silhouette": "elephant/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "giraffe",
+   "category": "animals",
+   "silhouette": "giraffe/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "butterfly",
+   "category": "animals",
+   "silhouette": "butterfly/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "octopus",
+   "category": "animals",
+   "silhouette": "octopus/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "dog",
+   "category": "animals",
+   "silhouette": "dog/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "duck",
+   "category": "animals",
+   "silhouette": "duck/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "dolphin",
+   "category": "animals",
+   "silhouette": "dolphin/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "dinosaur",
+   "category": "animals",
+   "silhouette": "dinosaur/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "unicorn",
+   "category": "mythical",
+   "silhouette": "unicorn/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "snail",
+   "category": "animals",
+   "silhouette": "snail/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "sailboat",
+   "category": "vehicles",
+   "silhouette": "sailboat/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "wizard",
+   "category": "mythical",
+   "silhouette": "wizard/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "castle",
+   "category": "landmarks",
+   "silhouette": "castle/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "basketball",
+   "category": "nature",
+   "silhouette": "basketball/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "astronaut",
+   "category": "nature",
+   "silhouette": "astronaut/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "rocket",
+   "category": "vehicles",
+   "silhouette": "rocket/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "hot air balloon",
+   "category": "vehicles",
+   "silhouette": "hotairballoon/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  },
+  {
+   "label": "ice cream",
+   "category": "food",
+   "silhouette": "icecream/silhouette.svg",
+   "slots": {
+    "face": {
+     "required": true
+    },
+    "prop": {
+     "required": false,
+     "probability": 0.35
+    }
+   }
+  }
+ ],
+ "parts": [
+  {
+   "id": "face-round-01",
+   "kind": "face",
+   "creatures": [
+    "*"
+   ],
+   "anchor": "centroid",
+   "scale": 0.4,
+   "source": "shared/face-round-01.svg"
+  },
+  {
+   "id": "face-sleepy-02",
+   "kind": "face",
+   "creatures": [
+    "*"
+   ],
+   "anchor": "centroid",
+   "scale": 0.4,
+   "source": "shared/face-sleepy-02.svg"
+  },
+  {
+   "id": "cat-face-01",
+   "kind": "face",
+   "creatures": [
+    "cat"
+   ],
+   "anchor": "centroid",
+   "scale": 0.42,
+   "source": "cat/face-01.svg"
+  },
+  {
+   "id": "dragon-face-fierce-01",
+   "kind": "face",
+   "creatures": [
+    "dragon"
+   ],
+   "anchor": "centroid",
+   "scale": 0.45,
+   "source": "dragon/face-fierce-01.svg"
+  },
+  {
+   "id": "dragon-crest-01",
+   "kind": "crest",
+   "creatures": [
+    "dragon"
+   ],
+   "anchor": "top",
+   "scale": 0.5,
+   "source": "dragon/crest-01.svg"
+  },
+  {
+   "id": "dragon-breath-01",
+   "kind": "breath",
+   "creatures": [
+    "dragon"
+   ],
+   "anchor": "left",
+   "scale": 0.35,
+   "source": "dragon/breath-01.svg"
+  },
+  {
+   "id": "dragon-companion-castle-01",
+   "kind": "companion",
+   "creatures": [
+    "dragon"
+   ],
+   "anchor": "right",
+   "scale": 0.6,
+   "source": "dragon/companion-castle-01.svg"
+  },
+  {
+   "id": "prop-wizard-hat",
+   "kind": "prop",
+   "creatures": [
+    "*"
+   ],
+   "anchor": "top",
+   "scale": 0.3,
+   "display": "Wizard {name}",
+   "source": "shared/prop-wizard-hat.svg"
+  },
+  {
+   "id": "prop-party-hat",
+   "kind": "prop",
+   "creatures": [
+    "*"
+   ],
+   "anchor": "top",
+   "scale": 0.25,
+   "display": "{name} in a Party Hat",
+   "source": "shared/prop-party-hat.svg"
+  },
+  {
+   "id": "prop-skateboard",
+   "kind": "prop",
+   "creatures": [
+    "*"
+   ],
+   "anchor": "bottom",
+   "scale": 0.45,
+   "display": "Skateboarding {name}",
+   "source": "shared/prop-skateboard.svg"
+  },
+  {
+   "id": "prop-balloon",
+   "kind": "prop",
+   "creatures": [
+    "*"
+   ],
+   "anchor": "topRight",
+   "scale": 0.35,
+   "display": "{name} with a Balloon",
+   "source": "shared/prop-balloon.svg"
+  }
+ ]
 }

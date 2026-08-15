@@ -1,9 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <!-- Friendly round face: two eyes with pupils, gentle smile.
-       One SVG per face so the eye/mouth layout survives normalization. -->
-  <circle id="eye" cx="32" cy="34" r="7"/>
-  <circle id="pupil" cx="34" cy="36" r="2"/>
-  <circle id="eye" cx="68" cy="34" r="7"/>
-  <circle id="pupil" cx="70" cy="36" r="2"/>
-  <path id="mouth" d="M 30 64 Q 50 80 70 64"/>
+  <!-- Friendly round face: bright eyes with pupils, lifted brows,
+       big warm smile, little cheek ticks. One SVG per face so the
+       layout survives normalization. -->
+  <circle id="eye" cx="34" cy="36" r="6"/>
+  <circle id="pupil" cx="36" cy="38" r="1.8"/>
+  <circle id="eye" cx="66" cy="36" r="6"/>
+  <circle id="pupil" cx="68" cy="38" r="1.8"/>
+  <path id="brow" d="M 26 25 Q 33 20 41 24"/>
+  <path id="brow" d="M 59 24 Q 67 20 74 25"/>
+  <path id="mouth" d="M 31 58 Q 50 76 69 58"/>
+  <path id="cheek" d="M 18 50 Q 22 53 26 51"/>
+  <path id="cheek" d="M 74 51 Q 78 53 82 50"/>
 </svg>

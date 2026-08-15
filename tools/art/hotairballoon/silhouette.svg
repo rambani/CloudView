@@ -1,3 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <polygon points="50,2 68,8 78,24 78,40 68,56 56,66 54,74 62,76 62,88 38,88 38,76 46,74 44,66 32,56 22,40 22,24 32,8"/>
+  <!-- Hot air balloon: big round envelope tapering to a little basket. -->
+  <path d="M 50 6
+           C 70 6 84 20 84 38
+           C 84 52 72 64 58 70
+           L 58 76 L 62 76 L 62 88 L 38 88 L 38 76 L 42 76 L 42 70
+           C 28 64 16 52 16 38
+           C 16 20 30 6 50 6 Z"/>
 </svg>

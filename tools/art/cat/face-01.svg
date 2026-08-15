@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Cat face: wide eyes, nose, w-mouth, whiskers flying out. -->
+  <circle id="eye" cx="35" cy="34" r="6"/>
+  <circle id="pupil" cx="36" cy="36" r="1.8"/>
+  <circle id="eye" cx="65" cy="34" r="6"/>
+  <circle id="pupil" cx="66" cy="36" r="1.8"/>
+  <path id="nose" d="M 46 48 L 54 48 L 50 54 Z"/>
+  <path id="mouth" d="M 50 54 Q 50 61 42 62"/>
+  <path id="mouth" d="M 50 54 Q 50 61 58 62"/>
+  <path id="whisker" d="M 24 44 Q 12 42 4 38"/>
+  <path id="whisker" d="M 24 52 Q 12 52 4 52"/>
+  <path id="whisker" d="M 76 44 Q 88 42 96 38"/>
+  <path id="whisker" d="M 76 52 Q 88 52 96 52"/>
+</svg>

@@ -1,8 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <!-- Sleepy face: closed-arc eyes, small round yawn. -->
-  <path id="eye" d="M 20 36 Q 31 46 42 36"/>
-  <path id="eye" d="M 58 36 Q 69 46 80 36"/>
-  <circle id="mouth" cx="50" cy="68" r="7"/>
-  <path id="lash" d="M 24 44 L 21 49"/>
-  <path id="lash" d="M 76 44 L 79 49"/>
+  <!-- Sleepy face: closed crescent eyes, tiny yawn, drifting Z. -->
+  <path id="eye" d="M 26 38 Q 34 30 42 38"/>
+  <path id="eye" d="M 58 38 Q 66 30 74 38"/>
+  <ellipse id="mouth" cx="50" cy="62" rx="5" ry="7"/>
+  <path id="z" d="M 80 18 L 90 18 L 80 28 L 90 28"/>
 </svg>
