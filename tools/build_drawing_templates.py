@@ -69,6 +69,7 @@ import xml.etree.ElementTree as ET
 VALID_ANCHORS = {
     "centroid", "top", "bottom", "left", "right",
     "topLeft", "topRight", "bottomLeft", "bottomRight",
+    "neighbor",   # top of the nearest other cloud (companions); see DrawingAssembler
 }
 
 CURVE_SAMPLES = 16       # samples per Bezier segment before simplification
@@ -736,8 +737,15 @@ def _place_part(part, landmarks, effective_side):
     DrawingAssembler does: local (0.5, 0.5) lands on the anchor landmark.
     Preview coordinates are aspect-true, so extents are isotropic here; the
     app splits the same true side into per-axis extents."""
-    anchor = landmarks[part["anchor"]]
-    extent = part.get("scale", DEFAULT_PART_SCALE) * effective_side
+    if part["anchor"] == "neighbor":
+        # Stand-in neighbor cloud for the contact sheet: a bank to the
+        # right, ~60% of the primary's size, top edge level with its center.
+        r = landmarks["right"]
+        anchor = (r[0] + 0.45, r[1])
+        extent = part.get("scale", DEFAULT_PART_SCALE) * effective_side * 0.6
+    else:
+        anchor = landmarks[part["anchor"]]
+        extent = part.get("scale", DEFAULT_PART_SCALE) * effective_side
     off = part.get("offset", [0.0, 0.0])
     center = (anchor[0] + off[0] * extent, anchor[1] + off[1] * extent)
     placed = []

@@ -99,14 +99,116 @@ def _mask_contour(mask, thresh=110, n=140):
     return pts
 
 
-def contour_from_photo(im, gain=3.0):
-    """Same cloud/sky split as CloudDetector: red channel vs frame mean."""
+def contours_from_photo(im, gain=3.0, max_blobs=3):
+    """Same cloud/sky split as CloudDetector (red channel vs frame mean),
+    then the app's candidate ranking: big and central first. Returns up to
+    `max_blobs` contours, best first — [0] is the primary, [1] a neighbor."""
     r = im.split()[0]
-    mean = sum(r.getdata()) / (r.width * r.height) / 255.0
+    w, h = im.size
+    mean = sum(r.getdata()) / (w * h) / 255.0
     lut = [max(0, min(255, int(((v / 255.0 - mean) * gain + 0.5) * 255))) for v in range(256)]
-    whiteness = r.point(lut)
-    mask = whiteness.point(lambda v: 255 if v > 190 else 0).filter(ImageFilter.GaussianBlur(3))
-    return _mask_contour(mask, 128)
+    mask = r.point(lut).point(lambda v: 255 if v > 190 else 0).filter(ImageFilter.GaussianBlur(3))
+    mask = mask.point(lambda v: 255 if v > 128 else 0)
+    px = mask.load()
+    seen = set()
+    blobs = []
+    for sy in range(0, h, 2):
+        for sx in range(0, w, 2):
+            if px[sx, sy] == 0 or (sx, sy) in seen:
+                continue
+            comp, stack = [], [(sx, sy)]
+            seen.add((sx, sy))
+            while stack:
+                x, y = stack.pop()
+                comp.append((x, y))
+                for nx, ny in ((x + 2, y), (x - 2, y), (x, y + 2), (x, y - 2)):
+                    if 0 <= nx < w and 0 <= ny < h and px[nx, ny] and (nx, ny) not in seen:
+                        seen.add((nx, ny)); stack.append((nx, ny))
+            area = len(comp) * 4 / (w * h)
+            if area < 0.02 or area > 0.60:
+                continue
+            cx = sum(p[0] for p in comp) / len(comp); cy = sum(p[1] for p in comp) / len(comp)
+            off = math.hypot((cx - w / 2) / w, (cy - h / 2) / h)
+            blobs.append((math.sqrt(area) / (1 + 4 * off), comp))
+    blobs.sort(key=lambda b: -b[0])
+    out = []
+    for _, comp in blobs[:max_blobs]:
+        m = Image.new("L", (w, h), 0)
+        mp = m.load()
+        for x, y in comp:
+            for dx in (0, 1):
+                for dy in (0, 1):
+                    if x + dx < w and y + dy < h:
+                        mp[x + dx, y + dy] = 255
+        out.append(_mask_contour(m, 128))
+    return out
+
+
+def contour_from_photo(im, gain=3.0):
+    cs = contours_from_photo(im, gain, 1)
+    return cs[0] if cs else None
+
+
+def creature_paths(label, box, neighbor_contour=None, templates="../CloudView/Resources/DrawingTemplates.json"):
+    """Assemble a creature from the shipped library exactly as the app does
+    (every required slot + every optional one, first candidate each), in
+    image pixels. Companions go on the neighbor cloud when given."""
+    import json
+    import os
+    import build_drawing_templates as bt
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), templates)) as fh:
+        doc = json.load(fh)
+    creature = next(c for c in doc["creatures"] if c["label"] == label)
+    x0, y0, bw, bh = box
+    short = max(min(bw, bh), bt.FLAT_SHAPE_BOOST * max(bw, bh))
+    # Landmarks in pixels: the box is a stand-in for the cloud contour here;
+    # the app uses the real contour's extremes.
+    lm = {"centroid": (x0 + bw / 2, y0 + bh / 2), "top": (x0 + bw / 2, y0), "bottom": (x0 + bw / 2, y0 + bh),
+          "left": (x0, y0 + bh / 2), "right": (x0 + bw, y0 + bh / 2), "topLeft": (x0, y0),
+          "topRight": (x0 + bw, y0), "bottomLeft": (x0, y0 + bh), "bottomRight": (x0 + bw, y0 + bh)}
+    paths = []
+    for kind in sorted(creature["slots"]):
+        cands = sorted((p for p in doc["parts"] if p["kind"] == kind and ("*" in p["creatures"] or label in p["creatures"])),
+                       key=lambda p: p["id"])
+        if not cands:
+            continue
+        part = cands[0]
+        if part["anchor"] == "neighbor":
+            if not neighbor_contour:
+                continue
+            nxs = [p[0] for p in neighbor_contour]; nys = [p[1] for p in neighbor_contour]
+            nw, nh = max(nxs) - min(nxs), max(nys) - min(nys)
+            anchor = (min(nxs) + nw / 2, min(nys))
+            extent = part.get("scale", bt.DEFAULT_PART_SCALE) * max(min(nw, nh), bt.FLAT_SHAPE_BOOST * max(nw, nh))
+        else:
+            anchor = lm[part["anchor"]]
+            extent = part.get("scale", bt.DEFAULT_PART_SCALE) * short
+        off = part.get("offset", [0, 0])
+        c = (anchor[0] + off[0] * extent, anchor[1] + off[1] * extent)
+        for s in sorted(part["strokes"], key=lambda s: s["order"]):
+            pts = [(c[0] + (p[0] - 0.5) * extent, c[1] + (p[1] - 0.5) * extent) for p in s["points"]]
+            paths.append((pts, s["closed"]))
+    return paths
+
+
+# ---- reference line style: thin white, slightly transparent, faint glow ----
+LINE_WIDTH_FRACTION = 0.0016   # of the image's long side (≈ 1.9 px at 1200)
+LINE_OPACITY = 0.88
+LINE_GLOW_BLUR = 2.0           # in line widths
+LINE_GLOW_OPACITY = 0.30
+LINE_TINT = (255, 255, 255)
+UNDERLAY_SHADOW_STRENGTH = 0.45  # sculpt underlay, softer than standalone sculpt
+
+
+def reference_lines(photo, paths):
+    """White fine line art over the photo, the reference image's medium."""
+    w, h = photo.size
+    lw = max(1.2, max(w, h) * LINE_WIDTH_FRACTION)
+    ink = rasterize(paths, (w, h), lw)
+    glow = ink.filter(ImageFilter.GaussianBlur(lw * LINE_GLOW_BLUR))
+    white = Image.new("RGB", (w, h), LINE_TINT)
+    out = Image.composite(white, photo, scale(glow, LINE_GLOW_OPACITY))
+    return Image.composite(white, out, scale(ink, LINE_OPACITY))
 
 
 def bear_paths(box):
@@ -224,27 +326,49 @@ def main():
     ap.add_argument("--photo")
     ap.add_argument("--out", required=True)
     ap.add_argument("--line-width", type=float, default=4.0, help="ink width in px (app default 4)")
+    ap.add_argument("--creature", help="assemble this creature from the shipped library "
+                                       "instead of the built-in bear (e.g. dragon)")
+    ap.add_argument("--style", choices=["sheet", "final"], default="sheet",
+                    help="sheet: frame / ink / sculpt / reference-style panels; final: just the keepsake")
     args = ap.parse_args()
 
+    neighbor = None
     if args.photo:
         photo = Image.open(args.photo).convert("RGB")
         photo.thumbnail((MAX_SIDE, MAX_SIDE))
-        contour = contour_from_photo(photo)
+        found = contours_from_photo(photo)
+        if not found:
+            raise SystemExit("no distinct cloud found in the photo")
+        contour = found[0]
+        neighbor = found[1] if len(found) > 1 else None
     else:
         photo, contour = synthetic_sky()
 
     xs = [p[0] for p in contour]; ys = [p[1] for p in contour]
     box = (min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
-    paths = bear_paths(box)
+    paths = creature_paths(args.creature, box, neighbor) if args.creature else bear_paths(box)
     # the app scales ink width with the frame; synthetic frame is ~1200 tall
     lw = args.line_width * photo.height / 1920 * 1.6
 
     before = ink_overlay(photo, paths, lw)
-    after, _ = develop(photo, contour, paths, lw)
+    sculpted, _ = develop(photo, contour, paths, lw)
+    # Keepsake = subtle sculpt underlay + the reference's white fine line.
+    global SHADOW_STRENGTH
+    saved = SHADOW_STRENGTH
+    SHADOW_STRENGTH = UNDERLAY_SHADOW_STRENGTH
+    underlay, _ = develop(photo, contour, paths, lw)
+    SHADOW_STRENGTH = saved
+    keepsake = reference_lines(underlay, paths)
+
+    if args.style == "final":
+        keepsake.save(args.out)
+        print("wrote", args.out)
+        return
 
     w, h = photo.size
-    sheet = Image.new("RGB", (w * 3 + 40, h + 60), (16, 21, 31))
-    for i, (im, label) in enumerate([(photo, "frame"), (before, "today: ink on top"), (after, "develop: sculpted")]):
+    panels = [(photo, "frame"), (before, "AR: ink on top"), (sculpted, "sculpt only"), (keepsake, "keepsake: white line + sculpt underlay")]
+    sheet = Image.new("RGB", (w * len(panels) + 20 * (len(panels) - 1), h + 60), (16, 21, 31))
+    for i, (im, label) in enumerate(panels):
         sheet.paste(im, (i * (w + 20), 60))
         ImageDraw.Draw(sheet).text((i * (w + 20) + 12, 22), label, fill=(232, 237, 245))
     sheet.save(args.out)

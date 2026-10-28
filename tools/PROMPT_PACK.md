@@ -19,6 +19,36 @@ Either works; the first is lowest-friction:
    any branch. They get vectorized with vtracer (validated: thin strokes
    survive as clean curves).
 
+## 0. What "reference grade" means (read this first)
+
+The bar is the dragon-and-castle reference image: a *dense* fine-line
+drawing — scales, a brow ridge, a keen eye with a pupil, rows of small
+teeth, flowing swept spikes, wing membranes with ribs, a breath-stream
+that curls — in which every form rides a real cloud edge. The app now
+renders exactly that medium (thin white line, slight transparency, faint
+glow, over the real photo) and places parts on the cloud's real bumps and
+companions on the *neighboring* cloud. What it cannot do is invent the
+drawing. Rendered on the reference sky, the current hand-made dragon parts
+(a zigzag crest, two arcs for eyes) sit next to the reference's dragon and
+look like a child's placeholder — because they are. **Art density is the
+whole remaining gap.** Generating it is a one-time cost; runtime stays $0.
+
+Three rules that follow from the reference:
+
+1. **Dense, not sparse.** Aim for 30–120 strokes per signature part (a head
+   alone can be 60+). The build tool simplifies; it never adds.
+2. **Parts, still.** A head in profile, a crest band, a wing, a tail, a
+   breath-stream, a companion — each alone. The app composes them onto the
+   cloud; a whole dragon on a white square cannot be draped onto a bank.
+3. **Edge-riding shapes.** Crests, spines and fins should be *bands* (much
+   wider than tall) whose bottom edge is roughly straight — they're placed
+   with their base on the cloud's top contour, so a flat base reads as
+   "growing out of" the cloud.
+
+Order of work: **dragon set first** (it's the one users will screenshot),
+then whale, rabbit, cat, bear — the five creatures with the most
+recognizable silhouettes — before breadth.
+
 ## 1. Global style block — paste once at the start of a session
 
 > You are illustrating assets for a whimsical children's AR app that draws
@@ -42,17 +72,30 @@ them to the cloud's real bumps. Template:
 
 Concrete prompts to run (2–4 candidates each; pick the best):
 
-**Dragon set** (the flagship — match the reference's spirit):
-- "ONLY a dragon's head in profile facing left: fierce keen eye, brow
-  ridge, open jaw with small triangular teeth, small nostril. No neck, no
-  body."
-- "ONLY a dragon's crest: a flowing ridge of swept-back horn spikes, drawn
-  as a decorative band much wider than tall."
-- "ONLY three wispy breath-streams flowing to the left, tapering, like
-  visible wind from a mouth. Much wider than tall."
-- "ONLY a fairy-tale castle with three turrets, conical roofs, a small
-  flag, arched gate and one window — rising from a soft cloud base.
-  Taller than wide."
+**Dragon set** (the flagship — match the reference image itself; attach
+the reference to the chat and say "in exactly this drawing style"):
+- "ONLY a dragon's head in profile facing LEFT, richly detailed: keen
+  almond eye with a pupil and a heavy brow ridge, scaled snout, nostril,
+  open jaw with two rows of small triangular teeth, a few scale rows along
+  the cheek and jawline, two swept-back horns. No neck, no body. About
+  1.3× wider than tall."
+- "ONLY a dragon's crest: a flowing band of swept-back horn spikes and mane
+  wisps, 8–12 spikes of varying height, drawn as a decorative band about
+  4× wider than tall with a nearly straight bottom edge."
+- "ONLY a dragon's row of back spines: a band of 10–14 small curved spikes
+  with a straight base, 5× wider than tall."
+- "ONLY a bat-like dragon wing seen from the side, raised: membrane with
+  4 ribs ending in small claws, a few fold lines. Wider than tall."
+- "ONLY a dragon's tail: a long S-curve tapering to a leaf-shaped tip, with
+  a few spine spikes along the top. Much wider than tall."
+- "ONLY a dragon's foreleg and clawed foot, reaching down and forward,
+  with three claws and scale rows. Taller than wide."
+- "ONLY three wispy breath-streams flowing to the LEFT, tapering and
+  curling at the ends, like visible wind from a mouth. 3× wider than tall."
+- "ONLY a fairy-tale castle: five slender turrets of different heights with
+  conical roofs, tiny flags, an arched gate, a few windows, crenellated
+  walls — rising from a soft cloud base. About 1.4× wider than tall."
+- "ONLY a second castle variant: a single tall keep with two side towers."
 
 **Shared faces** (eyes + mouth together in ONE image so the layout is kept):
 - "ONLY a friendly face floating on white: two round eyes with pupils and a

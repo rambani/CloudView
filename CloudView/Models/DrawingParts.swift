@@ -91,10 +91,15 @@ enum PartAnchor: String, Codable, Equatable {
     case topRight
     case bottomLeft
     case bottomRight
+    /// The top of the nearest *other* cloud — for companions that live on
+    /// a neighboring cloud bank (a castle the dragon breathes toward).
+    /// Parts with this anchor are skipped when the sky has no neighbor.
+    case neighbor
 
     /// Index into `CloudLandmarks.richReferencePoints`' fixed ordering.
     /// (maxSum = bottom-right, minSum = top-left, maxDiff = top-right,
-    /// maxNegDiff = bottom-left, in y-down coordinates.)
+    /// maxNegDiff = bottom-left, in y-down coordinates.) `.neighbor` is
+    /// resolved against the neighbor cloud by the assembler, not here.
     var richLandmarkIndex: Int {
         switch self {
         case .centroid:    return 0
@@ -106,6 +111,7 @@ enum PartAnchor: String, Codable, Equatable {
         case .topLeft:     return 6
         case .topRight:    return 7
         case .bottomLeft:  return 8
+        case .neighbor:    return 1
         }
     }
 

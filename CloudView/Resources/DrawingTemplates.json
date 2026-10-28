@@ -3807,7 +3807,7 @@
    "creatures": [
     "dragon"
    ],
-   "anchor": "right",
+   "anchor": "neighbor",
    "strokes": [
     {
      "role": "keep",
@@ -4108,7 +4108,11 @@
      ]
     }
    ],
-   "scale": 0.6
+   "scale": 0.9,
+   "offset": [
+    0.0,
+    -0.45
+   ]
   },
   {
    "id": "prop-wizard-hat",

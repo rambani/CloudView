@@ -330,7 +330,8 @@ class ARViewModel: ObservableObject {
 
                     // If camera has been stable long enough, create drawing
                     if stableFrameCount >= requiredStableFrames {
-                        await createDrawingForCloud(primaryCloud, frame: frame)
+                        let neighbor = Self.nearestNeighbor(to: primaryCloud, among: cloudShapes)
+                        await createDrawingForCloud(primaryCloud, neighbor: neighbor, frame: frame)
                         stableFrameCount = 0
                         updateStabilityProgress(0)
                     }
@@ -379,6 +380,25 @@ class ARViewModel: ObservableObject {
         withAnimation(.spring()) {
             coolCloudMoment = UUID()
         }
+    }
+
+    /// The closest other detected cloud, if it's near enough to read as part
+    /// of the same scene (center within this many primary-widths). Lets a
+    /// drawing reach across to it — companion on the neighbor, creature
+    /// facing it. Static so it's testable without AR.
+    static let neighborMaxDistanceInWidths: CGFloat = 2.5
+
+    static func nearestNeighbor(to primary: CloudShape, among shapes: [CloudShape]) -> NeighborCloud? {
+        // CloudShape has no identity; the primary is the one at its own position.
+        let others = shapes.filter { $0.screenPosition != primary.screenPosition && $0.contourPoints.count >= 3 }
+        guard let nearest = others.min(by: {
+            hypot($0.screenPosition.x - primary.screenPosition.x, $0.screenPosition.y - primary.screenPosition.y)
+                < hypot($1.screenPosition.x - primary.screenPosition.x, $1.screenPosition.y - primary.screenPosition.y)
+        }) else { return nil }
+        let distance = hypot(nearest.screenPosition.x - primary.screenPosition.x,
+                             nearest.screenPosition.y - primary.screenPosition.y)
+        guard distance <= neighborMaxDistanceInWidths * max(primary.size.width, 1) else { return nil }
+        return NeighborCloud(neighborContourPixels: nearest.contourPoints, primaryBox: primary.boundingBox)
     }
 
     /// Whether an active drawing is already anchored near this position.
@@ -431,7 +451,7 @@ class ARViewModel: ObservableObject {
     }
 
     @MainActor
-    private func createDrawingForCloud(_ cloudShape: CloudShape, frame: ARFrame) async {
+    private func createDrawingForCloud(_ cloudShape: CloudShape, neighbor: NeighborCloud? = nil, frame: ARFrame) async {
         guard let arView = arView else { return }
 
         // Backstop dedup (detectClouds already checks before counting
@@ -476,7 +496,8 @@ class ARViewModel: ObservableObject {
         if let templated = DrawingTemplateLibrary.shared.makeDrawing(
             forCloudContour: cloudShape.normalizedContour,
             variation: variation,
-            aspectRatio: Double(cloudShape.aspectRatio)
+            aspectRatio: Double(cloudShape.aspectRatio),
+            neighbor: neighbor
         ) {
             concept = templated
         } else {

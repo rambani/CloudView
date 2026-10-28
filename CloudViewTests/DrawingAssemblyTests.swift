@@ -364,6 +364,83 @@ final class DrawingAssemblyTests: XCTestCase {
         XCTAssertEqual(f.y, 0.3 - 0.5 * 0.08, accuracy: 1e-6)
     }
 
+    // MARK: - Scene: neighbor clouds
+
+    /// A neighbor cloud to the right of the primary rect, in the primary's
+    /// normalized space: box (1.4, 0.2)–(2.0, 0.6), top-left at (1.4, 0.2).
+    private let neighborRight = NeighborCloud(contour: [
+        CGPoint(x: 1.4, y: 0.2), CGPoint(x: 2.0, y: 0.2),
+        CGPoint(x: 2.0, y: 0.6), CGPoint(x: 1.4, y: 0.6),
+    ])
+
+    func testCompanionSitsOnTheNeighborCloudAndIsSizedToIt() {
+        // Neighbor box 0.6×0.4 → effective side 0.4; part scale 0.2 → extent
+        // 0.08. Center lands on the neighbor's top landmark (1.4, 0.2).
+        var castle = makePart(id: "castle-01", kind: "companion", anchor: .neighbor)
+        castle = DrawingPart(id: castle.id, kind: castle.kind, creatures: castle.creatures, anchor: .neighbor,
+                             scale: 0.2, display: nil, strokes: castle.strokes)
+        let creature = makeCreature(slots: ["companion": SlotSpec(required: true, probability: nil)])
+        let concept = DrawingAssembler.assemble(
+            creature: creature, parts: [castle], cloudContour: cloud,
+            score: 0.9, variation: seed, neighbor: neighborRight
+        )
+        let part = concept.paths.first { $0.order == 1 }
+        XCTAssertNotNil(part)
+        let c = centroid(part!.points)
+        XCTAssertEqual(c.x, 1.4, accuracy: 1e-6)
+        XCTAssertEqual(c.y, 0.2, accuracy: 1e-6)
+        let spread = part!.points.map(\.x).max()! - part!.points.map(\.x).min()!
+        XCTAssertEqual(spread, 0.2 * 0.08, accuracy: 1e-9)
+    }
+
+    func testCompanionIsSkippedWithoutANeighbor() {
+        let castle = makePart(id: "castle-01", kind: "companion", anchor: .neighbor)
+        let creature = makeCreature(slots: ["companion": SlotSpec(required: true, probability: nil)])
+        let concept = DrawingAssembler.assemble(
+            creature: creature, parts: [castle], cloudContour: cloud,
+            score: 0.9, variation: seed, neighbor: nil
+        )
+        XCTAssertEqual(concept.paths.count, 1) // body only
+    }
+
+    func testCreatureFacesTheNeighbor() {
+        // Art faces left; a neighbor on the right flips the assembly so a
+        // left-anchored breath attaches on the right (0.8, 0.3) — regardless
+        // of the seeded flip (pinned to 0 here).
+        let breath = makePart(id: "breath-01", kind: "breath", anchor: .left)
+        let creature = makeCreature(slots: ["breath": SlotSpec(required: true, probability: nil)])
+        let concept = DrawingAssembler.assemble(
+            creature: creature, parts: [breath], cloudContour: cloud,
+            score: 0.9, variation: seed, neighbor: neighborRight, flipProbability: 0.0
+        )
+        let c = centroid(concept.paths.first { $0.order == 1 }!.points)
+        XCTAssertEqual(c.x, 0.8, accuracy: 1e-6)
+
+        // Neighbor on the left: no flip, breath stays on the left (0.2, 0.3).
+        let neighborLeft = NeighborCloud(contour: [
+            CGPoint(x: -1.0, y: 0.2), CGPoint(x: -0.4, y: 0.2),
+            CGPoint(x: -0.4, y: 0.6), CGPoint(x: -1.0, y: 0.6),
+        ])
+        let left = DrawingAssembler.assemble(
+            creature: creature, parts: [breath], cloudContour: cloud,
+            score: 0.9, variation: seed, neighbor: neighborLeft, flipProbability: 1.0
+        )
+        XCTAssertEqual(centroid(left.paths.first { $0.order == 1 }!.points).x, 0.2, accuracy: 1e-6)
+    }
+
+    func testNeighborCloudConvertsPixelsIntoPrimarySpace() {
+        let primaryBox = CGRect(x: 100, y: 200, width: 400, height: 300)
+        let n = NeighborCloud(
+            neighborContourPixels: [CGPoint(x: 500, y: 200), CGPoint(x: 900, y: 200), CGPoint(x: 700, y: 500)],
+            primaryBox: primaryBox
+        )
+        XCTAssertTrue(n.isUsable)
+        XCTAssertEqual(n.contour[0], CGPoint(x: 1.0, y: 0.0))
+        XCTAssertEqual(n.contour[1], CGPoint(x: 2.0, y: 0.0))
+        XCTAssertEqual(n.top.y, 0.0, accuracy: 1e-9)
+        XCTAssertFalse(NeighborCloud(neighborContourPixels: [], primaryBox: primaryBox).isUsable)
+    }
+
     func testPartOffsetDecodesFromCompactPair() throws {
         let json = """
         {

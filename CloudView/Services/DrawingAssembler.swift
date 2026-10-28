@@ -126,6 +126,35 @@ struct VariationSeed {
     }
 }
 
+// MARK: - Scene
+
+/// Another cloud near the one being drawn, expressed in the primary cloud's
+/// normalized box space (so coordinates may fall outside 0–1). Lets a
+/// drawing reach across the sky: a companion sits on the neighbor, and the
+/// creature faces it — the reference image's dragon breathing toward a
+/// castle on the next cloud bank.
+struct NeighborCloud: Equatable {
+    /// Neighbor contour in the primary cloud's normalized coordinates.
+    let contour: [CGPoint]
+
+    init(contour: [CGPoint]) { self.contour = contour }
+
+    /// Build from two shapes' upright-pixel geometry.
+    init(neighborContourPixels: [CGPoint], primaryBox: CGRect) {
+        guard primaryBox.width > 0, primaryBox.height > 0 else { self.contour = []; return }
+        self.contour = neighborContourPixels.map {
+            CGPoint(x: ($0.x - primaryBox.minX) / primaryBox.width,
+                    y: ($0.y - primaryBox.minY) / primaryBox.height)
+        }
+    }
+
+    var isUsable: Bool { contour.count >= 3 }
+    var landmarks: [CGPoint] { CloudLandmarks.richReferencePoints(contour) }
+    var centroid: CGPoint { landmarks[0] }
+    var top: CGPoint { landmarks[1] }
+    var boundingBox: CGRect { DrawingAssembler.boundingBox(of: contour) }
+}
+
 // MARK: - Assembler
 
 /// Assembles a `DrawingConcept` from a v2 creature + parts library: the cloud
@@ -133,6 +162,13 @@ struct VariationSeed {
 /// included, flipped, and styled deterministically by the `VariationSeed` —
 /// each placed at its cloud landmark. Pure and fully unit-testable.
 enum DrawingAssembler {
+
+    /// Authored art faces LEFT (a profile looks left, breath flows left).
+    /// With a neighbor in the sky the creature turns to face it instead of
+    /// flipping at random, so the breath/gaze lands on the companion.
+    static func facesNeighbor(primaryCentroid: CGPoint, neighbor: NeighborCloud) -> Bool {
+        neighbor.centroid.x > primaryCentroid.x
+    }
 
     /// Part extent as a fraction of the cloud's shorter bounding-box side,
     /// when the part doesn't specify its own.
@@ -157,11 +193,13 @@ enum DrawingAssembler {
         score: Double,
         variation: VariationSeed,
         aspectRatio: Double = 1.0,
+        neighbor: NeighborCloud? = nil,
         strongMatchThreshold: Double = TemplateDrawingComposer.defaultStrongThreshold,
         flipProbability: Double = DrawingAssembler.defaultFlipProbability
     ) -> DrawingConcept {
         let landmarks = CloudLandmarks.richReferencePoints(cloudContour)
         let bbox = boundingBox(of: cloudContour)
+        let neighbor = neighbor.flatMap { $0.isUsable ? $0 : nil }
 
         // Part sizing must account for the cloud's TRUE aspect: the contour
         // arrives normalized per-axis (both spans ≈ 1), and rendering
@@ -196,7 +234,13 @@ enum DrawingAssembler {
             }
         }
 
-        let flipped = variation.chance(flipProbability, decision: "orientation")
+        // Face the neighbor when there is one; otherwise a seeded coin flip.
+        let flipped: Bool
+        if let neighbor = neighbor {
+            flipped = facesNeighbor(primaryCentroid: landmarks[0], neighbor: neighbor)
+        } else {
+            flipped = variation.chance(flipProbability, decision: "orientation")
+        }
 
         // Display name starts as the creature and gets decorated by any
         // included part that carries a display template — "Elephant" becomes
@@ -226,15 +270,34 @@ enum DrawingAssembler {
                 displayName = template.replacingOccurrences(of: "{name}", with: displayName)
             }
 
-            let anchor = flipped ? part.anchor.mirrored : part.anchor
-            let anchorPoint = anchor.point(in: landmarks)
-            let side = CGFloat((part.scale ?? defaultPartScale) * effectiveSide)
+            // Where the part lives and how big it is: on the primary cloud's
+            // landmark, or — for companions — on top of the neighbor cloud,
+            // sized to the neighbor. A companion with no neighbor is skipped
+            // (a castle needs its own cloud bank to rise from).
+            let anchorPoint: CGPoint
+            let partSide: Double
+            if part.anchor == .neighbor {
+                guard let neighbor = neighbor else { continue }
+                anchorPoint = neighbor.top
+                let nb = neighbor.boundingBox
+                let nTrueWidth = Double(nb.width) * aspect
+                let nTrueHeight = Double(nb.height)
+                partSide = max(min(nTrueWidth, nTrueHeight), flatShapeBoost * max(nTrueWidth, nTrueHeight))
+            } else {
+                let anchor = flipped ? part.anchor.mirrored : part.anchor
+                anchorPoint = anchor.point(in: landmarks)
+                partSide = effectiveSide
+            }
+            let side = CGFloat((part.scale ?? defaultPartScale) * partSide)
             let extentX = side / CGFloat(aspect)
             let extentY = side
 
             // Authored nudge off the landmark, in part-extent units, mirrored
             // with the assembly so an offset "to the right" stays outward.
-            let offsetX = CGFloat(part.offset?.x ?? 0) * (flipped ? -1 : 1)
+            // Companions on a neighbor keep their authored orientation —
+            // a castle doesn't turn to face the dragon.
+            let partFlipped = part.anchor == .neighbor ? false : flipped
+            let offsetX = CGFloat(part.offset?.x ?? 0) * (partFlipped ? -1 : 1)
             let offsetY = CGFloat(part.offset?.y ?? 0)
             let center = CGPoint(
                 x: anchorPoint.x + offsetX * extentX,
@@ -243,7 +306,7 @@ enum DrawingAssembler {
 
             for stroke in part.strokes.sorted(by: { $0.order < $1.order }) {
                 let pts: [CGPoint] = stroke.points.map { p in
-                    let lx = flipped ? 1 - p.x : p.x
+                    let lx = partFlipped ? 1 - p.x : p.x
                     return CGPoint(
                         x: center.x + (CGFloat(lx) - 0.5) * extentX,
                         y: center.y + (CGFloat(p.y) - 0.5) * extentY

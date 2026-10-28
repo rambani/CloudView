@@ -188,7 +188,8 @@ final class DrawingTemplateLibrary {
     func makeDrawing(
         forCloudContour contour: [CGPoint],
         variation: VariationSeed,
-        aspectRatio: Double = 1.0
+        aspectRatio: Double = 1.0,
+        neighbor: NeighborCloud? = nil
     ) -> DrawingConcept? {
         let ranked = rankedMatches(forCloudContour: contour)
         guard !ranked.isEmpty else { return nil }
@@ -207,7 +208,8 @@ final class DrawingTemplateLibrary {
                 cloudContour: contour,
                 score: match.score,
                 variation: variation,
-                aspectRatio: aspectRatio
+                aspectRatio: aspectRatio,
+                neighbor: neighbor
             )
         case .template(let template):
             var concept = TemplateDrawingComposer.compose(

@@ -602,9 +602,13 @@
       "creatures": [
         "dragon"
       ],
-      "anchor": "right",
-      "scale": 0.6,
-      "source": "dragon/companion-castle-01.svg"
+      "anchor": "neighbor",
+      "scale": 0.9,
+      "source": "dragon/companion-castle-01.svg",
+      "offset": [
+        0,
+        -0.45
+      ]
     },
     {
       "id": "prop-wizard-hat",

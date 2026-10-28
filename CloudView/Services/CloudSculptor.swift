@@ -47,6 +47,21 @@ struct SculptRecipe {
     var vignette: CGFloat = 0.22
     /// Work at most this many pixels on the long side.
     var maxSide: CGFloat = 1600
+
+    // Line art — the reference image's medium: thin white single-weight
+    // line, slightly transparent, faint glow — drawn over the sculpt. The
+    // sculpt is an underlay here (depth on sunlit cumulus); the line is the
+    // signal, and it reads on grey banks where shading can't.
+    var drawLineArt = true
+    /// Line width as a fraction of the image's long side (~1.9 px at 1200).
+    var lineWidthFraction: CGFloat = 0.0016
+    var lineMinWidth: CGFloat = 1.2
+    var lineOpacity: CGFloat = 0.88
+    var lineGlowBlurWidths: CGFloat = 2.0
+    var lineGlowOpacity: CGFloat = 0.30
+    var lineTint = CIColor(red: 1, green: 1, blue: 1)
+    /// Shadow strength used for the underlay when line art is on.
+    var underlayShadowStrength: CGFloat = 0.45
 }
 
 /// Pure geometry for the sculpt pass — unit-tested, no Core Image.
@@ -202,7 +217,8 @@ enum CloudSculptor {
         let faded = composite(scale(narrow, 1 - recipe.brightFade), narrow, mask: luminance)
         let shadowIn = multiply(lighter(faded, wide), cloud)
 
-        var out = composite(tinted(base, recipe.shadowTint), base, mask: scale(shadowIn, recipe.shadowStrength))
+        let shadowStrength = recipe.drawLineArt ? recipe.underlayShadowStrength : recipe.shadowStrength
+        var out = composite(tinted(base, recipe.shadowTint), base, mask: scale(shadowIn, shadowStrength))
 
         // Rim light just above each crease (light comes from above). CI's
         // y axis points up, so "up" is a positive translation.
@@ -230,6 +246,19 @@ enum CloudSculptor {
             kCIInputIntensityKey: recipe.vignette,
             "inputFalloff": 0.5,
         ]).cropped(to: extent)
+
+        // The drawing itself, as fine white line over the developed photo.
+        // No pools here — an eye is an outline with a pupil in line art.
+        if recipe.drawLineArt {
+            let lw = max(recipe.lineMinWidth, max(CGFloat(w), CGFloat(h)) * recipe.lineWidthFraction)
+            if let lineCG = rasterizeStrokes(job.paths, box: box, width: lw, boxArea: 0, size: size, recipe: recipe) {
+                let ink = CIImage(cgImage: lineCG)
+                let glow = blur(ink, lw * recipe.lineGlowBlurWidths)
+                let white = solid(recipe.lineTint)
+                out = composite(white, out, mask: scale(glow, recipe.lineGlowOpacity))
+                out = composite(white, out, mask: scale(ink, recipe.lineOpacity))
+            }
+        }
 
         guard let cg = context.createCGImage(out, from: extent) else { return nil }
         return UIImage(cgImage: cg)
@@ -266,7 +295,7 @@ enum CloudSculptor {
         for path in paths {
             let pts = SculptGeometry.pixelPoints(path.points, in: box)
             guard pts.count >= 2 else { continue }
-            if SculptGeometry.isPool(pts, closed: path.closed, boxArea: boxArea, recipe: recipe) {
+            if boxArea > 0, SculptGeometry.isPool(pts, closed: path.closed, boxArea: boxArea, recipe: recipe) {
                 ctx.beginPath()
                 ctx.addLines(between: pts)
                 ctx.closePath()

@@ -219,9 +219,32 @@ a sky photo to iterate on the look without a device:
 python3 tools/sculpt_preview.py --photo sky.jpg --out /tmp/sculpt.png
 ```
 
+On top of the sculpt, the drawing itself is rendered as **thin white line**
+(~0.16% of the long side, 88% opacity, faint glow) — the reference image's
+medium. On sunlit cumulus the sculpt gives the line depth; on grey banks,
+where shading vanishes into the cloud's own greys, the line carries alone.
+`SculptRecipe.drawLineArt` toggles it; with it on the sculpt runs at
+`underlayShadowStrength`.
+
 The developed image becomes the share image (`ShareableDrawing.kind ==
 .developed`) and shows as a thumbnail on the drawing capsule; the retake
 button still takes a plain AR snapshot for a different framing.
+
+### 6. Scenes — reaching across the sky
+
+The reference image's dragon breathes toward a castle on the *next* cloud
+bank. `NeighborCloud` carries the nearest other detected cloud into the
+assembler in the primary cloud's normalized space; parts anchored
+`neighbor` (the castle) sit on the neighbor's top, sized to it, and are
+skipped when there is no neighbor — a castle needs its own bank. When a
+neighbor exists the creature **faces it** (authored art faces left; the
+assembly flips if the neighbor is to the right), so breath and gaze land
+on the companion instead of a seeded coin flip. `ARViewModel.nearestNeighbor`
+picks the neighbor: closest center within 2.5 primary widths.
+
+Try it on a photo: `python3 tools/sculpt_preview.py --photo sky.jpg
+--creature dragon --style final --out out.png` assembles the shipped art on
+the photo's best blob with the second-best as the neighbor.
 
 ## Tuning knobs
 
