@@ -47,6 +47,8 @@ Complete testing checklist before submitting to the App Store.
 - [ ] **Pen-speed reveal**: strokes grow along their length; no pop-in or fade-in
 - [ ] **Detection**: one puff on clear sky → that puff is chosen; overcast sheet → "no clouds" state, not a doodle on the whole sky
 - [ ] **No match**: hold steady on a shapeless blob → brief "Cool cloud!" hint, then the ring doesn't immediately refill on the same cloud
+- [ ] **Develop**: ~3 s after a drawing lands, a thumbnail appears on the capsule; sharing sends the developed photo (creature shaded *into* the cloud, no ink lines), and it is upright with the creature where the AR drawing was
+- [ ] **Develop on bright puff**: features are still visible on a white dome (broader, not fainter); over blue sky, overhanging parts read as faint wisps, not dark marks
 - [ ] **Weather Panel**: Swipeable panel shows weather or location denied message
 - [ ] **Instructions**: Shows on first launch, dismisses correctly
 - [ ] **Haptic Feedback**: Feels haptic when drawing created

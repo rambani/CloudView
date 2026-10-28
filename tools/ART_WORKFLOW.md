@@ -154,6 +154,18 @@ clouds on a monitor and exercise the full detect → match → assemble → quip
 pipeline from a desk. Use full-screen cloud photos with good sky/cloud
 contrast; the section is compiled out of release builds entirely.
 
+## Previewing the developed photo (sculpt mode)
+
+Parts are also what gets *sculpted into* the real cloud for the share image
+(`docs/DRAWING_SYSTEM.md` §5). Small closed strokes become dark pools, open
+strokes become creases, anything overhanging the sky becomes a wisp — so
+author eyes/noses as small closed shapes and keep identifying strokes bold.
+See the result on a photo without a device:
+
+```bash
+python3 sculpt_preview.py --photo sky.jpg --out /tmp/sculpt.png   # needs Pillow
+```
+
 ## Checking retrieval against real clouds
 
 Art only helps if the right creature gets picked. `validate_retrieval.py` is

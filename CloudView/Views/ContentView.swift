@@ -248,9 +248,25 @@ struct ContentView: View {
 
                         // Instant share — the only way to keep a drawing.
                         // Nothing is archived; share it now or let the
-                        // moment drift on.
+                        // moment drift on. The developed photo (creature
+                        // sculpted into the real cloud) shows as a thumbnail
+                        // so the magic is visible before you tap.
                         if let shareable = arViewModel.latestShareable,
                            shareable.label == drawingName {
+                            if shareable.kind == .developed {
+                                Image(uiImage: shareable.image)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 40, height: 40)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .strokeBorder(LinearGradient.magicalGlow, lineWidth: 1.5)
+                                    )
+                                    .transition(.opacity.combined(with: .scale))
+                                    .accessibilityLabel("Developed photo of the \(drawingName) cloud")
+                            }
+
                             ShareLink(
                                 item: Image(uiImage: shareable.image),
                                 subject: Text(shareable.caption),

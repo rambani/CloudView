@@ -40,11 +40,23 @@ class ARViewModel: ObservableObject {
     private let noMatchCooldown: TimeInterval = 12
 
     struct ShareableDrawing: Identifiable {
+        enum Kind {
+            /// The photo "developed": the creature sculpted into the real
+            /// cloud with its own light (CloudSculptor).
+            case developed
+            /// A plain AR screenshot with the line drawing on top.
+            case snapshot
+        }
         let id = UUID()
         let image: UIImage
         let label: String
         let caption: String
+        let kind: Kind
     }
+
+    /// The sculpt for the most recent drawing, started at creation and
+    /// awaited once the reveal has played.
+    private var pendingSculpt: Task<UIImage?, Never>?
 
     var arView: ARView?
     private let cloudDetector = CloudDetector()
@@ -540,6 +552,17 @@ class ARViewModel: ObservableObject {
         let drawingEntity = createAnimatedDrawing(concept: concept, worldSize: worldSize, lineWidth: lineWidth)
         anchor.addChild(drawingEntity)
 
+        // Start developing the keepsake now, from the clean camera frame
+        // (no AR overlay), while the reveal plays. The buffer is converted
+        // immediately — ARKit recycles it.
+        pendingSculpt?.cancel()
+        pendingSculpt = Self.startSculpt(
+            pixelBuffer: frame.capturedImage,
+            cloudShape: cloudShape,
+            paths: concept.paths,
+            inkWidthPixels: CGFloat(concept.style.lineWidthPixels)
+        )
+
         // Store the drawing
         let cloudRegion = CloudRegion(
             center: position,
@@ -571,14 +594,66 @@ class ARViewModel: ObservableObject {
         // + a little buffer gives a satisfying complete image. The image
         // lives only in memory; there is deliberately no saved archive.
         let captureDelay = concept.style.revealDuration + 0.3
+        let sculpt = pendingSculpt
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: UInt64(captureDelay * 1_000_000_000))
-            captureForSharing(
-                label: concept.name,
-                subject: concept.subject,
-                anchorPosition: position
-            )
+            // Prefer the developed photo; fall back to a plain AR snapshot
+            // if the sculpt failed (degenerate contour, memory pressure).
+            if let developed = await sculpt?.value, currentDrawingName == concept.name {
+                latestShareable = ShareableDrawing(
+                    image: developed,
+                    label: concept.name,
+                    caption: Self.caption(for: concept),
+                    kind: .developed
+                )
+            } else {
+                captureForSharing(
+                    label: concept.name,
+                    subject: concept.subject,
+                    anchorPosition: position
+                )
+            }
         }
+    }
+
+    // MARK: - Develop (sculpt)
+
+    /// Convert the frame up front (on a utility queue, it takes ~30 ms) and
+    /// then run the sculpt. Returns nil on any failure so the caller can
+    /// fall back to a snapshot.
+    private static func startSculpt(
+        pixelBuffer: CVPixelBuffer,
+        cloudShape: CloudShape,
+        paths: [DrawingConcept.DrawingPath],
+        inkWidthPixels: CGFloat
+    ) -> Task<UIImage?, Never> {
+        let originalSize = CameraFrameGeometry.uprightImageSize(bufferSize: CGSize(
+            width: CVPixelBufferGetWidth(pixelBuffer),
+            height: CVPixelBufferGetHeight(pixelBuffer)
+        ))
+        let contour = cloudShape.contourPoints
+        let box = cloudShape.boundingBox
+        return Task.detached(priority: .userInitiated) {
+            guard let frame = CloudSculptor.uprightImage(from: pixelBuffer) else { return nil }
+            let job = SculptJob(
+                frame: frame,
+                frameScale: originalSize.width > 0 ? CGFloat(frame.width) / originalSize.width : 1,
+                cloudContour: contour,
+                cloudBox: box,
+                paths: paths,
+                inkWidthPixels: inkWidthPixels
+            )
+            guard !Task.isCancelled else { return nil }
+            return CloudSculptor.develop(job)
+        }
+    }
+
+    private static func caption(for concept: DrawingConcept) -> String {
+        QuipEngine.caption(
+            creature: concept.name,
+            subject: concept.subject,
+            seed: QuipEngine.seed(for: concept.name, hourBucket: QuipEngine.currentHourBucket())
+        )
     }
 
     // MARK: - Community invite
@@ -671,7 +746,8 @@ class ARViewModel: ObservableObject {
                             for: label,
                             hourBucket: QuipEngine.currentHourBucket()
                         )
-                    )
+                    ),
+                    kind: .snapshot
                 )
             }
         }

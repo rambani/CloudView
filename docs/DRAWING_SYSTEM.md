@@ -190,6 +190,39 @@ common animals, the derivative carries thin-to-no copyright of its own, which
 further insulates the app — but the "don't trace a branded character" rule is
 absolute.
 
+### 5. Develop — the keepsake (sculpt mode)
+
+The AR reveal is a sketch; the image worth sharing is the photo. After the
+reveal, `CloudSculptor` "develops" the clean camera frame captured at drawing
+time: the creature's strokes are rendered not as ink on top but as **shading
+inside the cloud**, so the result is still a real photo of a real cloud that
+now unmistakably looks like something. No model, no network, ~100 ms on the
+GPU (Core Image).
+
+```
+stroke mask ─► narrow + wide blurs, mixed by local luminance ─► SHADOW (blue-grey)
+(inside the cloud)   shifted up            ─► RIM LIGHT above each crease
+(over sky)           wide blur             ─► WISP: thin cloud where an ear overhangs
+small closed paths (eyes, nose)            ─► filled as pools, not outlines
+local contrast inside the cloud, soft vignette toward it
+```
+
+On bright puff the crease is faded a little and a soft spread is added, so a
+feature on a white dome is broader rather than fainter. The sculpt width
+scales with the cloud (3% of its short side), floored at 2.4 ink widths.
+
+`tools/sculpt_preview.py` is a Pillow twin of the exact recipe — same steps,
+same constants (keep `SculptRecipe` and the Python header in sync). Run it on
+a sky photo to iterate on the look without a device:
+
+```bash
+python3 tools/sculpt_preview.py --photo sky.jpg --out /tmp/sculpt.png
+```
+
+The developed image becomes the share image (`ShareableDrawing.kind ==
+.developed`) and shows as a thumbnail on the drawing capsule; the retake
+button still takes a plain AR snapshot for a different framing.
+
 ## Tuning knobs
 
 | Where | Constant | Effect |
@@ -200,6 +233,7 @@ absolute.
 | `CloudCandidateSelection` | `maxAreaFraction` (0.60) | Blobs bigger than this are an overcast sheet, not a cloud. |
 | `CloudDetector` | `adaptiveGain` (3.0) | Red-channel contrast around the frame mean for cloud/sky separation. |
 | `AnimatedDrawing.Look` | ink/halo colors, `haloWidthFactor` (2.6) | Stroke legibility. |
+| `SculptRecipe` | `shadowStrength` (0.78), `strokeWidthCloudFraction` (0.03), `wispStrength` (0.85) | How hard the developed photo carves the creature in. Iterate with `tools/sculpt_preview.py`. |
 
 ## Validation — what the retrieval step can and can't do today
 
