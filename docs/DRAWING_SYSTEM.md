@@ -82,9 +82,35 @@ score:
   as the body and warped to hug the cloud, with all details on top — so a loose
   resemblance still reads as a complete, recognizable creature.
 
-The output is a `DrawingConcept` (ordered paths), which the existing
-`AnimatedDrawing` renderer traces out stroke-by-stroke — body first, details
-after — with no renderer changes.
+The output is a `DrawingConcept` (ordered paths), which `AnimatedDrawing`
+traces out stroke-by-stroke — body first, details after.
+
+### 4. Rendering — size, orientation, legibility, reveal
+
+Four things decide whether the result reads as *discovered in* the cloud or
+pasted on top, and all four live between the detector and RealityKit:
+
+- **Upright coordinates.** ARKit's capture buffer is landscape-right; Vision is
+  told so (`VNImageRequestHandler(…, orientation: .right)`), so every contour,
+  bounding box and landmark comes back in the portrait image the user sees.
+  Without that, "top of the cloud" was the buffer's top — the screen's right —
+  and ears landed on the side. `CameraFrameGeometry` holds the pure bridge
+  (upright ↔ buffer pixels, world extents, anchor roll) and is unit-tested.
+- **Size through the intrinsics.** The drawing's world size is
+  `pixels / focalLength × distance`, the same pinhole math that places it. The
+  previous `pixels × 0.01` constant made drawings roughly a third of the
+  cloud's extent. Stroke width is specified in image pixels
+  (`Style.lineWidthPixels`) and converted the same way, so lines keep a
+  constant on-screen weight on any cloud.
+- **Facing the camera.** The anchor takes the camera's rotation at creation
+  (plus the upright roll). Previously the drawing lay in the world XY plane:
+  correct when facing the session's starting heading, edge-on and invisible
+  when facing 90° away.
+- **Ink + halo, drawn at pen speed.** Each stroke is a dark ink ribbon over a
+  wider soft-white halo (legible on white cloud *and* blue sky), with round
+  joins and caps. Strokes are revealed by arc length — the ribbon mesh is
+  rebuilt each frame to the pen's current position (`StrokeGeometry`, pure
+  and tested) — rather than scaled/faded in, so the reveal looks drawn.
 
 ## Template schema
 
@@ -171,6 +197,34 @@ absolute.
 | `DrawingTemplateLibrary` | `confidenceFloor` (0.30) | Below this, decline and fall back. Raise to be more conservative. |
 | `TemplateDrawingComposer` | `defaultStrongThreshold` (0.55) | Score ≥ → cloud-as-body; below → full creature. |
 | `ShapeMatcher` | `scoreScale` (6.0) | How fast confidence decays with Hu distance. |
+| `CloudCandidateSelection` | `maxAreaFraction` (0.60) | Blobs bigger than this are an overcast sheet, not a cloud. |
+| `CloudDetector` | `adaptiveGain` (3.0) | Red-channel contrast around the frame mean for cloud/sky separation. |
+| `AnimatedDrawing.Look` | ink/halo colors, `haloWidthFactor` (2.6) | Stroke legibility. |
+
+## Validation — what the retrieval step can and can't do today
+
+`tools/validate_retrieval.py` is an exact port of the matcher. Run against the
+shipped library (`--matrix --synthetic 300`) it shows:
+
+- **Creatures are distinguishable from each other.** A silhouette would be
+  mistaken "strongly" (≥ 0.55) for only 0.5 other creatures on average.
+- **Rounded clouds mostly fail the floor.** For 300 synthetic cumulus-like
+  blobs, the best score averages 0.20; 75% fall below the 0.30 floor, and the
+  ones that pass concentrate on the blobbiest silhouettes (butterfly,
+  unicorn, octopus). The cause is the Hu tail (h₅–h₇): near zero for any
+  rounded shape, so its log-magnitude is noise and dominates the distance.
+  A noise floor on the log moments doesn't help — at −8 the matcher accepts
+  99% of blobs but calls 75% of them "octopus". No constant fixes this.
+
+Conclusion: the matcher is honest (it declines rather than inventing) but
+too weak to deliver the pareidolia promise for the most common clouds. The
+next step is a descriptor that keeps orientation and local structure
+(e.g. turning-function / Fourier descriptors of the resampled outline, or a
+tiny learned embedding), chosen on **human-rated real clouds**, not synthetic
+ones. The data path for that exists: DEBUG builds can record every contour the
+pipeline acts on (Settings → Developer → *Record cloud contours*, then
+*Export*), and `validate_retrieval.py --log … --html …` renders a rating
+sheet with the top-3 silhouettes overlaid on each cloud.
 
 ## Limitations & next steps
 
@@ -183,7 +237,15 @@ absolute.
   are a natural extension — the signature and rasterizer already handle clusters.
 - **Retrieval could blend with CLIP.** When the MobileCLIP model is bundled, its
   score could be fused with the Hu-shape score for labels that exist in both the
-  allowlist and the template library.
+  allowlist and the template library. (Without the model, a cloud the library
+  declines gets an honest "Cool cloud!" — there is no stub recognizer in the
+  shipping pipeline.)
+- **Detection tuning on device.** The red-channel adaptive threshold and the
+  center-weighted candidate choice replace a fixed brightness boost and
+  "whatever Vision listed first"; both are principled but were authored
+  without a device in hand. Check them against a few skies (clear with one
+  puff, broken cumulus, hazy, overcast) and tune `adaptiveGain` /
+  `maxAreaFraction` if needed.
 - **Per-role attachment.** Stroke `role`s ("ear", "tail", …) are carried but not
   yet used to attach specific details to specific cloud landmarks; a role-aware
   local transform would sharpen the "it's really in the cloud" effect.

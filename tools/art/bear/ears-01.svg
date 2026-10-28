@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 60">
+  <!-- Round ears with inner circles. -->
+  <path id="ear" d="M 10 58 C 0 36 10 8 32 10 C 48 12 52 34 46 54"/>
+  <circle id="ear-inner" cx="28" cy="30" r="10"/>
+  <path id="ear" d="M 110 58 C 120 36 110 8 88 10 C 72 12 68 34 74 54"/>
+  <circle id="ear-inner" cx="92" cy="30" r="10"/>
+</svg>

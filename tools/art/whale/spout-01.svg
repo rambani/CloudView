@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 104">
+  <!-- Water spout rising from the top of the back. -->
+  <path id="spout" d="M 40 104 L 40 50"/>
+  <path id="spray" d="M 40 50 C 36 30 20 24 8 14"/>
+  <path id="spray" d="M 40 50 C 44 30 60 24 72 14"/>
+  <path id="spray" d="M 40 50 C 40 30 40 20 40 6"/>
+  <circle id="drop" cx="6" cy="8" r="3"/>
+  <circle id="drop" cx="74" cy="8" r="3"/>
+</svg>

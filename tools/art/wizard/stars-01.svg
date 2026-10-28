@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
+  <!-- A couple of stars and a sparkle drifting off the hat. -->
+  <polygon id="star" points="20,10 22.35,16.76 29.51,16.91 23.80,21.24 25.88,28.09 20,24 14.12,28.09 16.20,21.24 10.49,16.91 17.65,16.76"/>
+  <polygon id="star" points="60,42 61.88,47.41 67.61,47.53 63.04,51.00 64.70,56.47 60,53.2 55.30,56.47 56.96,51.00 52.39,47.53 58.12,47.41"/>
+  <path id="sparkle" d="M 40 66 L 40 78"/>
+  <path id="sparkle" d="M 34 72 L 46 72"/>
+</svg>

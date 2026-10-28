@@ -232,12 +232,21 @@ enum DrawingAssembler {
             let extentX = side / CGFloat(aspect)
             let extentY = side
 
+            // Authored nudge off the landmark, in part-extent units, mirrored
+            // with the assembly so an offset "to the right" stays outward.
+            let offsetX = CGFloat(part.offset?.x ?? 0) * (flipped ? -1 : 1)
+            let offsetY = CGFloat(part.offset?.y ?? 0)
+            let center = CGPoint(
+                x: anchorPoint.x + offsetX * extentX,
+                y: anchorPoint.y + offsetY * extentY
+            )
+
             for stroke in part.strokes.sorted(by: { $0.order < $1.order }) {
                 let pts: [CGPoint] = stroke.points.map { p in
                     let lx = flipped ? 1 - p.x : p.x
                     return CGPoint(
-                        x: anchorPoint.x + (CGFloat(lx) - 0.5) * extentX,
-                        y: anchorPoint.y + (CGFloat(p.y) - 0.5) * extentY
+                        x: center.x + (CGFloat(lx) - 0.5) * extentX,
+                        y: center.y + (CGFloat(p.y) - 0.5) * extentY
                     )
                 }
                 guard pts.count >= 2 else { continue }
@@ -256,10 +265,10 @@ enum DrawingAssembler {
     }
 
     /// Seeded stroke/animation style, shared by the v1 and v2 paths: line
-    /// weight ±15% around the classic 3 mm, reveal duration 2.2–3.0 s.
+    /// weight ±15% around a 4-pixel pen, reveal duration 2.2–3.0 s.
     static func seededStyle(_ variation: VariationSeed) -> DrawingConcept.Style {
         var style = DrawingConcept.Style()
-        style.lineWidth = Float(0.003 * (0.85 + 0.30 * variation.double(for: "style-linewidth")))
+        style.lineWidthPixels = Float(4.0 * (0.85 + 0.30 * variation.double(for: "style-linewidth")))
         style.revealDuration = 2.2 + 0.8 * variation.double(for: "style-duration")
         return style
     }

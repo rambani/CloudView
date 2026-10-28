@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120">
+  <!-- Waffle cone under the scoop. -->
+  <path id="cone" d="M 6 0 L 50 118 L 94 0"/>
+  <path id="waffle" d="M 14 20 L 86 20"/>
+  <path id="waffle" d="M 24 44 L 76 44"/>
+  <path id="waffle" d="M 34 68 L 66 68"/>
+  <path id="waffle" d="M 20 10 L 62 100"/>
+  <path id="waffle" d="M 80 10 L 38 100"/>
+</svg>

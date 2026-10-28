@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 70">
+  <!-- Head poking out of the shell on the left, with its own eye and smile. -->
+  <path id="head" d="M 90 20 C 60 10 20 8 6 28 C 0 40 8 56 24 60 C 44 64 70 58 90 52"/>
+  <circle id="eye" cx="22" cy="30" r="4"/>
+  <path id="mouth" d="M 10 42 C 18 46 28 46 36 42"/>
+</svg>

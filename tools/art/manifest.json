@@ -12,6 +12,9 @@
         "prop": {
           "required": false,
           "probability": 0.35
+        },
+        "signature": {
+          "required": true
         }
       }
     },
@@ -26,6 +29,13 @@
         "prop": {
           "required": false,
           "probability": 0.35
+        },
+        "signature": {
+          "required": true
+        },
+        "detail": {
+          "required": false,
+          "probability": 0.75
         }
       }
     },
@@ -40,6 +50,13 @@
         "prop": {
           "required": false,
           "probability": 0.35
+        },
+        "signature": {
+          "required": true
+        },
+        "detail": {
+          "required": false,
+          "probability": 0.75
         }
       }
     },
@@ -54,6 +71,13 @@
         "prop": {
           "required": false,
           "probability": 0.35
+        },
+        "signature": {
+          "required": true
+        },
+        "detail": {
+          "required": false,
+          "probability": 0.75
         }
       }
     },
@@ -68,6 +92,13 @@
         "prop": {
           "required": false,
           "probability": 0.35
+        },
+        "signature": {
+          "required": true
+        },
+        "detail": {
+          "required": false,
+          "probability": 0.75
         }
       }
     },
@@ -82,6 +113,13 @@
         "prop": {
           "required": false,
           "probability": 0.35
+        },
+        "signature": {
+          "required": true
+        },
+        "detail": {
+          "required": false,
+          "probability": 0.75
         }
       }
     },
@@ -107,6 +145,10 @@
         "prop": {
           "required": false,
           "probability": 0.35
+        },
+        "wing": {
+          "required": false,
+          "probability": 0.6
         }
       }
     },
@@ -121,6 +163,13 @@
         "prop": {
           "required": false,
           "probability": 0.35
+        },
+        "signature": {
+          "required": true
+        },
+        "detail": {
+          "required": false,
+          "probability": 0.75
         }
       }
     },
@@ -135,6 +184,9 @@
         "prop": {
           "required": false,
           "probability": 0.35
+        },
+        "signature": {
+          "required": true
         }
       }
     },
@@ -149,6 +201,13 @@
         "prop": {
           "required": false,
           "probability": 0.35
+        },
+        "signature": {
+          "required": true
+        },
+        "detail": {
+          "required": false,
+          "probability": 0.75
         }
       }
     },
@@ -163,6 +222,13 @@
         "prop": {
           "required": false,
           "probability": 0.35
+        },
+        "signature": {
+          "required": true
+        },
+        "detail": {
+          "required": false,
+          "probability": 0.75
         }
       }
     },
@@ -177,6 +243,13 @@
         "prop": {
           "required": false,
           "probability": 0.35
+        },
+        "signature": {
+          "required": true
+        },
+        "detail": {
+          "required": false,
+          "probability": 0.75
         }
       }
     },
@@ -191,6 +264,9 @@
         "prop": {
           "required": false,
           "probability": 0.35
+        },
+        "signature": {
+          "required": true
         }
       }
     },
@@ -205,6 +281,13 @@
         "prop": {
           "required": false,
           "probability": 0.35
+        },
+        "signature": {
+          "required": true
+        },
+        "detail": {
+          "required": false,
+          "probability": 0.75
         }
       }
     },
@@ -219,6 +302,9 @@
         "prop": {
           "required": false,
           "probability": 0.35
+        },
+        "signature": {
+          "required": true
         }
       }
     },
@@ -233,6 +319,13 @@
         "prop": {
           "required": false,
           "probability": 0.35
+        },
+        "signature": {
+          "required": true
+        },
+        "detail": {
+          "required": false,
+          "probability": 0.75
         }
       }
     },
@@ -247,6 +340,9 @@
         "prop": {
           "required": false,
           "probability": 0.35
+        },
+        "signature": {
+          "required": true
         }
       }
     },
@@ -261,6 +357,13 @@
         "prop": {
           "required": false,
           "probability": 0.35
+        },
+        "signature": {
+          "required": true
+        },
+        "detail": {
+          "required": false,
+          "probability": 0.75
         }
       }
     },
@@ -275,6 +378,13 @@
         "prop": {
           "required": false,
           "probability": 0.35
+        },
+        "signature": {
+          "required": true
+        },
+        "detail": {
+          "required": false,
+          "probability": 0.75
         }
       }
     },
@@ -289,6 +399,13 @@
         "prop": {
           "required": false,
           "probability": 0.35
+        },
+        "signature": {
+          "required": true
+        },
+        "detail": {
+          "required": false,
+          "probability": 0.75
         }
       }
     },
@@ -303,6 +420,13 @@
         "prop": {
           "required": false,
           "probability": 0.35
+        },
+        "signature": {
+          "required": true
+        },
+        "detail": {
+          "required": false,
+          "probability": 0.75
         }
       }
     },
@@ -317,6 +441,13 @@
         "prop": {
           "required": false,
           "probability": 0.35
+        },
+        "signature": {
+          "required": true
+        },
+        "detail": {
+          "required": false,
+          "probability": 0.75
         }
       }
     },
@@ -331,6 +462,9 @@
         "prop": {
           "required": false,
           "probability": 0.35
+        },
+        "signature": {
+          "required": true
         }
       }
     },
@@ -345,6 +479,13 @@
         "prop": {
           "required": false,
           "probability": 0.35
+        },
+        "signature": {
+          "required": true
+        },
+        "detail": {
+          "required": false,
+          "probability": 0.75
         }
       }
     },
@@ -359,6 +500,9 @@
         "prop": {
           "required": false,
           "probability": 0.35
+        },
+        "signature": {
+          "required": true
         }
       }
     },
@@ -373,6 +517,9 @@
         "prop": {
           "required": false,
           "probability": 0.35
+        },
+        "signature": {
+          "required": true
         }
       }
     },
@@ -387,6 +534,13 @@
         "prop": {
           "required": false,
           "probability": 0.35
+        },
+        "signature": {
+          "required": true
+        },
+        "detail": {
+          "required": false,
+          "probability": 0.75
         }
       }
     }
@@ -495,6 +649,636 @@
       "scale": 0.35,
       "display": "{name} with a Balloon",
       "source": "shared/prop-balloon.svg"
+    },
+    {
+      "id": "rabbit-ears-01",
+      "kind": "signature",
+      "creatures": [
+        "rabbit"
+      ],
+      "anchor": "top",
+      "scale": 0.55,
+      "offset": [
+        0,
+        -0.3
+      ],
+      "source": "rabbit/ears-01.svg"
+    },
+    {
+      "id": "cat-ears-01",
+      "kind": "signature",
+      "creatures": [
+        "cat"
+      ],
+      "anchor": "top",
+      "scale": 0.5,
+      "offset": [
+        0,
+        -0.2
+      ],
+      "source": "cat/ears-01.svg"
+    },
+    {
+      "id": "cat-whiskers-01",
+      "kind": "detail",
+      "creatures": [
+        "cat"
+      ],
+      "anchor": "centroid",
+      "scale": 0.75,
+      "offset": [
+        0,
+        0.08
+      ],
+      "source": "cat/whiskers-01.svg"
+    },
+    {
+      "id": "elephant-trunk-01",
+      "kind": "signature",
+      "creatures": [
+        "elephant"
+      ],
+      "anchor": "left",
+      "scale": 0.5,
+      "offset": [
+        0.15,
+        0.4
+      ],
+      "source": "elephant/trunk-01.svg"
+    },
+    {
+      "id": "elephant-ear-01",
+      "kind": "detail",
+      "creatures": [
+        "elephant"
+      ],
+      "anchor": "right",
+      "scale": 0.5,
+      "offset": [
+        0.1,
+        0
+      ],
+      "source": "elephant/ear-01.svg"
+    },
+    {
+      "id": "giraffe-ossicones-01",
+      "kind": "signature",
+      "creatures": [
+        "giraffe"
+      ],
+      "anchor": "top",
+      "scale": 0.45,
+      "offset": [
+        0,
+        -0.25
+      ],
+      "source": "giraffe/ossicones-01.svg"
+    },
+    {
+      "id": "giraffe-spots-01",
+      "kind": "detail",
+      "creatures": [
+        "giraffe"
+      ],
+      "anchor": "bottom",
+      "scale": 0.6,
+      "offset": [
+        0,
+        -0.4
+      ],
+      "source": "giraffe/spots-01.svg"
+    },
+    {
+      "id": "whale-tail-01",
+      "kind": "signature",
+      "creatures": [
+        "whale"
+      ],
+      "anchor": "right",
+      "scale": 0.45,
+      "offset": [
+        0.35,
+        0
+      ],
+      "source": "whale/tail-01.svg"
+    },
+    {
+      "id": "whale-spout-01",
+      "kind": "detail",
+      "creatures": [
+        "whale"
+      ],
+      "anchor": "top",
+      "scale": 0.4,
+      "offset": [
+        0,
+        -0.4
+      ],
+      "source": "whale/spout-01.svg"
+    },
+    {
+      "id": "fish-tail-01",
+      "kind": "signature",
+      "creatures": [
+        "fish"
+      ],
+      "anchor": "right",
+      "scale": 0.45,
+      "offset": [
+        0.35,
+        0
+      ],
+      "source": "fish/tail-01.svg"
+    },
+    {
+      "id": "fish-fin-01",
+      "kind": "detail",
+      "creatures": [
+        "fish"
+      ],
+      "anchor": "top",
+      "scale": 0.45,
+      "offset": [
+        0,
+        -0.2
+      ],
+      "source": "fish/fin-01.svg"
+    },
+    {
+      "id": "bird-beak-01",
+      "kind": "signature",
+      "creatures": [
+        "bird"
+      ],
+      "anchor": "left",
+      "scale": 0.3,
+      "offset": [
+        -0.35,
+        0.05
+      ],
+      "source": "bird/beak-01.svg"
+    },
+    {
+      "id": "bird-wing-01",
+      "kind": "detail",
+      "creatures": [
+        "bird"
+      ],
+      "anchor": "right",
+      "scale": 0.55,
+      "offset": [
+        -0.1,
+        0.1
+      ],
+      "source": "bird/wing-01.svg"
+    },
+    {
+      "id": "unicorn-horn-01",
+      "kind": "signature",
+      "creatures": [
+        "unicorn"
+      ],
+      "anchor": "top",
+      "scale": 0.4,
+      "offset": [
+        0,
+        -0.35
+      ],
+      "source": "unicorn/horn-01.svg"
+    },
+    {
+      "id": "unicorn-mane-01",
+      "kind": "detail",
+      "creatures": [
+        "unicorn"
+      ],
+      "anchor": "topRight",
+      "scale": 0.45,
+      "offset": [
+        0.15,
+        0.2
+      ],
+      "source": "unicorn/mane-01.svg"
+    },
+    {
+      "id": "dinosaur-plates-01",
+      "kind": "signature",
+      "creatures": [
+        "dinosaur"
+      ],
+      "anchor": "top",
+      "scale": 0.7,
+      "offset": [
+        0,
+        -0.18
+      ],
+      "source": "dinosaur/plates-01.svg"
+    },
+    {
+      "id": "octopus-tentacles-01",
+      "kind": "signature",
+      "creatures": [
+        "octopus"
+      ],
+      "anchor": "bottom",
+      "scale": 0.9,
+      "offset": [
+        0,
+        0.32
+      ],
+      "source": "octopus/tentacles-01.svg"
+    },
+    {
+      "id": "snail-shell-01",
+      "kind": "signature",
+      "creatures": [
+        "snail"
+      ],
+      "anchor": "right",
+      "scale": 0.65,
+      "offset": [
+        -0.05,
+        -0.1
+      ],
+      "source": "snail/shell-01.svg"
+    },
+    {
+      "id": "snail-eyestalks-01",
+      "kind": "detail",
+      "creatures": [
+        "snail"
+      ],
+      "anchor": "topLeft",
+      "scale": 0.35,
+      "offset": [
+        0,
+        -0.3
+      ],
+      "source": "snail/eyestalks-01.svg"
+    },
+    {
+      "id": "duck-bill-01",
+      "kind": "signature",
+      "creatures": [
+        "duck"
+      ],
+      "anchor": "left",
+      "scale": 0.35,
+      "offset": [
+        -0.35,
+        0.08
+      ],
+      "source": "duck/bill-01.svg"
+    },
+    {
+      "id": "turtle-head-01",
+      "kind": "signature",
+      "creatures": [
+        "turtle"
+      ],
+      "anchor": "left",
+      "scale": 0.4,
+      "offset": [
+        -0.38,
+        0.05
+      ],
+      "source": "turtle/head-01.svg"
+    },
+    {
+      "id": "turtle-shell-01",
+      "kind": "detail",
+      "creatures": [
+        "turtle"
+      ],
+      "anchor": "top",
+      "scale": 0.6,
+      "offset": [
+        0,
+        0.2
+      ],
+      "source": "turtle/shell-01.svg"
+    },
+    {
+      "id": "bear-ears-01",
+      "kind": "signature",
+      "creatures": [
+        "bear"
+      ],
+      "anchor": "top",
+      "scale": 0.5,
+      "offset": [
+        0,
+        -0.12
+      ],
+      "source": "bear/ears-01.svg"
+    },
+    {
+      "id": "dog-ears-01",
+      "kind": "signature",
+      "creatures": [
+        "dog"
+      ],
+      "anchor": "top",
+      "scale": 0.6,
+      "offset": [
+        0,
+        0.12
+      ],
+      "source": "dog/ears-01.svg"
+    },
+    {
+      "id": "dog-tongue-01",
+      "kind": "detail",
+      "creatures": [
+        "dog"
+      ],
+      "anchor": "centroid",
+      "scale": 0.25,
+      "offset": [
+        0.12,
+        0.45
+      ],
+      "source": "dog/tongue-01.svg"
+    },
+    {
+      "id": "butterfly-antennae-01",
+      "kind": "signature",
+      "creatures": [
+        "butterfly"
+      ],
+      "anchor": "top",
+      "scale": 0.4,
+      "offset": [
+        0,
+        -0.3
+      ],
+      "source": "butterfly/antennae-01.svg"
+    },
+    {
+      "id": "butterfly-wingswirls-01",
+      "kind": "detail",
+      "creatures": [
+        "butterfly"
+      ],
+      "anchor": "centroid",
+      "scale": 0.9,
+      "offset": [
+        0,
+        0.25
+      ],
+      "source": "butterfly/wingswirls-01.svg"
+    },
+    {
+      "id": "swan-beak-01",
+      "kind": "signature",
+      "creatures": [
+        "swan"
+      ],
+      "anchor": "left",
+      "scale": 0.28,
+      "offset": [
+        -0.38,
+        0.02
+      ],
+      "source": "swan/beak-01.svg"
+    },
+    {
+      "id": "swan-feathers-01",
+      "kind": "detail",
+      "creatures": [
+        "swan"
+      ],
+      "anchor": "right",
+      "scale": 0.55,
+      "offset": [
+        -0.15,
+        0.05
+      ],
+      "source": "swan/feathers-01.svg"
+    },
+    {
+      "id": "dolphin-fin-01",
+      "kind": "signature",
+      "creatures": [
+        "dolphin"
+      ],
+      "anchor": "top",
+      "scale": 0.4,
+      "offset": [
+        0.05,
+        -0.28
+      ],
+      "source": "dolphin/fin-01.svg"
+    },
+    {
+      "id": "dolphin-tail-01",
+      "kind": "detail",
+      "creatures": [
+        "dolphin"
+      ],
+      "anchor": "right",
+      "scale": 0.4,
+      "offset": [
+        0.35,
+        0.05
+      ],
+      "source": "dolphin/tail-01.svg"
+    },
+    {
+      "id": "sailboat-flag-01",
+      "kind": "signature",
+      "creatures": [
+        "sailboat"
+      ],
+      "anchor": "top",
+      "scale": 0.45,
+      "offset": [
+        0.05,
+        -0.38
+      ],
+      "source": "sailboat/flag-01.svg"
+    },
+    {
+      "id": "sailboat-waves-01",
+      "kind": "detail",
+      "creatures": [
+        "sailboat"
+      ],
+      "anchor": "bottom",
+      "scale": 1.0,
+      "offset": [
+        0,
+        0.28
+      ],
+      "source": "sailboat/waves-01.svg"
+    },
+    {
+      "id": "castle-battlements-01",
+      "kind": "signature",
+      "creatures": [
+        "castle"
+      ],
+      "anchor": "top",
+      "scale": 0.85,
+      "offset": [
+        0,
+        -0.1
+      ],
+      "source": "castle/battlements-01.svg"
+    },
+    {
+      "id": "castle-flag-01",
+      "kind": "detail",
+      "creatures": [
+        "castle"
+      ],
+      "anchor": "top",
+      "scale": 0.3,
+      "offset": [
+        0.5,
+        -0.5
+      ],
+      "source": "castle/flag-01.svg"
+    },
+    {
+      "id": "rocket-fins-01",
+      "kind": "signature",
+      "creatures": [
+        "rocket"
+      ],
+      "anchor": "bottom",
+      "scale": 0.6,
+      "offset": [
+        0,
+        0.3
+      ],
+      "source": "rocket/fins-01.svg"
+    },
+    {
+      "id": "astronaut-helmet-01",
+      "kind": "signature",
+      "creatures": [
+        "astronaut"
+      ],
+      "anchor": "centroid",
+      "scale": 0.75,
+      "offset": [
+        0,
+        0
+      ],
+      "source": "astronaut/helmet-01.svg"
+    },
+    {
+      "id": "astronaut-antenna-01",
+      "kind": "detail",
+      "creatures": [
+        "astronaut"
+      ],
+      "anchor": "top",
+      "scale": 0.3,
+      "offset": [
+        0.2,
+        -0.35
+      ],
+      "source": "astronaut/antenna-01.svg"
+    },
+    {
+      "id": "hotairballoon-basket-01",
+      "kind": "signature",
+      "creatures": [
+        "hot air balloon"
+      ],
+      "anchor": "bottom",
+      "scale": 0.6,
+      "offset": [
+        0,
+        0.45
+      ],
+      "source": "hotairballoon/basket-01.svg"
+    },
+    {
+      "id": "icecream-cone-01",
+      "kind": "signature",
+      "creatures": [
+        "ice cream"
+      ],
+      "anchor": "bottom",
+      "scale": 0.7,
+      "offset": [
+        0,
+        0.42
+      ],
+      "source": "icecream/cone-01.svg"
+    },
+    {
+      "id": "icecream-sprinkles-01",
+      "kind": "detail",
+      "creatures": [
+        "ice cream"
+      ],
+      "anchor": "top",
+      "scale": 0.55,
+      "offset": [
+        0,
+        0
+      ],
+      "source": "icecream/sprinkles-01.svg"
+    },
+    {
+      "id": "basketball-seams-01",
+      "kind": "signature",
+      "creatures": [
+        "basketball"
+      ],
+      "anchor": "centroid",
+      "scale": 0.95,
+      "offset": [
+        0,
+        0
+      ],
+      "source": "basketball/seams-01.svg"
+    },
+    {
+      "id": "wizard-beard-01",
+      "kind": "signature",
+      "creatures": [
+        "wizard"
+      ],
+      "anchor": "centroid",
+      "scale": 0.55,
+      "offset": [
+        0,
+        0.55
+      ],
+      "source": "wizard/beard-01.svg"
+    },
+    {
+      "id": "wizard-stars-01",
+      "kind": "detail",
+      "creatures": [
+        "wizard"
+      ],
+      "anchor": "topRight",
+      "scale": 0.35,
+      "offset": [
+        0.1,
+        -0.2
+      ],
+      "source": "wizard/stars-01.svg"
+    },
+    {
+      "id": "dragon-wing-01",
+      "kind": "wing",
+      "creatures": [
+        "dragon"
+      ],
+      "anchor": "right",
+      "scale": 0.55,
+      "offset": [
+        0.1,
+        -0.35
+      ],
+      "source": "dragon/wing-01.svg"
     }
   ]
 }

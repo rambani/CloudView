@@ -9,39 +9,42 @@ import Foundation
 /// allowlist. $0 per call, no network, no vendor dependency.
 ///
 /// When the MobileCLIP model isn't shipped in the bundle (e.g. fresh
-/// clone, before docs/CLIP_SETUP.md is followed), the service silently
-/// falls back to deterministic stub picks so the app still runs end to
-/// end for development.
+/// clone, before docs/CLIP_SETUP.md is followed), the service returns no
+/// interpretations — the honest "Cool cloud!" state — rather than making
+/// up a label. (`StubCloudRecognitionService` below exists for tests.)
 protocol CloudRecognitionService {
     func recognize(_ cluster: CloudCluster) async throws -> [Interpretation]
 }
 
 /// Production recognition service. Lazily initializes CLIP + the label
-/// matcher; if either is unavailable, hands the call off to the stub so
-/// the app never crashes on a missing asset.
+/// matcher; if either is unavailable, recognition is simply off and every
+/// call returns `[]`, so the app never crashes on a missing asset and never
+/// claims a creature it didn't see.
 final class OnDeviceCloudRecognitionService: CloudRecognitionService {
     static let shared = OnDeviceCloudRecognitionService()
 
     private let encoder: CLIPImageEncoder?
     private let matcher: LabelEmbeddingMatcher?
-    private let fallback = StubCloudRecognitionService()
+
+    /// True when the model + embeddings are bundled and recognition runs.
+    var isAvailable: Bool { encoder != nil && matcher != nil }
 
     init() {
         self.encoder = CLIPImageEncoder()
         self.matcher = LabelEmbeddingMatcher()
         if encoder == nil || matcher == nil {
-            print("⚠️  OnDeviceCloudRecognitionService: using stub fallback. " +
-                  "Recognition will return placeholder picks until the MobileCLIP " +
-                  "model and label embeddings are added — see docs/CLIP_SETUP.md.")
+            print("ℹ️  OnDeviceCloudRecognitionService: CLIP recognition unavailable " +
+                  "(model or label embeddings not bundled — see docs/CLIP_SETUP.md). " +
+                  "Clouds the template library can't match will show as \"Cool cloud!\".")
         }
     }
 
     func recognize(_ cluster: CloudCluster) async throws -> [Interpretation] {
         guard let encoder = encoder, let matcher = matcher else {
-            return try await fallback.recognize(cluster)
+            return []
         }
         guard let pixelBuffer = CloudSilhouetteRenderer.render(cluster) else {
-            return try await fallback.recognize(cluster)
+            return []
         }
         let embedding = try await encoder.encode(pixelBuffer)
         let picks = matcher.match(imageEmbedding: embedding)
@@ -52,10 +55,9 @@ final class OnDeviceCloudRecognitionService: CloudRecognitionService {
     }
 }
 
-/// Fallback returned when the CLIP model isn't present. Returns 5 canned
-/// interpretations seeded deterministically by the cluster's signature.
-/// Lives in this file so the recognition pipeline is self-contained and
-/// the rest of the app sees one type.
+/// Test double: 5 canned interpretations seeded deterministically by the
+/// cluster's signature. Not used by the shipping pipeline — a missing model
+/// means no recognition, not fake recognition.
 final class StubCloudRecognitionService: CloudRecognitionService {
     func recognize(_ cluster: CloudCluster) async throws -> [Interpretation] {
         let bank: [(String, Double)] = [
@@ -65,7 +67,8 @@ final class StubCloudRecognitionService: CloudRecognitionService {
             ("penguin", 0.55), ("unicorn", 0.55), ("bear", 0.55),
         ]
 
-        let hash = abs(cluster.signature.cacheKey.hashValue)
+        // Stable hash — Swift's `hashValue` is salted per process launch.
+        let hash = Int(truncatingIfNeeded: StableHash.fnv1a(cluster.signature.cacheKey) >> 1)
         var picks: [(String, Double)] = []
         var i = hash
         for _ in 0..<5 {

@@ -648,6 +648,16 @@ def build(manifest_path, output_path, tolerance, smooth, max_points):
         }
         if "scale" in p:
             part["scale"] = p["scale"]
+        # Optional nudge off the anchor landmark, in part-extent units
+        # (+y down). Lets ears sit on the cloud's top edge rather than
+        # straddle it. Mirrored in x by the assembler when flipped.
+        if "offset" in p:
+            off = p["offset"]
+            if (not isinstance(off, list) or len(off) != 2
+                    or not all(isinstance(v, (int, float)) for v in off)
+                    or not all(-1.5 <= v <= 1.5 for v in off)):
+                fail(f"part '{p['id']}': offset must be [dx, dy] within ±1.5")
+            part["offset"] = [float(off[0]), float(off[1])]
         # Optional display-name template for props: "Skateboarding {name}" /
         # "{name} in a Party Hat". The assembler applies it to the drawing's
         # display name when the part is included.
@@ -728,10 +738,12 @@ def _place_part(part, landmarks, effective_side):
     app splits the same true side into per-axis extents."""
     anchor = landmarks[part["anchor"]]
     extent = part.get("scale", DEFAULT_PART_SCALE) * effective_side
+    off = part.get("offset", [0.0, 0.0])
+    center = (anchor[0] + off[0] * extent, anchor[1] + off[1] * extent)
     placed = []
     for stroke in sorted(part["strokes"], key=lambda s: s["order"]):
-        pts = [(anchor[0] + (p[0] - 0.5) * extent,
-                anchor[1] + (p[1] - 0.5) * extent) for p in stroke["points"]]
+        pts = [(center[0] + (p[0] - 0.5) * extent,
+                center[1] + (p[1] - 0.5) * extent) for p in stroke["points"]]
         placed.append((pts, stroke["closed"]))
     return placed
 
@@ -905,6 +917,10 @@ def validate(doc):
             ids.add(p.get("id"))
             if p.get("anchor") not in VALID_ANCHORS:
                 problems.append(f"{where}: bad anchor '{p.get('anchor')}'")
+            off = p.get("offset")
+            if off is not None and (not isinstance(off, list) or len(off) != 2
+                                    or not all(isinstance(v, (int, float)) for v in off)):
+                problems.append(f"{where}: offset must be [dx, dy]")
             if not p.get("strokes"):
                 problems.append(f"{where}: no strokes")
             for s in p.get("strokes", []):

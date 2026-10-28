@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 70 90">
+  <!-- Forked tail fin off the right end. -->
+  <path id="tail" d="M 0 45 C 20 30 30 10 40 0 C 56 6 66 26 70 40 C 60 42 50 44 40 45 C 50 46 60 48 70 50 C 66 64 56 84 40 90 C 30 80 20 60 0 45 Z"/>
+</svg>

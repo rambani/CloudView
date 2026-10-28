@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 80">
+  <!-- Flagpole and pennant on a tower. -->
+  <path id="pole" d="M 6 80 L 6 0"/>
+  <path id="flag" d="M 6 4 L 46 14 L 6 24 Z"/>
+</svg>

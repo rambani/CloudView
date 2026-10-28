@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Helmet ring around the face with a visor glint. -->
+  <circle id="helmet" cx="50" cy="50" r="46"/>
+  <path id="glint" d="M 22 40 C 26 24 38 16 52 14"/>
+</svg>

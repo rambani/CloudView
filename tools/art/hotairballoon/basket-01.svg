@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 110">
+  <!-- Ropes down to a woven basket. -->
+  <path id="rope" d="M 20 0 L 36 70"/>
+  <path id="rope" d="M 50 0 L 50 70"/>
+  <path id="rope" d="M 80 0 L 64 70"/>
+  <polygon id="basket" points="30,70 70,70 66,106 34,106"/>
+  <path id="weave" d="M 32 82 L 68 82"/>
+  <path id="weave" d="M 33 94 L 67 94"/>
+</svg>

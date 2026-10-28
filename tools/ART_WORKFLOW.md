@@ -61,13 +61,26 @@ starter set was made. Rules of thumb:
 - Draw at any scale; the tool normalizes. Wider-than-tall parts (crests,
   breath streams) keep their aspect.
 
+## Slot conventions
+
+Every creature has a required **`signature`** part — the one detail that
+makes it *that* creature when the cloud is the body (rabbit ears, elephant
+trunk, whale fluke, castle battlements). Most also have an optional
+**`detail`** (whiskers, spout, spots, flag) at probability 0.75, and all share
+the `face` and `prop` pools. Creature-specific slots (`crest`, `breath`,
+`companion`, `wing`) are fine too. With only a face, a giraffe reads as "a
+cloud with a face"; the signature part is what the eye hangs the creature on.
+
 ## Wiring a part into the app
 
 1. Drop the SVG under `tools/art/<creature>/` (or `art/shared/`).
 2. Add an entry to `tools/art/manifest.json`: `id`, `kind` (the slot it
    fills), `creatures` (labels or `"*"` for shared), `anchor` (cloud landmark:
    `top`, `centroid`, `left`, `bottomRight`, …), optional `scale` (fraction of
-   the cloud's short side, default 0.35), `source`.
+   the cloud's short side, default 0.35), optional `offset` (`[dx, dy]` in
+   part-extent units, +y down — `[0, -0.3]` lifts ears so their bases sit on
+   the cloud's top edge instead of straddling it; mirrored in x when the
+   assembly flips), `source`.
 3. If it's a new slot kind, declare it in the creature's `slots` with
    `required` or a `probability`.
 4. Rebuild:
@@ -140,6 +153,23 @@ the point-at-sky and daylight gates, so you can aim the phone at a photo of
 clouds on a monitor and exercise the full detect → match → assemble → quip
 pipeline from a desk. Use full-screen cloud photos with good sky/cloud
 contrast; the section is compiled out of release builds entirely.
+
+## Checking retrieval against real clouds
+
+Art only helps if the right creature gets picked. `validate_retrieval.py` is
+an exact port of the app's Hu-moment matcher:
+
+```bash
+python3 validate_retrieval.py --matrix --synthetic 300        # library sanity
+python3 validate_retrieval.py --log cloudoodle-contours.jsonl --html /tmp/clouds.html
+python3 validate_retrieval.py --photos ~/sky-photos --html /tmp/clouds.html
+```
+
+The `.jsonl` comes from a DEBUG build: Settings → Developer → **Record cloud
+contours**, scan some sky, then **Export contour log**. The HTML shows each
+cloud with its top-3 silhouettes overlaid and a notes box — rate honestly.
+Current numbers and what they mean are in `docs/DRAWING_SYSTEM.md`
+(*Validation*).
 
 ## Verifying a rebuild
 

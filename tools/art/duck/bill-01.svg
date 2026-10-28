@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 50">
+  <!-- Flat bill pointing left. -->
+  <path id="bill" d="M 90 14 C 60 6 20 10 2 24 C 20 36 60 42 90 36"/>
+  <path id="bill-line" d="M 86 25 C 60 26 30 26 6 24"/>
+</svg>

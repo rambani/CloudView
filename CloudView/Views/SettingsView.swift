@@ -16,6 +16,8 @@ struct SettingsView: View {
 
 #if DEBUG
     @State private var deskTesting: Bool = ARViewModel.deskTestingEnabled
+    @State private var recordContours: Bool = ContourRecorder.isEnabled
+    @State private var contourCount: Int = ContourRecorder.recordCount
 #endif
 
     var body: some View {
@@ -74,10 +76,37 @@ struct SettingsView: View {
                         .onChange(of: deskTesting) { newValue in
                             ARViewModel.deskTestingEnabled = newValue
                         }
+
+                    Toggle("Record cloud contours", isOn: $recordContours)
+                        .tint(.orange)
+                        .onChange(of: recordContours) { newValue in
+                            ContourRecorder.isEnabled = newValue
+                        }
+
+                    HStack {
+                        Text("Recorded contours")
+                        Spacer()
+                        Text("\(contourCount)")
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+
+                    ShareLink(item: ContourRecorder.fileURL) {
+                        Label("Export contour log", systemImage: "square.and.arrow.up")
+                    }
+                    .disabled(contourCount == 0)
+
+                    Button(role: .destructive) {
+                        ContourRecorder.clear()
+                        contourCount = 0
+                    } label: {
+                        Text("Clear contour log")
+                    }
+                    .disabled(contourCount == 0)
                 } header: {
                     Text("Developer")
                 } footer: {
-                    Text("Bypasses the point-at-sky and daylight checks so you can test against a photo of clouds on a monitor. This section does not exist in release builds.")
+                    Text("Desk testing bypasses the point-at-sky and daylight checks so you can test against a photo of clouds on a monitor. Contour recording logs each cloud the pipeline acts on for tools/validate_retrieval.py. This section does not exist in release builds.")
                 }
 #endif
             }

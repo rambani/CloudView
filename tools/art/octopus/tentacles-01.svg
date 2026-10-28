@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 104">
+  <!-- Five tentacles hanging from the bottom, each curling at the tip. -->
+  <path id="tentacle" d="M 20 0 C 10 30 0 60 14 90 C 22 100 34 96 32 84"/>
+  <path id="tentacle" d="M 55 0 C 50 30 40 60 50 90 C 56 100 70 98 68 86"/>
+  <path id="tentacle" d="M 90 0 C 92 30 84 60 92 92 C 98 102 110 98 108 86"/>
+  <path id="tentacle" d="M 125 0 C 130 30 122 60 134 92 C 140 102 152 96 148 84"/>
+  <path id="tentacle" d="M 160 0 C 170 30 164 60 178 88 C 186 98 198 92 194 80"/>
+</svg>

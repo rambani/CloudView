@@ -21,8 +21,10 @@ them, anchored in AR so it stays with the cloud as you look around.
 - **Variety per scan**: instead of a strict top-1, the matcher softmax-samples
   from the top matches, so different looks at the same cloud can surface
   different ideas ("five viewers, five different things").
-- **Animated line drawing**: the recognized illustration traces out over ~2.5s
-  for a hand-drawn reveal (`AnimatedDrawing`).
+- **Animated line drawing**: each stroke grows along its length at pen speed
+  — dark ink over a soft white halo so it reads on cloud and sky alike —
+  sized and oriented to the real cloud through the camera intrinsics
+  (`AnimatedDrawing`, `StrokeGeometry`, `CameraFrameGeometry`).
 
 ### 🌍 AR placement
 - Drawings are anchored in world space along the camera ray, so they stay put
@@ -70,8 +72,9 @@ open CloudView.xcodeproj
 
 `MobileCLIP-S0.mlmodelc` (~26 MB) and `LabelEmbeddings.json` are **not** checked
 into git. Follow [`docs/CLIP_SETUP.md`](docs/CLIP_SETUP.md) to add them to the
-app bundle. Until you do, recognition falls back to a **deterministic stub** so
-the app still runs end to end — it just returns the same placeholder picks.
+app bundle. Until you do, CLIP recognition is off: the shape-template library
+(the primary path) still draws creatures on clouds it can match, and clouds it
+can't match get an honest "Cool cloud!" rather than a placeholder label.
 
 ### 3. Enable WeatherKit
 

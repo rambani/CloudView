@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 60">
+  <!-- Nose + three whiskers a side, laid over the shared face. -->
+  <path id="nose" d="M 76 26 L 84 26 L 80 33 Z"/>
+  <path id="whisker" d="M 60 20 L 4 10"/>
+  <path id="whisker" d="M 60 30 L 0 30"/>
+  <path id="whisker" d="M 60 40 L 4 50"/>
+  <path id="whisker" d="M 100 20 L 156 10"/>
+  <path id="whisker" d="M 100 30 L 160 30"/>
+  <path id="whisker" d="M 100 40 L 156 50"/>
+</svg>

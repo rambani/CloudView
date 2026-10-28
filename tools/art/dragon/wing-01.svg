@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 90">
+  <!-- Bat-style wing rising off the back, with two rib lines. -->
+  <path id="wing" d="M 0 90 C 20 50 40 20 70 4 C 76 20 90 20 100 10 C 100 30 110 36 120 30 C 110 50 100 60 90 64 C 70 70 40 80 0 90 Z"/>
+  <path id="rib" d="M 10 84 C 40 60 60 40 70 10"/>
+  <path id="rib" d="M 20 82 C 50 66 76 50 96 20"/>
+</svg>

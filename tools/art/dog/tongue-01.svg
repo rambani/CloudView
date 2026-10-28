@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 60">
+  <!-- Tongue lolling out under the mouth. -->
+  <path id="tongue" d="M 2 0 C 0 30 6 56 20 58 C 34 56 40 30 38 0"/>
+  <path id="tongue-line" d="M 20 14 L 20 50"/>
+</svg>

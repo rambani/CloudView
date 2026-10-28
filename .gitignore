@@ -91,3 +91,7 @@ iOSInjectionProject/
 
 # Mac
 .DS_Store
+
+# Python tooling
+__pycache__/
+*.pyc

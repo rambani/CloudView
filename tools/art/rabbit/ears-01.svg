@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 110">
+  <!-- Two tall ears rising from the cloud's top edge; bases overlap the
+       cloud so they read as attached. Inner-ear line adds the "rabbit" cue. -->
+  <path id="ear" d="M 30 105 C 18 70 20 25 32 8 C 44 25 46 70 40 105"/>
+  <path id="ear-inner" d="M 32 90 C 27 60 29 35 33 22"/>
+  <path id="ear" d="M 60 105 C 54 70 56 25 68 8 C 80 25 82 70 70 105"/>
+  <path id="ear-inner" d="M 67 90 C 71 60 71 35 67 22"/>
+</svg>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50">
+  <!-- Dorsal fin with three rays along the top edge. -->
+  <path id="fin" d="M 0 50 C 20 10 60 0 100 50"/>
+  <path id="ray" d="M 30 48 L 36 22"/>
+  <path id="ray" d="M 50 48 L 52 14"/>
+  <path id="ray" d="M 70 48 L 68 22"/>
+</svg>

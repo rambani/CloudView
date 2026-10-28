@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 90">
+  <!-- Floppy ears draping down either side of the head. -->
+  <path id="ear" d="M 48 6 C 20 0 4 30 8 60 C 10 84 36 90 46 70"/>
+  <path id="ear" d="M 92 6 C 120 0 136 30 132 60 C 130 84 104 90 94 70"/>
+</svg>

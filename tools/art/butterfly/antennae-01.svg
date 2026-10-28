@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 70">
+  <!-- Curving antennae with clubbed tips. -->
+  <path id="antenna" d="M 40 70 C 36 50 24 30 10 12"/>
+  <circle id="club" cx="8" cy="8" r="5"/>
+  <path id="antenna" d="M 40 70 C 44 50 56 30 70 12"/>
+  <circle id="club" cx="72" cy="8" r="5"/>
+</svg>

@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Spiral shell, one continuous stroke winding outward. -->
+  <path id="shell" d="M 50 50 C 56 44 62 48 60 56 C 58 66 44 68 38 58 C 30 46 42 32 56 32 C 74 32 84 48 78 66 C 70 86 42 90 26 76 C 8 60 14 30 36 18 C 60 6 90 18 96 44"/>
+</svg>

@@ -38,6 +38,15 @@ Complete testing checklist before submitting to the App Store.
 - [ ] **AR Session Starts**: Camera view appears
 - [ ] **Cloud Detection**: Detects clouds when pointing at sky
 - [ ] **Drawing Creation**: Creates animated drawings on clouds
+
+### Rendering (check on a real sky — these were authored without a device)
+- [ ] **Drawing covers the cloud**: the body outline hugs the cloud's real extent, not a third of it
+- [ ] **Upright**: ears/crests sit on the cloud's *top* in portrait, not on its side
+- [ ] **Faces you from any heading**: turn 90° from where the session started and make a drawing — it must not be edge-on
+- [ ] **Legible on white and blue**: dark ink + white halo visible over the cloud body and over sky
+- [ ] **Pen-speed reveal**: strokes grow along their length; no pop-in or fade-in
+- [ ] **Detection**: one puff on clear sky → that puff is chosen; overcast sheet → "no clouds" state, not a doodle on the whole sky
+- [ ] **No match**: hold steady on a shapeless blob → brief "Cool cloud!" hint, then the ring doesn't immediately refill on the same cloud
 - [ ] **Weather Panel**: Swipeable panel shows weather or location denied message
 - [ ] **Instructions**: Shows on first launch, dismisses correctly
 - [ ] **Haptic Feedback**: Feels haptic when drawing created

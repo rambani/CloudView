@@ -58,6 +58,12 @@ struct DrawingPart: Codable, Equatable {
     /// The assembler applies a default when nil.
     let scale: Double?
 
+    /// Optional nudge of the part's center away from the anchor landmark, in
+    /// units of the part's own extent (+y is down). Lets ears sit *on* the
+    /// cloud's top edge (`[0, -0.3]`) instead of straddling it, or a tail
+    /// trail off a side bump. Mirrored in x when the assembly is flipped.
+    var offset: Pt? = nil
+
     /// Optional display-name template, used by props to make the creativity
     /// visible in the capsule/caption/quips: "Skateboarding {name}",
     /// "{name} in a Party Hat". `{name}` is replaced with the drawing's

@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40">
+  <!-- Waterline under the hull. -->
+  <path id="wave" d="M 0 20 C 16 4 34 4 50 20 C 66 36 84 36 100 20 C 116 4 134 4 150 20 C 166 36 184 36 200 20"/>
+</svg>

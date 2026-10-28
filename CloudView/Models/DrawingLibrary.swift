@@ -37,8 +37,10 @@ struct DrawingConcept {
     }
 
     struct Style {
-        /// Stroke thickness in meters (AR world scale).
-        var lineWidth: Float = 0.003
+        /// Ink stroke thickness in upright-image pixels. The renderer converts
+        /// it to meters at the drawing's anchor distance, so strokes keep the
+        /// same on-screen weight whether the cloud is small or huge.
+        var lineWidthPixels: Float = 4.0
         /// Total reveal-animation duration in seconds.
         var revealDuration: Double = 2.5
     }

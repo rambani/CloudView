@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 80">
+  <!-- Two eye stalks poking up from the head end. -->
+  <path id="stalk" d="M 12 80 C 8 50 6 30 14 10"/>
+  <circle id="eye" cx="16" cy="8" r="6"/>
+  <path id="stalk" d="M 46 80 C 50 50 52 30 44 10"/>
+  <circle id="eye" cx="42" cy="8" r="6"/>
+</svg>

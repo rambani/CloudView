@@ -320,6 +320,32 @@ struct ContentView: View {
                 }
             }
 
+            // "Cool cloud!" — we held steady, looked, and honestly found
+            // nothing to draw. Brief and warm, so a filled ring never ends
+            // in silence (and never in a made-up creature).
+            if let moment = arViewModel.coolCloudMoment {
+                VStack {
+                    Spacer()
+                        .frame(height: 120)
+
+                    MagicalHintView(
+                        icon: "cloud.fill",
+                        message: "Cool cloud! Try another ☁️",
+                        color: Color.skyMist
+                    )
+
+                    Spacer()
+                }
+                .transition(.opacity.combined(with: .scale))
+                .task(id: moment) {
+                    try? await Task.sleep(nanoseconds: 2_500_000_000)
+                    guard !Task.isCancelled else { return }
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        arViewModel.coolCloudMoment = nil
+                    }
+                }
+            }
+
             // One-time community invite, earned after a few drawings —
             // the only discovery moment for geo notifications besides
             // digging through Settings.

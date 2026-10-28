@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 100">
+  <!-- Spiral horn rising from the top. -->
+  <path id="horn" d="M 10 100 L 20 0 L 30 100"/>
+  <path id="spiral" d="M 13 80 L 29 72"/>
+  <path id="spiral" d="M 15 60 L 27 52"/>
+  <path id="spiral" d="M 17 40 L 25 32"/>
+  <path id="spiral" d="M 18 22 L 23 16"/>
+</svg>

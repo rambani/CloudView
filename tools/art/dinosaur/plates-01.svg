@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 70">
+  <!-- Row of rounded back plates riding the top edge, tallest mid-back. -->
+  <path id="plate" d="M 0 68 C 4 40 16 30 24 30 C 34 30 44 44 46 68"/>
+  <path id="plate" d="M 46 68 C 50 28 66 14 76 14 C 88 14 100 40 102 68"/>
+  <path id="plate" d="M 102 68 C 106 32 120 22 130 22 C 142 22 154 44 156 68"/>
+  <path id="plate" d="M 156 68 C 160 46 170 38 178 38 C 186 38 196 52 200 68"/>
+</svg>

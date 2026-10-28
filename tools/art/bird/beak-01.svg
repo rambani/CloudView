@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 50">
+  <!-- Simple beak pointing left off the face. -->
+  <path id="beak" d="M 78 8 L 2 25 L 78 42"/>
+  <path id="beak-line" d="M 70 25 L 10 25"/>
+</svg>

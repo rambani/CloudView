@@ -263,7 +263,7 @@ final class DrawingAssemblyTests: XCTestCase {
                 XCTAssertEqual(qa.y, qb.y, accuracy: 1e-12)
             }
         }
-        XCTAssertEqual(a.style.lineWidth, b.style.lineWidth, accuracy: 1e-9)
+        XCTAssertEqual(a.style.lineWidthPixels, b.style.lineWidthPixels, accuracy: 1e-9)
         XCTAssertEqual(a.style.revealDuration, b.style.revealDuration, accuracy: 1e-12)
     }
 
@@ -332,9 +332,58 @@ final class DrawingAssemblyTests: XCTestCase {
         for salt in 1...20 {
             let s = VariationSeed(cloudShapeKey: "c", regionKey: "r", timeBucket: 1, deviceSalt: UInt64(salt))
             let style = DrawingAssembler.seededStyle(s)
-            XCTAssertTrue(style.lineWidth >= 0.00255 - 1e-6 && style.lineWidth <= 0.00345 + 1e-6)
+            XCTAssertTrue(style.lineWidthPixels >= 3.4 - 1e-5 && style.lineWidthPixels <= 4.6 + 1e-5)
             XCTAssertTrue(style.revealDuration >= 2.2 && style.revealDuration <= 3.0)
         }
+    }
+
+    func testPartOffsetNudgesCenterInExtentUnits() {
+        // Rect cloud bbox 0.6×0.4 → effective side 0.4; part scale 0.2 →
+        // extent 0.08. An offset of (0, -0.5) lifts the center by 0.04 above
+        // the top landmark (0.2, 0.3) → (0.2, 0.26). Flipped assemblies
+        // mirror the x component only.
+        var part = makePart(id: "ears-01", kind: "ears", anchor: .top)
+        part.offset = Pt(x: 0.25, y: -0.5)
+        let creature = makeCreature(slots: ["ears": SlotSpec(required: true, probability: nil)])
+
+        let upright = DrawingAssembler.assemble(
+            creature: creature, parts: [part], cloudContour: cloud,
+            score: 0.9, variation: seed, flipProbability: 0.0
+        )
+        let c = centroid(upright.paths.first { $0.order == 1 }!.points)
+        XCTAssertEqual(c.x, 0.2 + 0.25 * 0.08, accuracy: 1e-6)
+        XCTAssertEqual(c.y, 0.3 - 0.5 * 0.08, accuracy: 1e-6)
+
+        let flipped = DrawingAssembler.assemble(
+            creature: creature, parts: [part], cloudContour: cloud,
+            score: 0.9, variation: seed, flipProbability: 1.0
+        )
+        let f = centroid(flipped.paths.first { $0.order == 1 }!.points)
+        // `.top` is its own mirror; the x nudge flips sign.
+        XCTAssertEqual(f.x, 0.2 - 0.25 * 0.08, accuracy: 1e-6)
+        XCTAssertEqual(f.y, 0.3 - 0.5 * 0.08, accuracy: 1e-6)
+    }
+
+    func testPartOffsetDecodesFromCompactPair() throws {
+        let json = """
+        {
+          "id": "ears-01", "kind": "ears", "creatures": ["rabbit"],
+          "anchor": "top", "scale": 0.5, "offset": [0, -0.3],
+          "strokes": [ { "role": "ear", "order": 1, "closed": false, "points": [[0.4,0.5],[0.6,0.5]] } ]
+        }
+        """.data(using: .utf8)!
+        let part = try JSONDecoder().decode(DrawingPart.self, from: json)
+        XCTAssertEqual(part.offset?.x ?? 1, 0, accuracy: 1e-9)
+        XCTAssertEqual(part.offset?.y ?? 0, -0.3, accuracy: 1e-9)
+
+        // Absent offset decodes as nil (older files keep working).
+        let legacy = """
+        {
+          "id": "eye-01", "kind": "eye", "creatures": ["*"], "anchor": "centroid",
+          "strokes": [ { "role": "eye", "order": 1, "closed": false, "points": [[0.4,0.5],[0.6,0.5]] } ]
+        }
+        """.data(using: .utf8)!
+        XCTAssertNil(try JSONDecoder().decode(DrawingPart.self, from: legacy).offset)
     }
 
     // MARK: - Library integration (v2 + v1 seams)

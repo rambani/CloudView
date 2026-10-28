@@ -106,15 +106,17 @@ Backend:
 ## Setup (one-time, manual)
 
 For a working build, follow `docs/CLIP_SETUP.md`. Without the model file,
-the recognition service falls back to a deterministic stub so the app still
-runs end-to-end — it just always returns the same placeholder picks.
+CLIP recognition is simply off: the shape-template library still draws on
+clouds it can match, and anything it can't match gets an honest
+"Cool cloud!" instead of a made-up label. (A deterministic stub recognizer
+exists for unit tests only.)
 
 ## Failure modes
 
 | Failure | Behavior |
 |---|---|
-| MobileCLIP model file missing from bundle | Fall back to deterministic stub interpretations; log a startup warning. The app stays functional for dev/testing without the asset. |
-| CLIP inference fails at runtime | Log; return the stub interpretations for that scan; no user-visible error. |
+| MobileCLIP model file missing from bundle | Recognition returns no interpretations; log an info line at startup. Template drawings keep working; unmatched clouds show "Cool cloud!". |
+| CLIP inference fails at runtime | Log; return no interpretations for that scan; no user-visible error beyond "Cool cloud!". |
 | Cloud silhouette is degenerate (too few points) | Skip recognition; show the "Cool cloud!" default state. |
 | Top-5 picks all have very low similarity (no good match) | Threshold check: if max similarity < 0.18, return the "Cool cloud!" default rather than a confidently-wrong label. |
 

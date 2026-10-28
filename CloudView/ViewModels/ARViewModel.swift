@@ -29,6 +29,16 @@ class ARViewModel: ObservableObject {
     /// exists behind Settings and nobody ever finds it.
     @Published var showCommunityInvite = false
 
+    /// Set when we held steady on a cloud, looked, and honestly found
+    /// nothing to draw. The UI shows a brief "Cool cloud!" so the hold-steady
+    /// ring filling up doesn't end in silence. New value per occurrence.
+    @Published var coolCloudMoment: UUID?
+
+    /// After a no-match, the same cloud isn't re-tried for a while — the
+    /// ring would otherwise fill, fail, and fill again in a loop.
+    private var recentNoMatch: (position: simd_float3, until: Date)?
+    private let noMatchCooldown: TimeInterval = 12
+
     struct ShareableDrawing: Identifiable {
         let id = UUID()
         let image: UIImage
@@ -297,7 +307,7 @@ class ARViewModel: ObservableObject {
                 // have a drawing — otherwise the hold-steady ring fills and
                 // resets in a loop promising a drawing that never comes.
                 let position = anchorPosition(for: primaryCloud, frame: frame)
-                if hasDrawing(near: position) {
+                if hasDrawing(near: position) || isCoolingDown(near: position) {
                     stableFrameCount = 0
                     updateStabilityProgress(0)
                 } else {
@@ -330,12 +340,33 @@ class ARViewModel: ObservableObject {
     /// clouds aren't surfaces, so the AR session has nothing to hit.
     private func anchorPosition(for cloudShape: CloudShape, frame: ARFrame) -> simd_float3 {
         let cameraTransform = frame.camera.transform
-        let direction = screenPointToWorldDirection(cloudShape.screenPosition, camera: frame.camera)
+        let direction = screenPointToWorldDirection(cloudShape.screenPosition, frame: frame)
         return simd_float3(
             cameraTransform.columns.3.x + direction.x * drawingDistance,
             cameraTransform.columns.3.y + direction.y * drawingDistance,
             cameraTransform.columns.3.z + direction.z * drawingDistance
         )
+    }
+
+    /// Whether a recent no-match sits near this position and is still fresh.
+    private func isCoolingDown(near position: simd_float3) -> Bool {
+        guard let recent = recentNoMatch else { return false }
+        if Date() > recent.until {
+            recentNoMatch = nil
+            return false
+        }
+        return simd_distance(recent.position, position) < nearbyDrawingRadius
+    }
+
+    /// Record an honest miss: surface the "Cool cloud!" moment once and park
+    /// this cloud for a while.
+    @MainActor
+    private func registerNoMatch(at position: simd_float3) {
+        recentNoMatch = (position, Date().addingTimeInterval(noMatchCooldown))
+        FeedbackService.shared.fire(.noMatch)
+        withAnimation(.spring()) {
+            coolCloudMoment = UUID()
+        }
     }
 
     /// Whether an active drawing is already anchored near this position.
@@ -408,7 +439,7 @@ class ARViewModel: ObservableObject {
         FeedbackService.shared.fire(.sightingBegan)
 
         guard let cluster = CloudClusteringService.cluster([cloudShape]).first else {
-            FeedbackService.shared.fire(.noMatch)
+            registerNoMatch(at: position)
             return
         }
 
@@ -437,15 +468,20 @@ class ARViewModel: ObservableObject {
         ) {
             concept = templated
         } else {
-            // Fallback: CLIP interpretation (or deterministic stub when the
-            // model isn't bundled) rendered as the cloud outline + minimal
-            // annotation marks. Keeps the app producing something for clouds
-            // that don't resemble any template.
+            // Fallback: CLIP interpretation (only when the model is bundled)
+            // rendered as the cloud outline + minimal annotation marks.
             let interpretations = (try? await recognitionService.recognize(cluster)) ?? []
             guard let interpretation = interpretations.first else {
-                // No good match — soft haptic so the user knows we tried, no
-                // sound. UI's existing nil-name state shows "Cool cloud!".
-                FeedbackService.shared.fire(.noMatch)
+                // No good match — say so briefly ("Cool cloud!") and move
+                // on, rather than inventing a creature.
+#if DEBUG
+                ContourRecorder.record(
+                    contour: cloudShape.normalizedContour,
+                    aspectRatio: Double(cloudShape.aspectRatio),
+                    label: nil
+                )
+#endif
+                registerNoMatch(at: position)
                 return
             }
             concept = RecognitionToDrawingAdapter.makeDrawingConcept(
@@ -453,6 +489,14 @@ class ARViewModel: ObservableObject {
                 cloudShape: cloudShape
             )
         }
+
+#if DEBUG
+        ContourRecorder.record(
+            contour: cloudShape.normalizedContour,
+            aspectRatio: Double(cloudShape.aspectRatio),
+            label: concept.subject ?? concept.name
+        )
+#endif
 
         // Update UI with the recognized label
         currentDrawingName = concept.name
@@ -466,13 +510,34 @@ class ARViewModel: ObservableObject {
         )
 
         // Anchor at the position computed up top (unprojected camera ray at
-        // the fixed sky distance — see anchorPosition(for:frame:)).
+        // the fixed sky distance — see anchorPosition(for:frame:)), facing
+        // the camera with the image upright. Without the orientation the
+        // drawing lay in the world's XY plane: fine when facing the session's
+        // starting heading, edge-on (invisible) when facing 90° away.
         let anchor = AnchorEntity()
         anchor.position = position
+        anchor.orientation = CameraFrameGeometry.drawingOrientation(cameraTransform: frame.camera.transform)
         arView.scene.addAnchor(anchor)
 
+        // Size the drawing to the cloud's real angular extent through the
+        // pinhole intrinsics — the same math that places it — so the art
+        // covers the cloud instead of a fraction of it.
+        let intrinsics = frame.camera.intrinsics
+        let fx = intrinsics.columns.0.x
+        let fy = intrinsics.columns.1.y
+        let worldSize = CameraFrameGeometry.worldExtent(
+            uprightPixelSize: cloudShape.size,
+            fx: fx, fy: fy,
+            distance: drawingDistance
+        )
+        let lineWidth = CameraFrameGeometry.worldLength(
+            pixels: concept.style.lineWidthPixels,
+            focalLength: min(fx, fy),
+            distance: drawingDistance
+        )
+
         // Create animated drawing entity
-        let drawingEntity = await createAnimatedDrawing(concept: concept, cloudShape: cloudShape)
+        let drawingEntity = createAnimatedDrawing(concept: concept, worldSize: worldSize, lineWidth: lineWidth)
         anchor.addChild(drawingEntity)
 
         // Store the drawing
@@ -612,18 +677,24 @@ class ARViewModel: ObservableObject {
         }
     }
 
-    private func screenPointToWorldDirection(_ screenPoint: CGPoint, camera: ARCamera) -> simd_float3 {
-        // Unproject an image-space pixel into a world-space ray direction
-        // using the camera's pinhole intrinsics. The old implementation used
-        // the camera's basis vectors as if it were a unit-FOV orthographic
-        // camera, which dropped the lens FOV entirely and placed drawings
-        // off-axis from the actual cloud.
+    private func screenPointToWorldDirection(_ uprightPoint: CGPoint, frame: ARFrame) -> simd_float3 {
+        // Unproject an image pixel into a world-space ray direction using the
+        // camera's pinhole intrinsics.
         //
         // Convention:
-        //   - `screenPoint` is in top-left image-pixel coordinates
-        //     (matches what CloudDetector now produces).
-        //   - `camera.intrinsics` is the pinhole matrix in image space.
+        //   - `uprightPoint` is a top-left pixel in the *upright* image
+        //     (what CloudDetector produces). The intrinsics live in the
+        //     landscape capture buffer, so convert first.
+        //   - `camera.intrinsics` is the pinhole matrix in buffer space.
         //   - ARKit's camera transform has +X right, +Y up, looks down -Z.
+        let camera = frame.camera
+        let bufferSize = CGSize(
+            width: CVPixelBufferGetWidth(frame.capturedImage),
+            height: CVPixelBufferGetHeight(frame.capturedImage)
+        )
+        let uprightSize = CameraFrameGeometry.uprightImageSize(bufferSize: bufferSize)
+        let screenPoint = CameraFrameGeometry.bufferPoint(fromUpright: uprightPoint, uprightSize: uprightSize)
+
         let K = camera.intrinsics
         let fx = K.columns.0.x
         let fy = K.columns.1.y
@@ -649,17 +720,17 @@ class ARViewModel: ObservableObject {
     }
 
     @MainActor
-    private func createAnimatedDrawing(concept: DrawingConcept, cloudShape: CloudShape) async -> ModelEntity {
-        // The container entity carries no mesh of its own. Previously it was
-        // given a solid white quad, which rendered as an opaque white card
-        // *in front of* the drawing and hid the white line strokes entirely.
-        // The visible geometry is the set of animated line children that
-        // `animate(entity:)` adds and reveals in sequence.
-        let entity = ModelEntity()
+    private func createAnimatedDrawing(concept: DrawingConcept, worldSize: CGSize, lineWidth: Float) -> Entity {
+        // The container entity carries no mesh of its own; the visible
+        // geometry is the set of stroke children that `animate(entity:)`
+        // adds and reveals in sequence. `AnimatedDrawing` keeps itself alive
+        // through its frame timer until the reveal completes.
+        let entity = Entity()
 
         let animatedDrawing = AnimatedDrawing(
             concept: concept,
-            size: cloudShape.size,
+            worldSize: worldSize,
+            lineWidth: lineWidth,
             duration: concept.style.revealDuration // seeded per drawing
         )
 

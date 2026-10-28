@@ -1,201 +1,173 @@
 import Foundation
 import RealityKit
-import MetalKit
+import UIKit
 import simd
 
-class AnimatedDrawing {
+/// Draws a `DrawingConcept` in AR the way a hand would: stroke by stroke, each
+/// one growing along its length at a steady pen speed. Two layers per stroke
+/// — a soft white halo under a dark ink line — so the drawing reads both on
+/// the white body of the cloud and on blue sky.
+///
+/// Geometry is in the drawing's own plane (local +X = image right, +Y = image
+/// up, meters); the owner orients the parent entity to face the camera. All
+/// mesh math lives in `StrokeGeometry` (pure); this class only schedules
+/// frames and hands meshes to RealityKit.
+final class AnimatedDrawing {
     let concept: DrawingConcept
-    let size: CGSize
+    /// Size of the drawing's box in meters at its anchor distance.
+    let worldSize: CGSize
+    /// Ink stroke width in meters at the anchor distance.
+    let lineWidth: Float
     let duration: TimeInterval
 
-    private var animationProgress: Float = 0.0
-    private var isAnimating = false
+    enum Look {
+        /// Deep ink that stays legible over white cloud.
+        static let ink = UIColor(red: 0.12, green: 0.18, blue: 0.32, alpha: 1)
+        static let inkOpacity: Float = 0.92
+        /// Soft white glow that keeps the line legible over blue sky.
+        static let halo = UIColor.white
+        static let haloOpacity: Float = 0.55
+        static let haloWidthFactor: Float = 2.6
+        /// Ink sits this far in front of the halo so it always wins the
+        /// depth test; invisible at the ~50 m anchor distance.
+        static let inkLift: Float = 0.05
+        static let frameInterval: TimeInterval = 1.0 / 30.0
+        /// Even a tiny stroke gets at least this share of the reveal time,
+        /// so dots and short marks don't just pop in.
+        static let minimumPathShare: Float = 0.04
+    }
 
-    init(concept: DrawingConcept, size: CGSize, duration: TimeInterval) {
+    private struct Track {
+        let polyline: [SIMD2<Float>]
+        let start: TimeInterval
+        let end: TimeInterval
+        let halo: ModelEntity
+        let ink: ModelEntity
+        var finished = false
+    }
+
+    private var tracks: [Track] = []
+    private var timer: Timer?
+    private var startDate: Date?
+
+    init(concept: DrawingConcept, worldSize: CGSize, lineWidth: Float, duration: TimeInterval) {
         self.concept = concept
-        self.size = size
-        self.duration = duration
+        self.worldSize = worldSize
+        self.lineWidth = max(lineWidth, 0.0005)
+        self.duration = max(duration, 0.1)
     }
 
-    func animate(entity: ModelEntity) {
-        // Create animated line drawing effect
-        isAnimating = true
-
-        // Sort paths by order
-        let sortedPaths = concept.paths.sorted { $0.order < $1.order }
-
-        // Calculate time per path
-        let timePerPath = duration / Double(sortedPaths.count)
-
-        // Animate each path sequentially
-        for (index, path) in sortedPaths.enumerated() {
-            let delay = timePerPath * Double(index)
-            animatePath(path, on: entity, delay: delay, duration: timePerPath)
-        }
+    deinit {
+        timer?.invalidate()
     }
 
-    private func animatePath(_ path: DrawingConcept.DrawingPath, on entity: ModelEntity, delay: TimeInterval, duration: TimeInterval) {
-        // Create line entities for this path
-        let pathEntity = createPathEntity(path)
-
-        // Position relative to parent
-        pathEntity.position = [0, 0, 0.001] // Slightly in front
-
-        // Add to entity after delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-            entity.addChild(pathEntity)
-
-            // Animate the line drawing
-            self.animateLineDrawing(pathEntity, path: path, duration: duration)
-        }
-    }
-
-    private func createPathEntity(_ path: DrawingConcept.DrawingPath) -> ModelEntity {
-        let entity = ModelEntity()
-
-        // Create line mesh from path points
-        let lineMesh = createLineMesh(from: path.points, closed: path.closed)
-
-        // Create white material with slight glow
-        var material = UnlitMaterial(color: .white)
-        material.blending = .transparent(opacity: .init(floatLiteral: 0.95))
-
-        entity.model = ModelComponent(mesh: lineMesh, materials: [material])
-
-        // Start invisible (for animation)
-        entity.scale = [0, 0, 0]
-
-        return entity
-    }
-
-    private func createLineMesh(from points: [CGPoint], closed: Bool) -> MeshResource {
-        guard points.count >= 2 else {
-            return MeshResource.generateBox(size: 0.001)
-        }
-
-        var meshDescriptor = MeshDescriptor(name: "line")
-
-        let lineWidth = concept.style.lineWidth
-
-        // Convert normalized points to 3D positions
-        var positions: [simd_float3] = []
-        var indices: [UInt32] = []
-
-        // Create line segments
-        for i in 0..<points.count - 1 {
-            let p1 = points[i]
-            let p2 = points[i + 1]
-
-            // Convert normalized coordinates (0-1) to mesh space (-0.5 to 0.5)
-            let pos1 = simd_float3(
-                Float(p1.x - 0.5) * Float(size.width) * 0.01,
-                Float(0.5 - p1.y) * Float(size.height) * 0.01,  // Flip Y
-                0
+    /// Start revealing the drawing as children of `entity`. The instance
+    /// keeps itself alive through its frame timer until the reveal finishes
+    /// (or the host entity has been removed from the scene).
+    func animate(entity: Entity) {
+        let sorted = concept.paths.sorted { $0.order < $1.order }
+        let polylines: [[SIMD2<Float>]] = sorted.map { path in
+            StrokeGeometry.polyline(
+                StrokeGeometry.localPoints(path.points, worldSize: worldSize),
+                closed: path.closed
             )
-            let pos2 = simd_float3(
-                Float(p2.x - 0.5) * Float(size.width) * 0.01,
-                Float(0.5 - p2.y) * Float(size.height) * 0.01,  // Flip Y
-                0
-            )
+        }
+        guard !polylines.isEmpty else { return }
 
-            // Create a quad for this line segment
-            let direction = normalize(pos2 - pos1)
-            let perpendicular = simd_float3(-direction.y, direction.x, 0) * lineWidth / 2
+        // Time per stroke ∝ its length (constant pen speed), floored.
+        let lengths = polylines.map(StrokeGeometry.totalLength)
+        let total = lengths.reduce(0, +)
+        var shares: [Float] = lengths.map { length in
+            let proportional = total > 0 ? length / total : 1 / Float(polylines.count)
+            return max(proportional, Look.minimumPathShare)
+        }
+        let shareSum = shares.reduce(0, +)
+        shares = shares.map { $0 / shareSum }
 
-            let baseIndex = UInt32(positions.count)
-
-            // Four corners of the line quad
-            positions.append(pos1 - perpendicular)
-            positions.append(pos1 + perpendicular)
-            positions.append(pos2 + perpendicular)
-            positions.append(pos2 - perpendicular)
-
-            // Two triangles for this segment
-            indices.append(contentsOf: [
-                baseIndex, baseIndex + 1, baseIndex + 2,
-                baseIndex, baseIndex + 2, baseIndex + 3
-            ])
+        var cursor: TimeInterval = 0
+        for (i, polyline) in polylines.enumerated() {
+            let span = duration * Double(shares[i])
+            let halo = ModelEntity()
+            let ink = ModelEntity()
+            ink.position = SIMD3<Float>(0, 0, Look.inkLift)
+            entity.addChild(halo)
+            entity.addChild(ink)
+            tracks.append(Track(polyline: polyline, start: cursor, end: cursor + span, halo: halo, ink: ink))
+            cursor += span
         }
 
-        // Close the path if needed
-        if closed && points.count > 2 {
-            let p1 = points[points.count - 1]
-            let p2 = points[0]
-
-            let pos1 = simd_float3(
-                Float(p1.x - 0.5) * Float(size.width) * 0.01,
-                Float(0.5 - p1.y) * Float(size.height) * 0.01,
-                0
-            )
-            let pos2 = simd_float3(
-                Float(p2.x - 0.5) * Float(size.width) * 0.01,
-                Float(0.5 - p2.y) * Float(size.height) * 0.01,
-                0
-            )
-
-            let direction = normalize(pos2 - pos1)
-            let perpendicular = simd_float3(-direction.y, direction.x, 0) * lineWidth / 2
-
-            let baseIndex = UInt32(positions.count)
-
-            positions.append(pos1 - perpendicular)
-            positions.append(pos1 + perpendicular)
-            positions.append(pos2 + perpendicular)
-            positions.append(pos2 - perpendicular)
-
-            indices.append(contentsOf: [
-                baseIndex, baseIndex + 1, baseIndex + 2,
-                baseIndex, baseIndex + 2, baseIndex + 3
-            ])
+        startDate = Date()
+        let timer = Timer(timeInterval: Look.frameInterval, repeats: true) { [self] _ in
+            self.tick(host: entity)
         }
-
-        // Create normals (all pointing forward)
-        let normals = positions.map { _ in simd_float3(0, 0, 1) }
-
-        meshDescriptor.positions = MeshBuffer(positions)
-        meshDescriptor.normals = MeshBuffer(normals)
-        meshDescriptor.primitives = .triangles(indices)
-
-        do {
-            return try MeshResource.generate(from: [meshDescriptor])
-        } catch {
-            print("Failed to generate line mesh: \(error)")
-            return MeshResource.generateBox(size: 0.001)
-        }
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
+        tick(host: entity)
     }
 
-    private func animateLineDrawing(_ entity: ModelEntity, path: DrawingConcept.DrawingPath, duration: TimeInterval) {
-        // Animate the line drawing from start to finish
+    func stop() {
+        timer?.invalidate()
+        timer = nil
+    }
 
-        // Start: scale from 0 to 1
-        let scaleAnimation = FromToByAnimation(
-            name: "scaleIn",
-            from: Transform(scale: [0, 0, 0]),
-            to: Transform(scale: [1, 1, 1]),
-            duration: duration * 0.3,
-            timing: .easeOut,
-            bindTarget: .transform
-        )
+    private func tick(host: Entity) {
+        guard let startDate = startDate else { return }
+        let elapsed = Date().timeIntervalSince(startDate)
 
-        // Create animation resource
-        if let animationResource = try? AnimationResource.generate(with: scaleAnimation) {
-            entity.playAnimation(animationResource)
+        // Host evicted from the scene (drawing cap / clear all): nothing to
+        // show to anyone, stop burning frames. The parent is attached a
+        // moment after `animate` is called, hence the grace period.
+        if host.parent == nil && elapsed > 0.5 {
+            stop()
+            return
         }
 
-        // Progressive reveal effect (simulated)
-        // In a production app, you'd use custom shaders for true line-drawing effect
-        let steps = 10
-        let stepDuration = duration / Double(steps)
-
-        for i in 0..<steps {
-            DispatchQueue.main.asyncAfter(deadline: .now() + stepDuration * Double(i)) {
-                let progress = Float(i + 1) / Float(steps)
-                // Gradually increase opacity to simulate drawing
-                if var material = entity.model?.materials.first as? UnlitMaterial {
-                    material.blending = .transparent(opacity: .init(floatLiteral: progress))
-                    entity.model?.materials = [material]
-                }
+        var allFinished = true
+        for i in tracks.indices where !tracks[i].finished {
+            let track = tracks[i]
+            if elapsed < track.start {
+                allFinished = false
+                continue
+            }
+            let span = track.end - track.start
+            let reveal: Float = span > 0 ? Float((elapsed - track.start) / span) : 1
+            let clamped = min(max(reveal, 0), 1)
+            apply(StrokeGeometry.revealedPrefix(track.polyline, reveal: clamped), to: track)
+            if clamped >= 1 {
+                tracks[i].finished = true
+            } else {
+                allFinished = false
             }
         }
+
+        if allFinished { stop() }
+    }
+
+    private func apply(_ points: [SIMD2<Float>], to track: Track) {
+        if let mesh = Self.meshResource(StrokeGeometry.ribbon(points, width: lineWidth * Look.haloWidthFactor)) {
+            track.halo.model = ModelComponent(mesh: mesh, materials: [Self.haloMaterial])
+        }
+        if let mesh = Self.meshResource(StrokeGeometry.ribbon(points, width: lineWidth)) {
+            track.ink.model = ModelComponent(mesh: mesh, materials: [Self.inkMaterial])
+        }
+    }
+
+    private static func meshResource(_ mesh: StrokeGeometry.Mesh) -> MeshResource? {
+        guard !mesh.isEmpty else { return nil }
+        var descriptor = MeshDescriptor(name: "stroke")
+        descriptor.positions = MeshBuffer(mesh.positions)
+        descriptor.normals = MeshBuffer(mesh.positions.map { _ in SIMD3<Float>(0, 0, 1) })
+        descriptor.primitives = .triangles(mesh.indices)
+        return try? MeshResource.generate(from: [descriptor])
+    }
+
+    private static let inkMaterial: UnlitMaterial = material(Look.ink, opacity: Look.inkOpacity)
+    private static let haloMaterial: UnlitMaterial = material(Look.halo, opacity: Look.haloOpacity)
+
+    private static func material(_ color: UIColor, opacity: Float) -> UnlitMaterial {
+        var material = UnlitMaterial(color: color)
+        material.blending = .transparent(opacity: .init(floatLiteral: opacity))
+        material.faceCulling = .none
+        return material
     }
 }

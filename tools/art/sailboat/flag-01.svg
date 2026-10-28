@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 100">
+  <!-- Mast tip with a pennant. -->
+  <path id="mast" d="M 10 100 L 10 0"/>
+  <path id="flag" d="M 10 4 L 56 16 L 10 28 Z"/>
+</svg>

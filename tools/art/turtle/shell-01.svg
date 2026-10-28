@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 70">
+  <!-- Hexagonal scute pattern across the back. -->
+  <polygon id="scute" points="44,34 60,22 76,34 76,52 60,62 44,52"/>
+  <path id="scute-line" d="M 44 34 L 28 28"/>
+  <path id="scute-line" d="M 44 52 L 28 60"/>
+  <path id="scute-line" d="M 76 34 L 92 28"/>
+  <path id="scute-line" d="M 76 52 L 92 60"/>
+  <path id="scute-line" d="M 60 22 L 60 8"/>
+</svg>

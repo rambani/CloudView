@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 70">
+  <!-- Folded wing on the body with two feather lines. -->
+  <path id="wing" d="M 0 20 C 30 0 80 0 120 30 C 90 26 70 40 50 66 C 46 48 30 30 0 20 Z"/>
+  <path id="feather" d="M 50 66 C 60 44 80 34 110 32"/>
+  <path id="feather" d="M 40 52 C 50 40 64 34 90 30"/>
+</svg>

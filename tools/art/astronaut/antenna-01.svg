@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 60">
+  <!-- Little antenna on top of the helmet. -->
+  <path id="antenna" d="M 20 60 L 20 10"/>
+  <circle id="tip" cx="20" cy="6" r="5"/>
+  <path id="bar" d="M 8 20 L 32 20"/>
+</svg>

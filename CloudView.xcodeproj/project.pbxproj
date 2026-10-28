@@ -56,6 +56,12 @@
 		A1000148000000000000001 /* QuipEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000149000000000000001 /* QuipEngine.swift */; };
 		A1000150000000000000001 /* QuipEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000151000000000000001 /* QuipEngineTests.swift */; };
 		A1000152000000000000001 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A1000153000000000000001 /* PrivacyInfo.xcprivacy */; };
+		A1000160000000000000001 /* CameraFrameGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000161000000000000001 /* CameraFrameGeometry.swift */; };
+		A1000162000000000000001 /* StrokeGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000163000000000000001 /* StrokeGeometry.swift */; };
+		A1000164000000000000001 /* ContourRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000165000000000000001 /* ContourRecorder.swift */; };
+		A1000166000000000000001 /* CameraFrameGeometryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000167000000000000001 /* CameraFrameGeometryTests.swift */; };
+		A1000168000000000000001 /* StrokeGeometryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000169000000000000001 /* StrokeGeometryTests.swift */; };
+		A1000170000000000000001 /* CloudCandidateSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000171000000000000001 /* CloudCandidateSelectionTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -112,6 +118,12 @@
 		A1000147000000000000001 /* DrawingAssemblyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrawingAssemblyTests.swift; sourceTree = "<group>"; };
 		A1000149000000000000001 /* QuipEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuipEngine.swift; sourceTree = "<group>"; };
 		A1000151000000000000001 /* QuipEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuipEngineTests.swift; sourceTree = "<group>"; };
+		A1000161000000000000001 /* CameraFrameGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraFrameGeometry.swift; sourceTree = "<group>"; };
+		A1000163000000000000001 /* StrokeGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrokeGeometry.swift; sourceTree = "<group>"; };
+		A1000165000000000000001 /* ContourRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContourRecorder.swift; sourceTree = "<group>"; };
+		A1000167000000000000001 /* CameraFrameGeometryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraFrameGeometryTests.swift; sourceTree = "<group>"; };
+		A1000169000000000000001 /* StrokeGeometryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrokeGeometryTests.swift; sourceTree = "<group>"; };
+		A1000171000000000000001 /* CloudCandidateSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudCandidateSelectionTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXContainerItemProxy section */
@@ -232,7 +244,9 @@
 				A1000137000000000000001 /* TemplateDrawingComposer.swift */,
 				A1000145000000000000001 /* DrawingAssembler.swift */,
 				A1000149000000000000001 /* QuipEngine.swift */,
-			);
+							A1000161000000000000001 /* CameraFrameGeometry.swift */,
+				A1000165000000000000001 /* ContourRecorder.swift */,
+);
 			path = Services;
 			sourceTree = "<group>";
 		};
@@ -246,7 +260,8 @@
 				A1000086000000000000001 /* Interpretation.swift */,
 				A1000131000000000000001 /* DrawingTemplate.swift */,
 				A1000143000000000000001 /* DrawingParts.swift */,
-			);
+							A1000163000000000000001 /* StrokeGeometry.swift */,
+);
 			path = Models;
 			sourceTree = "<group>";
 		};
@@ -269,7 +284,10 @@
 				A1000141000000000000001 /* TemplateDrawingTests.swift */,
 				A1000147000000000000001 /* DrawingAssemblyTests.swift */,
 				A1000151000000000000001 /* QuipEngineTests.swift */,
-			);
+							A1000167000000000000001 /* CameraFrameGeometryTests.swift */,
+				A1000169000000000000001 /* StrokeGeometryTests.swift */,
+				A1000171000000000000001 /* CloudCandidateSelectionTests.swift */,
+);
 			path = CloudViewTests;
 			sourceTree = "<group>";
 		};
@@ -412,7 +430,10 @@
 				A1000142000000000000001 /* DrawingParts.swift in Sources */,
 				A1000144000000000000001 /* DrawingAssembler.swift in Sources */,
 				A1000148000000000000001 /* QuipEngine.swift in Sources */,
-			);
+							A1000160000000000000001 /* CameraFrameGeometry.swift in Sources */,
+				A1000162000000000000001 /* StrokeGeometry.swift in Sources */,
+				A1000164000000000000001 /* ContourRecorder.swift in Sources */,
+);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		A1000069000000000000001 /* Sources */ = {
@@ -427,7 +448,10 @@
 				A1000140000000000000001 /* TemplateDrawingTests.swift in Sources */,
 				A1000146000000000000001 /* DrawingAssemblyTests.swift in Sources */,
 				A1000150000000000000001 /* QuipEngineTests.swift in Sources */,
-			);
+							A1000166000000000000001 /* CameraFrameGeometryTests.swift in Sources */,
+				A1000168000000000000001 /* StrokeGeometryTests.swift in Sources */,
+				A1000170000000000000001 /* CloudCandidateSelectionTests.swift in Sources */,
+);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
