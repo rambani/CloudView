@@ -128,27 +128,35 @@
       "category": "mythical",
       "silhouette": "dragon/silhouette.svg",
       "slots": {
-        "face": {
+        "head": {
           "required": true
         },
         "crest": {
           "required": true
         },
-        "breath": {
+        "spines": {
           "required": false,
-          "probability": 0.4
-        },
-        "companion": {
-          "required": false,
-          "probability": 0.3
-        },
-        "prop": {
-          "required": false,
-          "probability": 0.35
+          "probability": 0.8
         },
         "wing": {
           "required": false,
+          "probability": 0.65
+        },
+        "tail": {
+          "required": false,
+          "probability": 0.75
+        },
+        "claw": {
+          "required": false,
           "probability": 0.6
+        },
+        "breath": {
+          "required": false,
+          "probability": 0.6
+        },
+        "companion": {
+          "required": false,
+          "probability": 0.85
         }
       }
     },
@@ -354,10 +362,6 @@
         "face": {
           "required": true
         },
-        "prop": {
-          "required": false,
-          "probability": 0.35
-        },
         "signature": {
           "required": true
         },
@@ -416,10 +420,6 @@
       "slots": {
         "face": {
           "required": true
-        },
-        "prop": {
-          "required": false,
-          "probability": 0.35
         },
         "signature": {
           "required": true
@@ -565,50 +565,6 @@
       "anchor": "centroid",
       "scale": 0.4,
       "source": "shared/face-sleepy-02.svg"
-    },
-    {
-      "id": "dragon-face-fierce-01",
-      "kind": "face",
-      "creatures": [
-        "dragon"
-      ],
-      "anchor": "centroid",
-      "scale": 0.45,
-      "source": "dragon/face-fierce-01.svg"
-    },
-    {
-      "id": "dragon-crest-01",
-      "kind": "crest",
-      "creatures": [
-        "dragon"
-      ],
-      "anchor": "top",
-      "scale": 0.5,
-      "source": "dragon/crest-01.svg"
-    },
-    {
-      "id": "dragon-breath-01",
-      "kind": "breath",
-      "creatures": [
-        "dragon"
-      ],
-      "anchor": "left",
-      "scale": 0.35,
-      "source": "dragon/breath-01.svg"
-    },
-    {
-      "id": "dragon-companion-castle-01",
-      "kind": "companion",
-      "creatures": [
-        "dragon"
-      ],
-      "anchor": "neighbor",
-      "scale": 0.9,
-      "source": "dragon/companion-castle-01.svg",
-      "offset": [
-        0,
-        -0.45
-      ]
     },
     {
       "id": "prop-wizard-hat",
@@ -1271,18 +1227,116 @@
       "source": "wizard/stars-01.svg"
     },
     {
-      "id": "dragon-wing-01",
+      "id": "dragon-head-profile-01",
+      "kind": "head",
+      "creatures": [
+        "dragon"
+      ],
+      "anchor": "left",
+      "scale": 0.58,
+      "offset": [
+        0.42,
+        0.08
+      ],
+      "source": "dragon/head-profile-01.svg"
+    },
+    {
+      "id": "dragon-crest-02",
+      "kind": "crest",
+      "creatures": [
+        "dragon"
+      ],
+      "anchor": "topLeft",
+      "scale": 0.6,
+      "offset": [
+        1.5,
+        -0.02
+      ],
+      "source": "dragon/crest-02.svg"
+    },
+    {
+      "id": "dragon-spines-01",
+      "kind": "spines",
+      "creatures": [
+        "dragon"
+      ],
+      "anchor": "top",
+      "scale": 0.8,
+      "offset": [
+        0.6,
+        -0.02
+      ],
+      "source": "dragon/spines-01.svg"
+    },
+    {
+      "id": "dragon-wing-02",
       "kind": "wing",
       "creatures": [
         "dragon"
       ],
-      "anchor": "right",
-      "scale": 0.55,
+      "anchor": "top",
+      "scale": 0.6,
       "offset": [
-        0.1,
-        -0.35
+        1.0,
+        -0.32
       ],
-      "source": "dragon/wing-01.svg"
+      "source": "dragon/wing-02.svg"
+    },
+    {
+      "id": "dragon-tail-01",
+      "kind": "tail",
+      "creatures": [
+        "dragon"
+      ],
+      "anchor": "right",
+      "scale": 0.7,
+      "offset": [
+        0.12,
+        0.1
+      ],
+      "source": "dragon/tail-01.svg"
+    },
+    {
+      "id": "dragon-claw-01",
+      "kind": "claw",
+      "creatures": [
+        "dragon"
+      ],
+      "anchor": "bottomLeft",
+      "scale": 0.34,
+      "offset": [
+        0.6,
+        0.05
+      ],
+      "source": "dragon/claw-01.svg"
+    },
+    {
+      "id": "dragon-breath-02",
+      "kind": "breath",
+      "creatures": [
+        "dragon"
+      ],
+      "anchor": "left",
+      "scale": 0.5,
+      "offset": [
+        -0.45,
+        0.22
+      ],
+      "source": "dragon/breath-02.svg"
+    },
+    {
+      "id": "dragon-companion-castle-02",
+      "kind": "companion",
+      "creatures": [
+        "dragon"
+      ],
+      "anchor": "neighbor",
+      "scale": 0.85,
+      "offset": [
+        0,
+        -0.45
+      ],
+      "source": "dragon/companion-castle-02.svg"
     }
   ]
 }

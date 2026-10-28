@@ -149,7 +149,7 @@ def contour_from_photo(im, gain=3.0):
     return cs[0] if cs else None
 
 
-def creature_paths(label, box, neighbor_contour=None, templates="../CloudView/Resources/DrawingTemplates.json"):
+def creature_paths(label, box, neighbor_contour=None, contour=None, force_flip=None, templates="../CloudView/Resources/DrawingTemplates.json"):
     """Assemble a creature from the shipped library exactly as the app does
     (every required slot + every optional one, first candidate each), in
     image pixels. Companions go on the neighbor cloud when given."""
@@ -161,11 +161,22 @@ def creature_paths(label, box, neighbor_contour=None, templates="../CloudView/Re
     creature = next(c for c in doc["creatures"] if c["label"] == label)
     x0, y0, bw, bh = box
     short = max(min(bw, bh), bt.FLAT_SHAPE_BOOST * max(bw, bh))
-    # Landmarks in pixels: the box is a stand-in for the cloud contour here;
-    # the app uses the real contour's extremes.
-    lm = {"centroid": (x0 + bw / 2, y0 + bh / 2), "top": (x0 + bw / 2, y0), "bottom": (x0 + bw / 2, y0 + bh),
-          "left": (x0, y0 + bh / 2), "right": (x0 + bw, y0 + bh / 2), "topLeft": (x0, y0),
-          "topRight": (x0 + bw, y0), "bottomLeft": (x0, y0 + bh), "bottomRight": (x0 + bw, y0 + bh)}
+    # Landmarks from the real contour's extremes, exactly as the app does.
+    lm = bt._rich_landmarks(contour) if contour else {
+        "centroid": (x0 + bw / 2, y0 + bh / 2), "top": (x0 + bw / 2, y0), "bottom": (x0 + bw / 2, y0 + bh),
+        "left": (x0, y0 + bh / 2), "right": (x0 + bw, y0 + bh / 2), "topLeft": (x0, y0),
+        "topRight": (x0 + bw, y0), "bottomLeft": (x0, y0 + bh), "bottomRight": (x0 + bw, y0 + bh)}
+    # Face the neighbor, as DrawingAssembler does: authored art faces left,
+    # so a neighbor to the right flips the whole assembly (anchors mirror,
+    # x offsets negate, parts mirror). Companions keep their orientation.
+    MIRROR = {"left": "right", "right": "left", "topLeft": "topRight", "topRight": "topLeft",
+              "bottomLeft": "bottomRight", "bottomRight": "bottomLeft"}
+    flipped = False
+    if force_flip is not None:
+        flipped = force_flip
+    elif neighbor_contour:
+        ncx = sum(p[0] for p in neighbor_contour) / len(neighbor_contour)
+        flipped = ncx > lm["centroid"][0]
     paths = []
     for kind in sorted(creature["slots"]):
         cands = sorted((p for p in doc["parts"] if p["kind"] == kind and ("*" in p["creatures"] or label in p["creatures"])),
@@ -181,12 +192,16 @@ def creature_paths(label, box, neighbor_contour=None, templates="../CloudView/Re
             anchor = (min(nxs) + nw / 2, min(nys))
             extent = part.get("scale", bt.DEFAULT_PART_SCALE) * max(min(nw, nh), bt.FLAT_SHAPE_BOOST * max(nw, nh))
         else:
-            anchor = lm[part["anchor"]]
+            a = part["anchor"]
+            anchor = lm[MIRROR.get(a, a) if flipped else a]
             extent = part.get("scale", bt.DEFAULT_PART_SCALE) * short
+        part_flipped = flipped and part["anchor"] != "neighbor"
         off = part.get("offset", [0, 0])
-        c = (anchor[0] + off[0] * extent, anchor[1] + off[1] * extent)
+        c = (anchor[0] + off[0] * extent * (-1 if part_flipped else 1), anchor[1] + off[1] * extent)
         for s in sorted(part["strokes"], key=lambda s: s["order"]):
-            pts = [(c[0] + (p[0] - 0.5) * extent, c[1] + (p[1] - 0.5) * extent) for p in s["points"]]
+            pts = [(c[0] + ((1 - p[0]) if part_flipped else p[0]) - 0.5) * extent if False else
+                   (c[0] + (((1 - p[0]) if part_flipped else p[0]) - 0.5) * extent, c[1] + (p[1] - 0.5) * extent)
+                   for p in s["points"]]
             paths.append((pts, s["closed"]))
     return paths
 
@@ -194,8 +209,8 @@ def creature_paths(label, box, neighbor_contour=None, templates="../CloudView/Re
 # ---- reference line style: thin white, slightly transparent, faint glow ----
 LINE_WIDTH_FRACTION = 0.0016   # of the image's long side (≈ 1.9 px at 1200)
 LINE_OPACITY = 0.88
-LINE_GLOW_BLUR = 2.0           # in line widths
-LINE_GLOW_OPACITY = 0.30
+LINE_GLOW_BLUR = 1.5           # in line widths
+LINE_GLOW_OPACITY = 0.18
 LINE_TINT = (255, 255, 255)
 UNDERLAY_SHADOW_STRENGTH = 0.45  # sculpt underlay, softer than standalone sculpt
 
@@ -328,6 +343,8 @@ def main():
     ap.add_argument("--line-width", type=float, default=4.0, help="ink width in px (app default 4)")
     ap.add_argument("--creature", help="assemble this creature from the shipped library "
                                        "instead of the built-in bear (e.g. dragon)")
+    ap.add_argument("--flip", action="store_true",
+                    help="mirror the assembly (the app's seeded coin flip when there is no neighbor)")
     ap.add_argument("--style", choices=["sheet", "final"], default="sheet",
                     help="sheet: frame / ink / sculpt / reference-style panels; final: just the keepsake")
     args = ap.parse_args()
@@ -346,7 +363,7 @@ def main():
 
     xs = [p[0] for p in contour]; ys = [p[1] for p in contour]
     box = (min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
-    paths = creature_paths(args.creature, box, neighbor) if args.creature else bear_paths(box)
+    paths = creature_paths(args.creature, box, neighbor, contour, True if args.flip else None) if args.creature else bear_paths(box)
     # the app scales ink width with the frame; synthetic frame is ~1200 tall
     lw = args.line_width * photo.height / 1920 * 1.6
 

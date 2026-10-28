@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 220">
+  <!-- Fairy-tale castle rising from a cloud base: five turrets of different
+       heights with conical roofs and pennants, crenellated walls, arched
+       gate, windows. The cloud base is the bottom edge (sits on the
+       neighbor cloud's top). -->
+  <!-- central keep -->
+  <path id="keep" d="M 130 210 L 130 90 L 170 90 L 170 210"/>
+  <path id="keep-roof" d="M 124 92 L 150 28 L 176 92"/>
+  <path id="flag" d="M 150 28 L 150 10 L 166 16 L 150 22"/>
+  <!-- tall left turret -->
+  <path id="turret" d="M 92 210 L 92 110 L 118 110 L 118 210"/>
+  <path id="turret-roof" d="M 88 112 L 105 60 L 122 112"/>
+  <path id="flag" d="M 105 60 L 105 46 L 116 50 L 105 55"/>
+  <!-- tall right turret -->
+  <path id="turret" d="M 182 210 L 182 100 L 208 100 L 208 210"/>
+  <path id="turret-roof" d="M 178 102 L 195 48 L 212 102"/>
+  <path id="flag" d="M 195 48 L 195 34 L 207 38 L 195 43"/>
+  <!-- outer towers -->
+  <path id="tower" d="M 44 210 L 44 136 L 70 136 L 70 210"/>
+  <path id="tower-roof" d="M 40 138 L 57 100 L 74 138"/>
+  <path id="tower" d="M 230 210 L 230 130 L 256 130 L 256 210"/>
+  <path id="tower-roof" d="M 226 132 L 243 94 L 260 132"/>
+  <!-- walls with crenellations -->
+  <path id="wall" d="M 70 160 L 70 150 L 78 150 L 78 160 L 86 160 L 86 150 L 92 150"/>
+  <path id="wall" d="M 118 150 L 118 140 L 124 140 L 124 150 L 130 150"/>
+  <path id="wall" d="M 170 150 L 176 150 L 176 140 L 182 140"/>
+  <path id="wall" d="M 208 160 L 208 150 L 216 150 L 216 160 L 224 160 L 224 150 L 230 150"/>
+  <path id="wall-base" d="M 70 210 L 70 162 M 92 162 L 92 210 M 208 162 L 208 210 M 230 162 L 230 210"/>
+  <!-- gate and windows -->
+  <path id="gate" d="M 138 210 L 138 182 C 138 170 162 170 162 182 L 162 210"/>
+  <path id="gate-bar" d="M 150 172 L 150 210 M 140 190 L 160 190"/>
+  <path id="window" d="M 146 120 L 146 108 C 146 102 154 102 154 108 L 154 120"/>
+  <path id="window" d="M 101 140 L 101 130 C 101 125 109 125 109 130 L 109 140"/>
+  <path id="window" d="M 191 128 L 191 118 C 191 113 199 113 199 118 L 199 128"/>
+  <path id="window" d="M 53 164 L 53 156 C 53 152 61 152 61 156 L 61 164"/>
+  <path id="window" d="M 239 160 L 239 152 C 239 148 247 148 247 152 L 247 160"/>
+  <path id="window" d="M 146 150 L 146 140 C 146 135 154 135 154 140 L 154 150"/>
+  <!-- roof tiles -->
+  <path id="tile" d="M 136 70 L 164 70 M 142 54 L 158 54"/>
+  <path id="tile" d="M 96 92 L 114 92 M 100 78 L 110 78"/>
+  <path id="tile" d="M 186 84 L 204 84 M 190 70 L 200 70"/>
+  <!-- cloud base -->
+  <path id="cloud-base" d="M 20 210 C 26 196 44 194 52 204 C 60 190 84 190 92 204 C 100 192 124 192 132 204 C 142 190 166 190 176 204 C 186 192 208 192 218 204 C 226 192 250 192 258 206 C 268 198 282 202 284 212"/>
+</svg>

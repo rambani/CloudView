@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 160">
+  <!-- Tail: S-curve tapering to a leaf-shaped tip, spine spikes along the
+       top, belly scale bands. The thick end (left) joins the cloud body;
+       art faces LEFT so the tail trails off to the RIGHT. -->
+  <path id="tail-top" d="M 0 60 C 60 40 120 36 180 56 C 230 72 270 100 320 96 C 360 92 390 70 410 46"/>
+  <path id="tail-bottom" d="M 0 120 C 60 110 120 108 176 100 C 228 92 268 120 322 118 C 356 116 386 100 404 80"/>
+  <!-- leaf tip -->
+  <path id="tip" d="M 410 46 C 418 54 420 68 412 80 C 404 86 394 84 388 78 C 394 66 402 56 410 46 Z"/>
+  <path id="tip-vein" d="M 390 76 C 398 68 404 60 410 50"/>
+  <!-- spikes along the top -->
+  <path id="spike" d="M 30 50 C 34 36 42 28 54 24 C 48 34 46 44 48 52"/>
+  <path id="spike" d="M 76 42 C 80 28 88 20 100 16 C 94 26 92 36 94 44"/>
+  <path id="spike" d="M 122 40 C 126 28 134 20 146 18 C 140 28 138 36 140 44"/>
+  <path id="spike" d="M 170 50 C 174 40 182 34 192 32 C 186 40 184 48 186 56"/>
+  <path id="spike" d="M 216 66 C 220 56 228 50 238 50 C 232 58 230 64 232 72"/>
+  <path id="spike" d="M 262 88 C 266 80 272 74 282 74 C 276 80 274 86 276 92"/>
+  <path id="spike" d="M 308 94 C 312 86 318 82 326 82 C 322 88 320 92 322 98"/>
+  <path id="spike" d="M 346 88 C 350 82 356 78 362 78 C 358 82 356 88 358 92"/>
+  <!-- belly bands -->
+  <path id="band" d="M 40 106 C 44 96 46 86 44 76"/>
+  <path id="band" d="M 80 104 C 84 94 86 84 84 72"/>
+  <path id="band" d="M 120 102 C 124 92 126 82 124 72"/>
+  <path id="band" d="M 160 96 C 164 88 166 78 164 70"/>
+  <path id="band" d="M 200 96 C 204 90 206 82 204 76"/>
+  <path id="band" d="M 240 106 C 244 100 246 94 244 88"/>
+  <path id="band" d="M 280 114 C 284 108 286 102 284 96"/>
+  <path id="band" d="M 320 112 C 322 106 324 102 322 98"/>
+  <!-- scale rows along the side -->
+  <path id="scale" d="M 56 86 C 60 90 66 90 70 86 M 96 82 C 100 86 106 86 110 82 M 136 80 C 140 84 146 84 150 80 M 60 70 C 64 74 70 74 74 70 M 104 66 C 108 70 114 70 118 66 M 148 66 C 152 70 158 70 162 66"/>
+</svg>

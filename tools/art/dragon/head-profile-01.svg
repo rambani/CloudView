@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 270 210">
+  <!-- Dragon head in profile, facing LEFT. Dense fine-line: brow ridge,
+       almond eye with slit pupil, nostril, open jaw with two rows of teeth,
+       cheek and jaw scale rows, two swept-back horns, jaw frill. -->
+
+  <!-- skull: snout tip up over the brow to the back of the head -->
+  <path id="skull" d="M 18 96 C 30 78 58 66 92 60 C 120 56 146 50 166 42 C 184 36 204 40 222 52 C 236 62 246 76 252 94"/>
+  <!-- brow ridge, heavy -->
+  <path id="brow" d="M 120 72 C 136 60 158 58 176 66 C 184 70 190 76 192 82"/>
+  <path id="brow-fold" d="M 128 78 C 142 70 158 68 172 74"/>
+  <!-- eye: almond, slit pupil, glint -->
+  <path id="eye" d="M 138 86 C 148 76 166 76 178 86 C 166 96 148 96 138 86 Z"/>
+  <path id="pupil" d="M 158 79 C 161 84 161 89 158 94 C 155 89 155 84 158 79 Z"/>
+  <circle id="glint" cx="152" cy="83" r="1.6"/>
+  <path id="eye-crease" d="M 134 92 C 146 100 166 100 182 92"/>
+  <!-- snout top detail + nostril -->
+  <path id="snout-ridge" d="M 40 80 C 54 72 72 68 90 66"/>
+  <path id="nostril" d="M 44 90 C 40 86 42 80 48 80 C 52 80 52 86 48 88"/>
+  <path id="nostril-fold" d="M 56 84 C 60 90 58 96 52 100"/>
+  <!-- upper jaw: snout tip back to the jaw corner -->
+  <path id="upper-jaw" d="M 18 96 C 22 106 32 112 48 114 C 80 118 120 120 160 124 C 180 126 196 128 206 132"/>
+  <path id="lip-line" d="M 30 110 C 60 114 100 116 150 120"/>
+  <!-- upper teeth (hang down from the upper jaw) -->
+  <path id="tooth" d="M 40 113 L 44 124 L 49 114"/>
+  <path id="tooth" d="M 56 115 L 60 128 L 65 116"/>
+  <path id="tooth" d="M 74 116 L 79 132 L 85 117"/>
+  <path id="tooth" d="M 96 118 L 101 130 L 106 119"/>
+  <path id="tooth" d="M 118 120 L 123 134 L 129 121"/>
+  <path id="tooth" d="M 142 122 L 147 132 L 152 123"/>
+  <path id="tooth" d="M 164 125 L 168 134 L 173 126"/>
+  <!-- lower jaw, open -->
+  <path id="lower-jaw" d="M 36 128 C 50 144 80 154 120 160 C 150 164 180 162 206 150 C 212 146 214 140 212 134"/>
+  <path id="chin" d="M 36 128 C 32 136 34 146 44 152"/>
+  <path id="jaw-underside" d="M 60 150 C 90 160 130 166 170 162"/>
+  <!-- lower teeth (rise from the lower jaw) -->
+  <path id="tooth" d="M 54 142 L 58 130 L 63 144"/>
+  <path id="tooth" d="M 74 149 L 79 136 L 85 151"/>
+  <path id="tooth" d="M 98 154 L 103 140 L 109 155"/>
+  <path id="tooth" d="M 124 157 L 129 144 L 135 157"/>
+  <path id="tooth" d="M 150 157 L 155 145 L 161 156"/>
+  <path id="tooth" d="M 176 153 L 180 142 L 185 151"/>
+  <!-- jaw corner + cheek scales -->
+  <path id="jaw-corner" d="M 196 128 C 204 124 212 126 218 134"/>
+  <path id="scale" d="M 196 96 C 200 100 206 100 210 96"/>
+  <path id="scale" d="M 208 104 C 212 108 218 108 222 104"/>
+  <path id="scale" d="M 220 96 C 224 100 230 100 234 96"/>
+  <path id="scale" d="M 202 112 C 206 116 212 116 216 112"/>
+  <path id="scale" d="M 214 118 C 218 122 224 122 228 118"/>
+  <path id="scale" d="M 226 110 C 230 114 236 114 240 110"/>
+  <path id="scale" d="M 232 124 C 236 128 242 128 246 124"/>
+  <path id="scale" d="M 188 108 C 192 112 198 112 202 108"/>
+  <path id="scale" d="M 180 100 C 184 104 190 104 194 100"/>
+  <path id="scale" d="M 226 84 C 230 88 236 88 240 84"/>
+  <path id="scale" d="M 238 98 C 242 102 248 102 252 98"/>
+  <path id="scale" d="M 100 90 C 104 94 110 94 114 90"/>
+  <path id="scale" d="M 112 100 C 116 104 122 104 126 100"/>
+  <path id="scale" d="M 88 100 C 92 104 98 104 102 100"/>
+  <!-- horns, swept back -->
+  <path id="horn" d="M 214 46 C 226 30 244 20 264 14 C 250 28 240 44 236 60"/>
+  <path id="horn-ring" d="M 226 38 L 234 46"/>
+  <path id="horn-ring" d="M 238 28 L 246 36"/>
+  <path id="horn" d="M 196 46 C 204 30 216 18 232 10 C 222 26 214 40 212 54"/>
+  <!-- jaw frill spikes at the back of the head -->
+  <path id="frill" d="M 240 120 C 252 118 262 124 268 134 C 258 130 250 132 244 138"/>
+  <path id="frill" d="M 244 140 C 256 142 264 150 266 160 C 258 154 250 154 244 158"/>
+  <path id="frill" d="M 236 156 C 246 160 252 168 252 178 C 246 172 240 170 234 172"/>
+  <!-- chin barbels -->
+  <path id="barbel" d="M 46 154 C 40 162 42 172 50 178"/>
+  <path id="barbel" d="M 62 160 C 60 170 64 178 72 182"/>
+</svg>

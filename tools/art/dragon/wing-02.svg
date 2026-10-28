@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240">
+  <!-- Bat-like wing, raised, seen from the side: leading arm, four ribs
+       ending in small claws, scalloped trailing membrane, fold lines. The
+       wing root (bottom-left) sits on the cloud. Faces LEFT. -->
+  <!-- arm: root up to the wrist, then the leading finger -->
+  <path id="arm" d="M 30 232 C 50 180 80 130 120 90 C 150 60 190 40 236 30"/>
+  <path id="arm-inner" d="M 44 230 C 64 186 92 142 128 104"/>
+  <path id="wrist" d="M 118 96 C 124 88 132 86 140 90"/>
+  <!-- ribs fanning from the wrist -->
+  <path id="rib" d="M 122 94 C 170 60 220 40 268 28"/>
+  <path id="rib" d="M 124 98 C 176 84 236 76 300 74"/>
+  <path id="rib" d="M 124 102 C 170 112 226 124 290 140"/>
+  <path id="rib" d="M 122 106 C 156 140 192 176 240 212"/>
+  <!-- claws at the rib tips -->
+  <path id="claw" d="M 236 30 C 242 24 250 22 258 24"/>
+  <path id="claw" d="M 268 28 C 274 24 280 24 286 28"/>
+  <path id="claw" d="M 300 74 C 306 72 312 74 316 80"/>
+  <path id="claw" d="M 290 140 C 296 140 302 144 304 150"/>
+  <path id="claw" d="M 240 212 C 246 214 250 220 250 226"/>
+  <!-- scalloped trailing membrane between rib tips -->
+  <path id="membrane" d="M 286 28 C 288 50 292 62 300 74"/>
+  <path id="membrane" d="M 316 80 C 300 100 294 120 304 150"/>
+  <path id="membrane" d="M 304 150 C 280 170 262 190 250 226"/>
+  <path id="membrane" d="M 250 226 C 200 232 140 236 80 238 C 60 238 44 236 30 232"/>
+  <!-- membrane fold lines -->
+  <path id="fold" d="M 150 110 C 196 120 240 132 282 146"/>
+  <path id="fold" d="M 140 116 C 170 148 200 178 236 208"/>
+  <path id="fold" d="M 160 70 C 200 56 236 46 270 40"/>
+  <path id="fold" d="M 128 132 C 150 176 176 210 210 230"/>
+  <path id="fold" d="M 70 200 C 100 212 136 222 180 230"/>
+  <!-- arm scales -->
+  <path id="scale" d="M 60 196 C 64 200 70 200 74 196"/>
+  <path id="scale" d="M 74 176 C 78 180 84 180 88 176"/>
+  <path id="scale" d="M 90 156 C 94 160 100 160 104 156"/>
+  <path id="scale" d="M 106 136 C 110 140 116 140 120 136"/>
+</svg>
