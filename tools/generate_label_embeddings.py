@@ -1,105 +1,131 @@
 #!/usr/bin/env python3
 """
-Generate CloudView/Resources/LabelEmbeddings.json from the kid-safe label
-allowlist. Run once at setup; re-run whenever the allowlist changes.
+Generate CloudView/Resources/LabelEmbeddings.json — text embeddings of the
+creatures the app can draw, from the SAME model family as the on-device
+image encoder (convert_recognition_model.py). Re-run whenever the drawing
+library or the model changes.
 
 What it does:
-1. Parses the allowlist out of backend/api/lib/allowlist.ts (single source
-   of truth for what's kid-safe; we never want it to drift between the
-   backend and the iOS bundle).
-2. Loads OpenAI's CLIP ViT-B/32 (used in tandem with Apple's MobileCLIP-S0
-   on device; both share the same 512-dim text embedding space, so text
-   embeddings computed here are compatible with image embeddings produced
-   by MobileCLIP at runtime).
-3. For each label, embeds N phrasings ("a dragon", "a cloud that looks
-   like a dragon", "the silhouette of a dragon flying", ...) and averages
-   them. Averaging multiple prompts is a small quality bump for
-   unusual-domain inputs like silhouettes.
-4. L2-normalizes and writes one JSON file.
+1. Labels come from the drawing library (CloudView/Resources/
+   DrawingTemplates.json) — only creatures the app can actually draw —
+   and each is checked against the backend's kid-safe allowlist.
+2. Embeds several pareidolia phrasings per label ("a cloud shaped like a
+   bear", "a bear made of clouds", …), averages, L2-normalizes. Prompt
+   ensembles matter a lot for an out-of-distribution input like a cloud.
+3. Writes the JSON with a `_meta` block (model, dimension, confidence
+   floor, sampling temperature) so Swift never hard-codes model facts.
 
-Usage:
-    pip install torch open_clip_torch
-    python tools/generate_label_embeddings.py
+Usage (on a Mac, once):
+    pip install torch transformers
+    python3 tools/generate_label_embeddings.py            # SigLIP 2 base
+    python3 tools/generate_label_embeddings.py --model openai/clip-vit-base-patch32
 
-If you prefer to avoid PyTorch, the same idea works with any CLIP
-implementation that emits 512-dim float embeddings. Just keep the same
-model family on device (MobileCLIP-S0 is the recommendation).
+Licensing: Apple's MobileCLIP / FastVLM weights are research-only and are
+refused here on purpose. Defaults are Apache-2.0 / MIT models.
 """
-
 from __future__ import annotations
 
+import argparse
 import json
 import re
 import sys
 from pathlib import Path
-from typing import List
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ALLOWLIST_TS = REPO_ROOT / "backend/api/lib/allowlist.ts"
+TEMPLATES_JSON = REPO_ROOT / "CloudView/Resources/DrawingTemplates.json"
 OUTPUT_JSON = REPO_ROOT / "CloudView/Resources/LabelEmbeddings.json"
 
-# Phrasings averaged per label. Each %s is filled with the label string.
-# Adding more variants improves robustness for unusual inputs (cloud
-# silhouettes are quite far from CLIP's training distribution).
+# Pareidolia phrasings — the input is a photo of a cloud, so say so.
 PROMPT_TEMPLATES = [
-    "a %s",
-    "a silhouette of a %s",
-    "a cloud that looks like a %s",
-    "the outline of a %s",
-    "an illustration of a %s",
+    "a cloud shaped like a {}",
+    "a cloud that looks like a {}",
+    "a {} made of clouds",
+    "a white cloud in the shape of a {}",
+    "the silhouette of a {} in the sky",
+    "a photo of a {}",
 ]
 
+# Starting confidence floors (cosine) per model family — calibrate on
+# real clouds with the contour/photo harness, then edit here.
+DEFAULT_FLOOR = {"siglip": 0.05, "clip": 0.18}
+DEFAULT_TEMPERATURE = {"siglip": 0.02, "clip": 0.07}
 
-def parse_allowlist() -> List[str]:
-    """Extract the labels from allowlist.ts. Tolerant of comments and
-    whitespace; matches single-quoted strings inside the KID_SAFE_LABELS
-    Set literal."""
+
+def parse_allowlist() -> set[str]:
     text = ALLOWLIST_TS.read_text()
-    # Slice to just the Set literal so we don't accidentally grab strings
-    # from other parts of the file.
     start = text.find("KID_SAFE_LABELS")
     end = text.find("]", start)
-    body = text[start:end]
-    labels = re.findall(r"'([^']+)'", body)
-    if not labels:
-        sys.exit(f"Could not parse any labels from {ALLOWLIST_TS}")
-    return sorted(set(labels))
+    return {s.lower() for s in re.findall(r"'([^']+)'", text[start:end])}
 
 
-def embed_labels(labels: List[str]) -> dict[str, list[float]]:
+def template_labels() -> list[str]:
+    doc = json.loads(TEMPLATES_JSON.read_text())
+    entries = doc.get("creatures", doc.get("templates", []))
+    return sorted({c["label"].lower() for c in entries})
+
+
+def embed_labels(model_id: str, labels: list[str]) -> tuple[dict[str, list[float]], int]:
     import torch
-    import open_clip
+    from transformers import AutoModel, AutoTokenizer
 
-    print(f"Loading CLIP model ViT-B-32 (laion2b_s34b_b79k)…")
-    model, _, _ = open_clip.create_model_and_transforms(
-        "ViT-B-32", pretrained="laion2b_s34b_b79k"
-    )
-    tokenizer = open_clip.get_tokenizer("ViT-B-32")
-    model.eval()
+    print(f"loading {model_id} …")
+    model = AutoModel.from_pretrained(model_id, torch_dtype=torch.float32).eval()
+    tokenizer = AutoTokenizer.from_pretrained(model_id)
+    is_siglip = "siglip" in model_id.lower()
 
     out: dict[str, list[float]] = {}
+    dim = 0
     for label in labels:
-        prompts = [tmpl % label for tmpl in PROMPT_TEMPLATES]
-        tokens = tokenizer(prompts)
+        prompts = [t.format(label) for t in PROMPT_TEMPLATES]
+        if is_siglip:
+            tokens = tokenizer(prompts, padding="max_length", max_length=64, truncation=True, return_tensors="pt")
+        else:
+            tokens = tokenizer(prompts, padding=True, truncation=True, return_tensors="pt")
         with torch.no_grad():
-            feats = model.encode_text(tokens)
-            # L2-normalize each phrasing, then average, then re-normalize.
+            feats = model.get_text_features(**tokens)
             feats = feats / feats.norm(dim=-1, keepdim=True)
             avg = feats.mean(dim=0)
             avg = avg / avg.norm()
-        out[label] = avg.tolist()
-        print(f"  {label}: ok ({len(out[label])} dims)")
-    return out
+        out[label] = [float(v) for v in avg.tolist()]
+        dim = len(out[label])
+        print(f"  {label}: ok")
+    return out, dim
 
 
 def main() -> int:
-    labels = parse_allowlist()
-    print(f"Embedding {len(labels)} labels from {ALLOWLIST_TS.name}…")
-    embeddings = embed_labels(labels)
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--model", default="google/siglip2-base-patch16-224")
+    ap.add_argument("--floor", type=float, help="override the confidence floor written to _meta")
+    ap.add_argument("--temperature", type=float, help="override the sampling temperature in _meta")
+    args = ap.parse_args()
+
+    if any(b in args.model.lower() for b in ("mobileclip", "fastvlm", "fastvit")):
+        sys.exit(f"{args.model}: Apple ML Research Model license — research-only, cannot ship.")
+
+    labels = template_labels()
+    allow = parse_allowlist()
+    for label in labels:
+        if label not in allow:
+            print(f"warning: '{label}' is drawable but not in the kid-safe allowlist "
+                  f"({ALLOWLIST_TS.name}); add it there or remove the creature.", file=sys.stderr)
+    print(f"embedding {len(labels)} drawable labels with {args.model} …")
+
+    embeddings, dim = embed_labels(args.model, labels)
+    family = "siglip" if "siglip" in args.model.lower() else "clip"
+    doc = {
+        "_meta": {
+            "model": args.model,
+            "dimension": dim,
+            "confidenceFloor": args.floor if args.floor is not None else DEFAULT_FLOOR[family],
+            "temperature": args.temperature if args.temperature is not None else DEFAULT_TEMPERATURE[family],
+            "prompts": PROMPT_TEMPLATES,
+        },
+        **embeddings,
+    }
     OUTPUT_JSON.parent.mkdir(parents=True, exist_ok=True)
-    with OUTPUT_JSON.open("w") as f:
-        json.dump(embeddings, f)
-    print(f"Wrote {OUTPUT_JSON.relative_to(REPO_ROOT)} ({len(embeddings)} entries)")
+    OUTPUT_JSON.write_text(json.dumps(doc))
+    print(f"wrote {OUTPUT_JSON.relative_to(REPO_ROOT)} ({len(embeddings)} labels, {dim} dims)")
     return 0
 
 

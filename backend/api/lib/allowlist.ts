@@ -5,7 +5,7 @@
 export const KID_SAFE_LABELS = new Set<string>([
   // Domestic + cozy animals
   'cat', 'dog', 'rabbit', 'hamster', 'mouse', 'bird', 'duck',
-  'turtle', 'fish', 'frog',
+  'turtle', 'fish', 'frog', 'butterfly', 'snail', 'swan',
 
   // Wild + zoo
   'lion', 'tiger', 'elephant', 'giraffe', 'zebra', 'monkey', 'panda',
@@ -21,14 +21,14 @@ export const KID_SAFE_LABELS = new Set<string>([
   'mermaid', 'wizard', 'witch', 'ghost', 'centaur',
 
   // Dinosaurs
-  't-rex', 'triceratops', 'brontosaurus', 'stegosaurus', 'pterodactyl',
+  'dinosaur', 't-rex', 'triceratops', 'brontosaurus', 'stegosaurus', 'pterodactyl',
 
   // People + roles (kid-positive only)
   'astronaut', 'pirate', 'knight', 'chef', 'artist', 'firefighter',
   'doctor', 'musician', 'explorer',
 
   // Vehicles
-  'car', 'airplane', 'boat', 'submarine', 'hot air balloon', 'rocket',
+  'car', 'airplane', 'boat', 'sailboat', 'submarine', 'hot air balloon', 'rocket',
   'train', 'bicycle', 'helicopter', 'spaceship',
 
   // Food (the friendly kind)

@@ -134,6 +134,9 @@ class ARViewModel: ObservableObject {
     init() {
         startMotionTracking()
         checkARSupport()
+        // Start fetching the recognition model (On-Demand Resource) now so
+        // the first cloud doesn't wait on the download.
+        OnDeviceCloudRecognitionService.shared.prepare()
     }
 
     deinit {
@@ -490,14 +493,27 @@ class ARViewModel: ObservableObject {
             deviceSalt: Self.deviceSalt
         )
 
-        // Primary path: shape retrieval against the drawing-template library.
-        // The cloud's contour is matched (Hu moments) to a real creature
-        // whose art is then warped onto the cloud — so the pick is *caused
-        // by* the cloud's shape and the drawing is a genuine creature, not
-        // the cloud's own outline with dots. Returns nil when nothing is a
-        // confident enough fit, and we fall back below.
+        // 1. Perception first: the recognition model looks at the real photo
+        //    of the cloud and names what it resembles; the library assembles
+        //    that creature's parts on the cloud. Off (returns []) until the
+        //    model is present — see docs/CLIP_SETUP.md.
+        let crop = CloudCropRenderer.render(pixelBuffer: frame.capturedImage, cloudBox: cloudShape.boundingBox)
+        let interpretations = (try? await recognitionService.recognize(cluster, crop: crop)) ?? []
+
         let concept: DrawingConcept
-        if let templated = DrawingTemplateLibrary.shared.makeDrawing(
+        if let top = interpretations.first,
+           let perceived = DrawingTemplateLibrary.shared.makeDrawing(
+               forLabel: top.label,
+               cloudContour: cloudShape.normalizedContour,
+               variation: variation,
+               aspectRatio: Double(cloudShape.aspectRatio),
+               neighbor: neighbor
+           ) {
+            concept = perceived
+        } else if let templated = DrawingTemplateLibrary.shared.makeDrawing(
+            // 2. Shape retrieval: the contour is matched (Hu moments) to a
+            //    creature whose art is warped onto the cloud. Honest but
+            //    weak on rounded clouds (docs/DRAWING_SYSTEM.md, Validation).
             forCloudContour: cloudShape.normalizedContour,
             variation: variation,
             aspectRatio: Double(cloudShape.aspectRatio),
@@ -505,9 +521,8 @@ class ARViewModel: ObservableObject {
         ) {
             concept = templated
         } else {
-            // Fallback: CLIP interpretation (only when the model is bundled)
-            // rendered as the cloud outline + minimal annotation marks.
-            let interpretations = (try? await recognitionService.recognize(cluster)) ?? []
+            // 3. A recognized label the library can't draw: the cloud's own
+            //    outline + minimal annotation marks.
             guard let interpretation = interpretations.first else {
                 // No good match — say so briefly ("Cool cloud!") and move
                 // on, rather than inventing a creature.

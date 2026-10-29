@@ -4,7 +4,8 @@ import CoreVideo
 import UIKit
 
 /// Rasterizes a `CloudCluster`'s normalized contour into a 224×224 RGB
-/// CVPixelBuffer suitable for the MobileCLIP image encoder. The output
+/// CVPixelBuffer for the image encoder — the fallback input when no camera
+/// frame is at hand (`CloudCropRenderer` supplies the real photo). The output
 /// is white-background, black-foreground — silhouettes are unusual CLIP
 /// inputs either way; we picked white-on-black inverted in early tests
 /// and found the embeddings landed closer to expected text prompts when

@@ -13,11 +13,12 @@ them, anchored in AR so it stays with the cloud as you look around.
 ### ☁️ On-device cloud recognition
 - **Real cloud contours**: the Vision framework extracts the actual outline of
   a cloud from the camera frame (`CloudDetector`).
-- **CLIP recognition, fully on-device**: a small open-weights vision model
-  (Apple's MobileCLIP-S0, compiled to Core ML) matches the cloud silhouette
-  against a pre-computed, kid-safe label allowlist. **$0 per recognition, no
-  network call, nothing leaves the device.** See
-  [`docs/RECOGNITION.md`](docs/RECOGNITION.md).
+- **Recognition, fully on-device**: a permissively licensed vision-language
+  encoder (SigLIP 2 base, Apache-2.0, compiled to Core ML) looks at the real
+  photo of the cloud and names which drawable creature it resembles. **$0 per
+  recognition, no network call, nothing leaves the device.** See
+  [`docs/RECOGNITION.md`](docs/RECOGNITION.md). (Apple's MobileCLIP and
+  FastVLM weights are research-only and are deliberately not used.)
 - **Variety per scan**: instead of a strict top-1, the matcher softmax-samples
   from the top matches, so different looks at the same cloud can surface
   different ideas ("five viewers, five different things").
@@ -70,11 +71,12 @@ open CloudView.xcodeproj
 
 ### 2. Add the recognition model (one-time, manual)
 
-`MobileCLIP-S0.mlmodelc` (~26 MB) and `LabelEmbeddings.json` are **not** checked
-into git. Follow [`docs/CLIP_SETUP.md`](docs/CLIP_SETUP.md) to add them to the
-app bundle. Until you do, CLIP recognition is off: the shape-template library
-(the primary path) still draws creatures on clouds it can match, and clouds it
-can't match get an honest "Cool cloud!" rather than a placeholder label.
+`CloudEmbedder.mlpackage` (~90 MB, ship it as an On-Demand Resource) and
+`LabelEmbeddings.json` are **not** checked into git. Follow
+[`docs/CLIP_SETUP.md`](docs/CLIP_SETUP.md) — two scripts and a drag into
+Xcode. Until you do, recognition is off: the shape-template library still
+draws creatures on clouds it can match, and clouds it can't match get an
+honest "Cool cloud!" rather than a placeholder label.
 
 ### 3. Enable WeatherKit
 
@@ -111,10 +113,12 @@ CloudView/
 ├── Services/
 │   ├── CloudDetector.swift             Vision contour extraction of cloud shapes
 │   ├── CloudClusteringService.swift    groups shapes into clusters (1:1 today)
-│   ├── CloudSilhouetteRenderer.swift   cluster → 224×224 buffer for CLIP
-│   ├── CLIPImageEncoder.swift          Core ML MobileCLIP image encoder
+│   ├── CloudCropRenderer.swift         real cloud photo → 224×224 buffer for the encoder
+│   ├── ImageEmbeddingEncoder.swift     Core ML encoder (SigLIP 2 / CLIP), bundle or On-Demand Resource
 │   ├── LabelEmbeddingMatcher.swift     cosine match + weighted-random sampling
-│   ├── CloudRecognitionService.swift   orchestrator (+ deterministic stub fallback)
+│   ├── CloudRecognitionService.swift   orchestrator ([] when the model is absent)
+│   ├── CloudLobeSplitter.swift         bank → lobes (brightness watershed)
+│   ├── CloudSculptor.swift             "develop": creature sculpted + inked into the photo
 │   ├── RecognitionToDrawingAdapter.swift  Interpretation → DrawingConcept
 │   ├── WeatherService.swift            WeatherKit integration
 │   ├── DrawingArchiveService.swift     local gallery persistence
@@ -133,13 +137,13 @@ backend/                                Vercel edge functions + Upstash Redis + 
 ### Recognition pipeline
 
 ```
-Cloud silhouette → CLIP image encoder → 512-dim embedding
+Real cloud crop → image encoder → unit-norm embedding
                                              ↓
-        pre-computed label text embeddings (kid-safe allowlist)
+        pre-computed text embeddings (one per drawable creature)
                                              ↓
              cosine similarity → top-K → weighted-random sample
                                              ↓
-        Interpretation → DrawingConcept → animated line drawing in AR
+   DrawingTemplateLibrary assembles that creature on the cloud → AR drawing
 ```
 
 If the top match is below a confidence floor, the app shows a gentle
@@ -148,7 +152,7 @@ cost analysis, and failure modes are in [`docs/RECOGNITION.md`](docs/RECOGNITION
 
 ### Technologies
 
-ARKit · RealityKit · Vision · Core ML (MobileCLIP) · WeatherKit · CoreLocation ·
+ARKit · RealityKit · Vision · Core ML (SigLIP 2) · WeatherKit · CoreLocation ·
 CoreMotion · SwiftUI · Combine. Backend: TypeScript on Vercel edge runtime,
 Upstash Redis, APNs.
 

@@ -179,6 +179,46 @@ final class DrawingTemplateLibrary {
 
     // MARK: - Drawing
 
+    /// Labels the library can draw, lower-cased — the recognition label set
+    /// is generated from these (tools/generate_label_embeddings.py).
+    var labels: [String] { entries.map { $0.label.lowercased() } }
+
+    /// A drawing of a *named* creature — the perception path: the
+    /// recognition model said "bear", so assemble the bear's parts on this
+    /// cloud. The cloud is the body (strong-match composition): the pick
+    /// came from the real photo, so trust it. Nil when the library has no
+    /// such creature.
+    func makeDrawing(
+        forLabel label: String,
+        cloudContour contour: [CGPoint],
+        variation: VariationSeed,
+        aspectRatio: Double = 1.0,
+        neighbor: NeighborCloud? = nil
+    ) -> DrawingConcept? {
+        let wanted = label.lowercased().trimmingCharacters(in: .whitespaces)
+        guard contour.count >= 3,
+              let entry = entries.first(where: { $0.label.lowercased() == wanted })
+        else { return nil }
+
+        switch entry.content {
+        case .creature(let creature):
+            return DrawingAssembler.assemble(
+                creature: creature,
+                parts: parts,
+                cloudContour: contour,
+                score: 1.0,
+                variation: variation,
+                aspectRatio: aspectRatio,
+                neighbor: neighbor
+            )
+        case .template(let template):
+            var concept = TemplateDrawingComposer.compose(cloudContour: contour, template: template, score: 1.0)
+            concept.subject = template.label
+            concept.style = DrawingAssembler.seededStyle(variation)
+            return concept
+        }
+    }
+
     /// Full path from a raw cloud contour + variation seed to a
     /// ready-to-animate drawing, or `nil` when no creature is a confident
     /// enough fit. The seed picks the category (with a small temperature

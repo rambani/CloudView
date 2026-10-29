@@ -49,6 +49,7 @@ Complete testing checklist before submitting to the App Store.
 - [ ] **No match**: hold steady on a shapeless blob → brief "Cool cloud!" hint, then the ring doesn't immediately refill on the same cloud
 - [ ] **Develop**: ~3 s after a drawing lands, a thumbnail appears on the capsule; sharing sends the developed photo (creature shaded *into* the cloud, no ink lines), and it is upright with the creature where the AR drawing was
 - [ ] **Develop on bright puff**: features are still visible on a white dome (broader, not fainter); over blue sky, overhanging parts read as faint wisps, not dark marks
+- [ ] **Recognition model**: `CloudEmbedder` + `LabelEmbeddings.json` both from the same permissively licensed model (SigLIP 2 / OpenAI CLIP — never MobileCLIP/FastVLM); console shows no dimension-mismatch warning; a clearly bear-shaped cumulus gets a bear (not a Hu-moment guess); a smooth blob gets "Cool cloud!"
 - [ ] **Bank splits into lobes**: on a wide bank with a distinct tower, a dragon faces the tower and its castle stands on the tower's summit (not floating above a wisp); on a lone smooth cumulus nothing splits and no castle appears
 - [ ] **Weather Panel**: Swipeable panel shows weather or location denied message
 - [ ] **Instructions**: Shows on first launch, dismisses correctly

@@ -1,137 +1,106 @@
 # Cloud Recognition Architecture
 
-How Cloudoodle identifies what a cloud "looks like" without any external
-AI vendor, paying any per-request cost, or sending any image off device.
+How Cloudoodle decides what a cloud "looks like" without any external AI
+vendor, per-request cost, or image leaving the device.
 
-## Decision: CLIP embedding match, fully on-device
+## Decision: contrastive embedding match, fully on-device
 
-We use a small open-weights vision-text model (Apple's MobileCLIP-S0, ~26 MB,
-~3 ms inference per image on a modern iPhone) compiled to Core ML. The
-recognition pipeline is:
+A permissively licensed contrastive vision-language model (SigLIP 2 base by
+default; OpenAI CLIP as the alternative — see `docs/CLIP_SETUP.md` for why
+*not* Apple's MobileCLIP or FastVLM) compiled to Core ML. The pipeline:
 
 ```
-Cloud silhouette → CLIP image encoder → 512-dim image embedding
-                                              ↓
-                  Pre-computed label text embeddings (one per allowlisted
-                  label, ~150 of them, generated offline once and shipped
-                  as a JSON in the app bundle)
-                                              ↓
-                  Cosine similarity → top-K labels
-                                              ↓
-                  Weighted-random sample 5 from top 15 → variety per scan
+real photo crop of the cloud (224×224, with margin)
+        → image encoder → unit-norm embedding
+                                   ↓
+     pre-computed text embeddings, one per DRAWABLE creature
+     (labels from DrawingTemplates.json; checked against the kid-safe allowlist)
+                                   ↓
+     cosine similarity → top-K → weighted-random sample → up to 5 picks
+                                   ↓
+     DrawingTemplateLibrary.makeDrawing(forLabel:) assembles that creature's
+     parts on the cloud (cloud-as-body) → animated line drawing in AR
 ```
 
 **$0 per recognition. No network call. No vendor. Fully offline.**
 
+## Why the *photo*, not the silhouette
+
+An earlier revision fed the model a filled silhouette. A silhouette throws
+away shading, bumps and texture — most of what makes a cloud look like a
+bear. The crop is the real pixels, upright, with 15% margin so the model
+sees where cloud ends and sky begins (`CloudCropRenderer`). The silhouette
+renderer remains only as a fallback when no frame is at hand.
+
 ## Why this works for clouds specifically
 
-CLIP was trained on natural photos with captions. Cloud silhouettes are
-unusual inputs, so the raw match quality is lower than you'd get from
-either GPT-4V or a CNN trained specifically on cloud labels. We compensate
-by:
+Clouds are far from the training distribution, so three things carry the
+quality:
 
-1. **Prompt engineering on the offline label embeddings.** Each label gets
-   multiple phrasings ("dragon", "a dragon flying in the sky", "the silhouette
-   of a dragon", "a cloud that looks like a dragon"). We embed each, average,
-   normalize. This pushes the label embedding closer to where cloud-like
-   inputs land in CLIP space.
+1. **Pareidolia prompt ensembles.** Each label is embedded as several
+   phrasings — "a cloud shaped like a bear", "a bear made of clouds", "the
+   silhouette of a bear in the sky" — averaged and normalized. Saying *it's a
+   cloud* in the prompt moves the text embedding toward where cloud photos
+   land.
+2. **Top-K then weighted sampling.** The top 15 by cosine are sampled with a
+   softmax temperature; the first pick is drawn. Same cloud, different
+   scans, different (plausible) answers — "five viewers, five things".
+3. **Only drawable labels.** The label set is exactly the creatures the
+   library can assemble, so a pick is always renderable at reference
+   quality, never a bare outline with dots.
 
-2. **Top-K then weighted sampling.** Instead of strict argmax, we take the
-   top 15 by cosine similarity and sample 5 by softmax-weighted probability.
-   That gives us:
-   - The "5 viewers see 5 different things" property (sample varies per scan)
-   - Variety without departing too far from the best matches (probability
-     mass concentrates on the strongest candidates)
+## Order of paths in the app
 
-3. **Per-label canonical annotation positions.** CLIP doesn't tell us where
-   to draw eye-dots or mouth-lines. We ship a small hand-authored JSON
-   (`AnnotationHints.json`) with normalized coordinates per label — "for a
-   cat, the eyes sit at (0.4, 0.3) and (0.6, 0.3) within the bounding box".
-   Quality is consistent because we wrote it.
+1. **Perception** (this document) when the model is present.
+2. **Shape retrieval** — Hu-moment match of the contour against creature
+   silhouettes (`docs/DRAWING_SYSTEM.md`). Honest but weak on rounded
+   clouds; it is the offline/no-model path.
+3. **Outline + marks** for a recognized label the library can't draw.
+4. **"Cool cloud!"** — nothing confident; say so rather than invent.
 
-## What this gives up vs. a vision LLM
-
-The honest tradeoff: CLIP gives you taxonomy, not imagination. Top-5 for a
-puffy round cloud might be "rabbit, kitten, cat, bear, sheep" — all
-plausible round-fluffy things. A vision LLM might return "rabbit, snowman,
-giant marshmallow, pile of pillows, sleeping cloud kitten." More creative,
-more surprising.
-
-For an iOS app that needs to ship at $0/month forever and that can't depend
-on a vendor's pricing or API stability, taxonomy is acceptable. The
-animation, the cloud-as-main-subject visual treatment, and the variety
-across scans are what make the experience feel magical — not the linguistic
-flair of the labels.
-
-## On-device cost reality
+## On-device cost
 
 | Stage | Cost |
 |---|---|
-| Pre-compute label embeddings (offline, run once) | 30 seconds on any laptop |
-| App bundle size impact | ~26 MB MobileCLIP + ~300 KB embeddings JSON |
-| Memory at runtime | ~50 MB while encoding, freed after |
-| Inference per cloud | ~3-7 ms on iPhone 13+ |
-| API/server cost per recognition | $0 |
-| **Total monthly cost at 1M MAU** | **$0** |
-
-Backend cost shrinks dramatically too: we no longer need the recognition
-cache or the recognize endpoint. The only remaining backend role is the
-opt-in scan-reporting → theme aggregation → notification feature.
+| Export + embed labels (offline, once) | minutes on a laptop |
+| App impact | ~90 MB model (On-Demand Resource) + ~100 KB embeddings |
+| Inference per cloud | tens of ms on A15+ (ANE) |
+| API/server cost | $0 |
 
 ## What's wired up where
 
 ```
 iOS:
-  Resources/MobileCLIP-S0.mlmodelc/      Core ML model (NOT in git; download manually)
-  Resources/LabelEmbeddings.json         pre-computed label embeddings
-  Resources/AnnotationHints.json         per-label canonical annotation positions
+  Resources/CloudEmbedder.mlmodelc            Core ML encoder (NOT in git; ODR tag "recognition-model")
+  Resources/LabelEmbeddings.json              text embeddings + _meta (model, dim, floor, temperature)
 
-  Models/CloudCluster.swift              cluster type (already shipped Phase 0)
-  Models/Interpretation.swift            interpretation + annotation types
-
-  Services/CLIPImageEncoder.swift        wraps MLModel, runs CLIP image branch
-  Services/CloudSilhouetteRenderer.swift CloudCluster → 224×224 CVPixelBuffer
-  Services/LabelEmbeddingMatcher.swift   cosine sim + weighted-random top-K
-  Services/CloudRecognitionService.swift orchestrator (unchanged protocol)
+  Services/ImageEmbeddingEncoder.swift        Core ML wrapper, bundle or ODR load
+  Services/CloudCropRenderer.swift            real-photo crop → 224×224 pixel buffer
+  Services/LabelEmbeddingMatcher.swift        cosine + weighted-random top-K; reads _meta
+  Services/CloudRecognitionService.swift      orchestrator; [] when the model is absent
+  Services/DrawingTemplateLibrary.swift       makeDrawing(forLabel:) — the label → parts seam
 
 Offline tooling:
-  tools/generate_label_embeddings.py     run once, regenerate when allowlist changes
-
-Backend:
-  api/recognize.ts                       deleted — no longer needed
-  api/lib/recognition.ts                 deleted — no longer needed
-  api/lib/allowlist.ts                   stays (still informs notification themes)
+  tools/convert_recognition_model.py          HF model → CloudEmbedder.mlpackage (refuses research-only models)
+  tools/generate_label_embeddings.py          drawable labels → LabelEmbeddings.json (same model)
 ```
-
-## Setup (one-time, manual)
-
-For a working build, follow `docs/CLIP_SETUP.md`. Without the model file,
-CLIP recognition is simply off: the shape-template library still draws on
-clouds it can match, and anything it can't match gets an honest
-"Cool cloud!" instead of a made-up label. (A deterministic stub recognizer
-exists for unit tests only.)
 
 ## Failure modes
 
 | Failure | Behavior |
 |---|---|
-| MobileCLIP model file missing from bundle | Recognition returns no interpretations; log an info line at startup. Template drawings keep working; unmatched clouds show "Cool cloud!". |
-| CLIP inference fails at runtime | Log; return no interpretations for that scan; no user-visible error beyond "Cool cloud!". |
-| Cloud silhouette is degenerate (too few points) | Skip recognition; show the "Cool cloud!" default state. |
-| Top-5 picks all have very low similarity (no good match) | Threshold check: if max similarity < 0.18, return the "Cool cloud!" default rather than a confidently-wrong label. |
+| Model or embeddings missing | Recognition returns `[]`; shape retrieval carries on; unmatched clouds show "Cool cloud!". Info line at launch. |
+| ODR download fails / offline | Same as missing; retried on the next launch. |
+| Model and embeddings from different models | Dimension mismatch detected at load; recognition off; warning names the file to regenerate. |
+| Top match below `_meta.confidenceFloor` | `[]` → "Cool cloud!" rather than a confidently wrong label. |
+| Recognized label not in the drawing library | Outline + annotation marks (path 3). The generator warns about such labels, so this should not happen in a shipped build. |
 
 ## When to revisit
 
-If user feedback says the recognitions feel too repetitive or off-base,
-the upgrade path is either:
-
-- **Fine-tune the MobileCLIP image encoder** on labeled cloud silhouettes
-  (~10K examples after you've been live for a few months). 1 GPU-hour
-  on Modal/Replicate, ~$3 one-time. Quality jump can be significant.
-
-- **Add an optional Tier 2 backend** that calls Claude/GPT/Gemini Vision
-  only when on-device confidence is low. Reintroduces vendor cost but
-  bounded by how often Tier 1 misses. The architecture already supports
-  this — `TieredCloudRecognitionService` is back-compatible.
-
-Neither is needed at launch.
+- **Calibrate the floor and temperature** on recorded real clouds before
+  launch (`docs/CLIP_SETUP.md`, Calibration).
+- **Fine-tune** the image tower on a few thousand human-rated cloud crops
+  once the app has been live — a one-off GPU-hour; the matcher is unchanged.
+- **A true VLM** (e.g. SmolVLM, Apache-2.0) could add *where* the head is,
+  not just *what* the cloud is, for part placement. Heavier integration
+  (MLX); the `Interpretation.annotations` type already has room for it.

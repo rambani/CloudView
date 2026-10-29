@@ -33,7 +33,7 @@
 		A1000087000000000000001 /* CloudShapeSignature.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000088000000000000001 /* CloudShapeSignature.swift */; };
 		A1000089000000000000001 /* CloudRecognitionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000090000000000000001 /* CloudRecognitionService.swift */; };
 		A1000091000000000000001 /* CloudShapeSignatureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000092000000000000001 /* CloudShapeSignatureTests.swift */; };
-		A1000093000000000000001 /* CLIPImageEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000094000000000000001 /* CLIPImageEncoder.swift */; };
+		A1000093000000000000001 /* ImageEmbeddingEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000094000000000000001 /* ImageEmbeddingEncoder.swift */; };
 		A1000095000000000000001 /* CloudSilhouetteRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000096000000000000001 /* CloudSilhouetteRenderer.swift */; };
 		A1000097000000000000001 /* LabelEmbeddingMatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000098000000000000001 /* LabelEmbeddingMatcher.swift */; };
 		A1000099000000000000001 /* CloudClusteringService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000100000000000000001 /* CloudClusteringService.swift */; };
@@ -66,6 +66,8 @@
 		A1000174000000000000001 /* SculptGeometryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000175000000000000001 /* SculptGeometryTests.swift */; };
 		A1000176000000000000001 /* CloudLobeSplitter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000177000000000000001 /* CloudLobeSplitter.swift */; };
 		A1000178000000000000001 /* CloudLobeSplitterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000179000000000000001 /* CloudLobeSplitterTests.swift */; };
+		A1000180000000000000001 /* CloudCropRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000181000000000000001 /* CloudCropRenderer.swift */; };
+		A1000182000000000000001 /* RecognitionPipelineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000183000000000000001 /* RecognitionPipelineTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -99,7 +101,7 @@
 		A1000088000000000000001 /* CloudShapeSignature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudShapeSignature.swift; sourceTree = "<group>"; };
 		A1000090000000000000001 /* CloudRecognitionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudRecognitionService.swift; sourceTree = "<group>"; };
 		A1000092000000000000001 /* CloudShapeSignatureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudShapeSignatureTests.swift; sourceTree = "<group>"; };
-		A1000094000000000000001 /* CLIPImageEncoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CLIPImageEncoder.swift; sourceTree = "<group>"; };
+		A1000094000000000000001 /* ImageEmbeddingEncoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageEmbeddingEncoder.swift; sourceTree = "<group>"; };
 		A1000096000000000000001 /* CloudSilhouetteRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSilhouetteRenderer.swift; sourceTree = "<group>"; };
 		A1000098000000000000001 /* LabelEmbeddingMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabelEmbeddingMatcher.swift; sourceTree = "<group>"; };
 		A1000100000000000000001 /* CloudClusteringService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudClusteringService.swift; sourceTree = "<group>"; };
@@ -132,6 +134,8 @@
 		A1000175000000000000001 /* SculptGeometryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SculptGeometryTests.swift; sourceTree = "<group>"; };
 		A1000177000000000000001 /* CloudLobeSplitter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudLobeSplitter.swift; sourceTree = "<group>"; };
 		A1000179000000000000001 /* CloudLobeSplitterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudLobeSplitterTests.swift; sourceTree = "<group>"; };
+		A1000181000000000000001 /* CloudCropRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudCropRenderer.swift; sourceTree = "<group>"; };
+		A1000183000000000000001 /* RecognitionPipelineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecognitionPipelineTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXContainerItemProxy section */
@@ -239,7 +243,7 @@
 				A1000055000000000000001 /* BackendConfig.swift */,
 				A1000088000000000000001 /* CloudShapeSignature.swift */,
 				A1000090000000000000001 /* CloudRecognitionService.swift */,
-				A1000094000000000000001 /* CLIPImageEncoder.swift */,
+				A1000094000000000000001 /* ImageEmbeddingEncoder.swift */,
 				A1000096000000000000001 /* CloudSilhouetteRenderer.swift */,
 				A1000098000000000000001 /* LabelEmbeddingMatcher.swift */,
 				A1000100000000000000001 /* CloudClusteringService.swift */,
@@ -256,6 +260,7 @@
 				A1000165000000000000001 /* ContourRecorder.swift */,
 				A1000173000000000000001 /* CloudSculptor.swift */,
 				A1000177000000000000001 /* CloudLobeSplitter.swift */,
+				A1000181000000000000001 /* CloudCropRenderer.swift */,
 );
 			path = Services;
 			sourceTree = "<group>";
@@ -299,6 +304,7 @@
 				A1000171000000000000001 /* CloudCandidateSelectionTests.swift */,
 				A1000175000000000000001 /* SculptGeometryTests.swift */,
 				A1000179000000000000001 /* CloudLobeSplitterTests.swift */,
+				A1000183000000000000001 /* RecognitionPipelineTests.swift */,
 );
 			path = CloudViewTests;
 			sourceTree = "<group>";
@@ -427,7 +433,7 @@
 				A1000085000000000000001 /* Interpretation.swift in Sources */,
 				A1000087000000000000001 /* CloudShapeSignature.swift in Sources */,
 				A1000089000000000000001 /* CloudRecognitionService.swift in Sources */,
-				A1000093000000000000001 /* CLIPImageEncoder.swift in Sources */,
+				A1000093000000000000001 /* ImageEmbeddingEncoder.swift in Sources */,
 				A1000095000000000000001 /* CloudSilhouetteRenderer.swift in Sources */,
 				A1000097000000000000001 /* LabelEmbeddingMatcher.swift in Sources */,
 				A1000099000000000000001 /* CloudClusteringService.swift in Sources */,
@@ -447,6 +453,7 @@
 				A1000164000000000000001 /* ContourRecorder.swift in Sources */,
 				A1000172000000000000001 /* CloudSculptor.swift in Sources */,
 				A1000176000000000000001 /* CloudLobeSplitter.swift in Sources */,
+				A1000180000000000000001 /* CloudCropRenderer.swift in Sources */,
 );
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -467,6 +474,7 @@
 				A1000170000000000000001 /* CloudCandidateSelectionTests.swift in Sources */,
 				A1000174000000000000001 /* SculptGeometryTests.swift in Sources */,
 				A1000178000000000000001 /* CloudLobeSplitterTests.swift in Sources */,
+				A1000182000000000000001 /* RecognitionPipelineTests.swift in Sources */,
 );
 			runOnlyForDeploymentPostprocessing = 0;
 		};

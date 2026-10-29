@@ -312,11 +312,12 @@ sheet with the top-3 silhouettes overlaid on each cloud.
 - **Single-cloud clusters.** `CloudClusteringService` returns one cluster per
   cloud today; multi-cloud constellations ("those three clouds are a dragon")
   are a natural extension — the signature and rasterizer already handle clusters.
-- **Retrieval could blend with CLIP.** When the MobileCLIP model is bundled, its
-  score could be fused with the Hu-shape score for labels that exist in both the
-  allowlist and the template library. (Without the model, a cloud the library
-  declines gets an honest "Cool cloud!" — there is no stub recognizer in the
-  shipping pipeline.)
+- **Perception is now the primary pick.** With the recognition model bundled
+  (`docs/CLIP_SETUP.md` — SigLIP 2, *not* MobileCLIP, which is research-only),
+  the label from the real cloud photo drives `makeDrawing(forLabel:)` and the
+  Hu matcher is the no-model fallback. A possible refinement is fusing the two
+  scores. (Without the model, a cloud the library declines gets an honest
+  "Cool cloud!" — there is no stub recognizer in the shipping pipeline.)
 - **Detection tuning on device.** The red-channel adaptive threshold and the
   center-weighted candidate choice replace a fixed brightness boost and
   "whatever Vision listed first"; both are principled but were authored
