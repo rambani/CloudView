@@ -44,6 +44,9 @@ class ARViewModel: ObservableObject {
             /// The photo "developed": the creature sculpted into the real
             /// cloud with its own light (CloudSculptor).
             case developed
+            /// Dream mode: on-device diffusion drew the creature into the
+            /// cloud (DreamDeveloper). Replaces `developed` when it succeeds.
+            case dreamed
             /// A plain AR screenshot with the line drawing on top.
             case snapshot
         }
@@ -57,6 +60,10 @@ class ARViewModel: ObservableObject {
     /// The sculpt for the most recent drawing, started at creation and
     /// awaited once the reveal has played.
     private var pendingSculpt: Task<UIImage?, Never>?
+
+    /// Dream mode progress (0…1) while diffusion runs; nil when idle.
+    @Published var dreamProgress: Double?
+    private var pendingDream: Task<Void, Never>?
 
     var arView: ARView?
     private let cloudDetector = CloudDetector()
@@ -596,7 +603,9 @@ class ARViewModel: ObservableObject {
         // (no AR overlay), while the reveal plays. The buffer is converted
         // immediately — ARKit recycles it.
         pendingSculpt?.cancel()
-        pendingSculpt = Self.startSculpt(
+        pendingDream?.cancel()
+        dreamProgress = nil
+        pendingSculpt = startSculpt(
             pixelBuffer: frame.capturedImage,
             cloudShape: cloudShape,
             paths: concept.paths,
@@ -646,6 +655,10 @@ class ARViewModel: ObservableObject {
                     caption: Self.caption(for: concept),
                     kind: .developed
                 )
+                // Dream mode (opt-in, capable devices, model present): the
+                // sculpt is on screen already; the dream replaces it if and
+                // when it lands, and never blocks anything.
+                startDreamIfEnabled(concept: concept, cloudShape: cloudShape)
             } else {
                 captureForSharing(
                     label: concept.name,
@@ -656,12 +669,46 @@ class ARViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Dream (on-device diffusion, experimental)
+
+    /// The sculpt job's frame is reused so the dream sees the same photo.
+    private var lastSculptJob: SculptJob?
+
+    @MainActor
+    private func startDreamIfEnabled(concept: DrawingConcept, cloudShape: CloudShape) {
+        guard DreamDeveloper.isAvailable, let job = lastSculptJob,
+              let subject = concept.subject ?? Optional(concept.name)
+        else { return }
+        pendingDream?.cancel()
+        dreamProgress = 0
+        let request = DreamDeveloper.Request(
+            frame: job.frame, frameScale: job.frameScale, cloudContour: job.cloudContour,
+            cloudBox: job.cloudBox, paths: job.paths, creature: subject
+        )
+        let name = concept.name
+        let caption = Self.caption(for: concept)
+        pendingDream = Task.detached(priority: .utility) { [weak self] in
+            let image = DreamDeveloper.dream(request) { p in
+                Task { @MainActor in self?.dreamProgress = p }
+            }
+            await MainActor.run {
+                guard let self = self else { return }
+                self.dreamProgress = nil
+                guard !Task.isCancelled, let image = image, self.currentDrawingName == name else { return }
+                withAnimation(.spring()) {
+                    self.latestShareable = ShareableDrawing(image: image, label: name, caption: caption, kind: .dreamed)
+                }
+                FeedbackService.shared.fire(.drawingRevealed)
+            }
+        }
+    }
+
     // MARK: - Develop (sculpt)
 
     /// Convert the frame up front (on a utility queue, it takes ~30 ms) and
     /// then run the sculpt. Returns nil on any failure so the caller can
     /// fall back to a snapshot.
-    private static func startSculpt(
+    private func startSculpt(
         pixelBuffer: CVPixelBuffer,
         cloudShape: CloudShape,
         paths: [DrawingConcept.DrawingPath],
@@ -673,7 +720,7 @@ class ARViewModel: ObservableObject {
         ))
         let contour = cloudShape.contourPoints
         let box = cloudShape.boundingBox
-        return Task.detached(priority: .userInitiated) {
+        return Task.detached(priority: .userInitiated) { [weak self] in
             guard let frame = CloudSculptor.uprightImage(from: pixelBuffer) else { return nil }
             let job = SculptJob(
                 frame: frame,
@@ -683,6 +730,7 @@ class ARViewModel: ObservableObject {
                 paths: paths,
                 inkWidthPixels: inkWidthPixels
             )
+            await MainActor.run { self?.lastSculptJob = job }
             guard !Task.isCancelled else { return nil }
             return CloudSculptor.develop(job)
         }

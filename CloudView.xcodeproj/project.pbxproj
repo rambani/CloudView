@@ -68,6 +68,8 @@
 		A1000178000000000000001 /* CloudLobeSplitterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000179000000000000001 /* CloudLobeSplitterTests.swift */; };
 		A1000180000000000000001 /* CloudCropRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000181000000000000001 /* CloudCropRenderer.swift */; };
 		A1000182000000000000001 /* RecognitionPipelineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000183000000000000001 /* RecognitionPipelineTests.swift */; };
+		A1000184000000000000001 /* DreamDeveloper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000185000000000000001 /* DreamDeveloper.swift */; };
+		A1000186000000000000001 /* DreamDeveloperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000187000000000000001 /* DreamDeveloperTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -136,6 +138,8 @@
 		A1000179000000000000001 /* CloudLobeSplitterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudLobeSplitterTests.swift; sourceTree = "<group>"; };
 		A1000181000000000000001 /* CloudCropRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudCropRenderer.swift; sourceTree = "<group>"; };
 		A1000183000000000000001 /* RecognitionPipelineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecognitionPipelineTests.swift; sourceTree = "<group>"; };
+		A1000185000000000000001 /* DreamDeveloper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DreamDeveloper.swift; sourceTree = "<group>"; };
+		A1000187000000000000001 /* DreamDeveloperTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DreamDeveloperTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXContainerItemProxy section */
@@ -261,6 +265,7 @@
 				A1000173000000000000001 /* CloudSculptor.swift */,
 				A1000177000000000000001 /* CloudLobeSplitter.swift */,
 				A1000181000000000000001 /* CloudCropRenderer.swift */,
+				A1000185000000000000001 /* DreamDeveloper.swift */,
 );
 			path = Services;
 			sourceTree = "<group>";
@@ -305,6 +310,7 @@
 				A1000175000000000000001 /* SculptGeometryTests.swift */,
 				A1000179000000000000001 /* CloudLobeSplitterTests.swift */,
 				A1000183000000000000001 /* RecognitionPipelineTests.swift */,
+				A1000187000000000000001 /* DreamDeveloperTests.swift */,
 );
 			path = CloudViewTests;
 			sourceTree = "<group>";
@@ -454,6 +460,7 @@
 				A1000172000000000000001 /* CloudSculptor.swift in Sources */,
 				A1000176000000000000001 /* CloudLobeSplitter.swift in Sources */,
 				A1000180000000000000001 /* CloudCropRenderer.swift in Sources */,
+				A1000184000000000000001 /* DreamDeveloper.swift in Sources */,
 );
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -475,6 +482,7 @@
 				A1000174000000000000001 /* SculptGeometryTests.swift in Sources */,
 				A1000178000000000000001 /* CloudLobeSplitterTests.swift in Sources */,
 				A1000182000000000000001 /* RecognitionPipelineTests.swift in Sources */,
+				A1000186000000000000001 /* DreamDeveloperTests.swift in Sources */,
 );
 			runOnlyForDeploymentPostprocessing = 0;
 		};

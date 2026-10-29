@@ -253,7 +253,7 @@ struct ContentView: View {
                         // so the magic is visible before you tap.
                         if let shareable = arViewModel.latestShareable,
                            shareable.label == drawingName {
-                            if shareable.kind == .developed {
+                            if shareable.kind == .developed || shareable.kind == .dreamed {
                                 Image(uiImage: shareable.image)
                                     .resizable()
                                     .scaledToFill()
@@ -265,6 +265,22 @@ struct ContentView: View {
                                     )
                                     .transition(.opacity.combined(with: .scale))
                                     .accessibilityLabel("Developed photo of the \(drawingName) cloud")
+                            }
+
+                            // Dream mode running: a small ring fills while
+                            // the on-device model draws (15–40 s).
+                            if let p = arViewModel.dreamProgress {
+                                ZStack {
+                                    Circle().stroke(Color.white.opacity(0.25), lineWidth: 3)
+                                    Circle().trim(from: 0, to: p)
+                                        .stroke(LinearGradient.magicalGlow, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                                        .rotationEffect(.degrees(-90))
+                                    Image(systemName: "moon.stars.fill")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(.white)
+                                }
+                                .frame(width: 28, height: 28)
+                                .accessibilityLabel("Dreaming, \(Int(p * 100)) percent")
                             }
 
                             ShareLink(

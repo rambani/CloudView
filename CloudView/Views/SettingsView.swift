@@ -13,6 +13,7 @@ struct SettingsView: View {
     // Mirror the persisted flag locally so the toggle re-renders the row
     // immediately and we can intercept the change to fire side effects.
     @State private var communityEnabled: Bool = ScanReportingService.shared.isEnabled
+    @State private var dreamMode: Bool = DreamDeveloper.isEnabled
 
 #if DEBUG
     @State private var deskTesting: Bool = ARViewModel.deskTestingEnabled
@@ -58,6 +59,20 @@ struct SettingsView: View {
                         communityEnabled = false
                     } label: {
                         Text("Delete my data")
+                    }
+                }
+
+                if DreamDeveloper.deviceIsCapable {
+                    Section {
+                        Toggle("Dream mode", isOn: $dreamMode)
+                            .tint(.purple)
+                            .onChange(of: dreamMode) { newValue in
+                                DreamDeveloper.isEnabled = newValue
+                            }
+                    } header: {
+                        Text("Experimental")
+                    } footer: {
+                        Text("After each drawing, an on-device image model redraws the creature into your cloud photo (about 2 GB to download once; 15–40 seconds per picture; your phone will get warm). Nothing leaves your phone.")
                     }
                 }
 
