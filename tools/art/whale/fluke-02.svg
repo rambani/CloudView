@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 170">
+  <!-- Tail stock and fluke rising off the right end of the cloud, with
+       notch, trailing-edge scallops and a few water drops. Faces LEFT. -->
+  <path id="stock-top" d="M 0 70 C 40 62 80 56 110 40 C 126 30 136 18 142 4"/>
+  <path id="stock-bottom" d="M 0 110 C 40 112 80 108 112 96 C 128 90 140 82 148 72"/>
+  <!-- fluke: two lobes with a notch -->
+  <path id="fluke" d="M 142 4 C 160 0 186 6 206 22 C 190 30 174 40 160 46 C 170 54 180 64 186 78 C 170 82 150 80 136 70"/>
+  <path id="fluke-lower" d="M 148 72 C 160 90 170 112 166 140 C 150 130 136 112 128 96"/>
+  <path id="notch" d="M 160 46 C 154 52 150 60 148 72"/>
+  <!-- trailing-edge scallops -->
+  <path id="scallop" d="M 194 26 C 190 32 186 36 180 38"/>
+  <path id="scallop" d="M 178 82 C 170 86 162 86 154 84"/>
+  <path id="scallop" d="M 160 134 C 156 126 150 120 144 116"/>
+  <!-- fluke veins -->
+  <path id="vein" d="M 150 24 C 166 20 180 20 196 24"/>
+  <path id="vein" d="M 152 60 C 162 66 170 72 178 80"/>
+  <path id="vein" d="M 144 90 C 150 104 156 118 160 132"/>
+  <!-- stock bands -->
+  <path id="band" d="M 60 64 C 62 80 62 96 60 110"/>
+  <path id="band" d="M 96 54 C 98 70 98 86 94 100"/>
+  <!-- drops -->
+  <circle id="drop" cx="208" cy="60" r="3"/>
+  <circle id="drop" cx="200" cy="100" r="2.5"/>
+  <circle id="drop" cx="184" cy="150" r="3"/>
+</svg>

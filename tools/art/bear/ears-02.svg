@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 70">
+  <!-- Round ears with inner cups and fur edges, a tuft of head fur. -->
+  <path id="ear" d="M 8 68 C 0 44 10 14 36 10 C 56 8 66 28 60 50 C 58 58 54 64 50 68"/>
+  <path id="ear-inner" d="M 20 62 C 16 46 22 28 38 24 C 50 22 54 36 50 50 C 48 56 46 60 44 64"/>
+  <path id="fur" d="M 14 30 C 10 32 8 36 8 40 M 30 12 C 28 10 26 8 24 8"/>
+  <path id="ear" d="M 142 68 C 150 44 140 14 114 10 C 94 8 84 28 90 50 C 92 58 96 64 100 68"/>
+  <path id="ear-inner" d="M 130 62 C 134 46 128 28 112 24 C 100 22 96 36 100 50 C 102 56 104 60 106 64"/>
+  <path id="fur" d="M 136 30 C 140 32 142 36 142 40 M 120 12 C 122 10 124 8 126 8"/>
+  <!-- head fur tuft between the ears -->
+  <path id="tuft" d="M 64 66 C 66 58 70 54 74 52 C 76 56 78 60 78 66 M 80 64 C 82 58 86 56 90 58"/>
+</svg>

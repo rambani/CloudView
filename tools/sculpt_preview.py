@@ -395,6 +395,7 @@ def main():
         neighbor, neighbor_summit = found[1] if len(found) > 1 else (None, None)
     else:
         photo, contour = synthetic_sky()
+        photo.thumbnail((MAX_SIDE, MAX_SIDE))
 
     xs = [p[0] for p in contour]; ys = [p[1] for p in contour]
     box = (min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))

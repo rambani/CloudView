@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 170 120">
+  <!-- Cat face: almond eyes with slit pupils, small triangle nose, split
+       lip with a smile, cheek stripes, whiskers with dots. -->
+  <path id="eye" d="M 36 46 C 46 34 64 34 72 46 C 64 58 46 58 36 46 Z"/>
+  <path id="pupil" d="M 54 38 C 57 42 57 50 54 54 C 51 50 51 42 54 38 Z"/>
+  <circle id="glint" cx="49" cy="42" r="1.8"/>
+  <path id="eye" d="M 98 46 C 106 34 124 34 134 46 C 124 58 106 58 98 46 Z"/>
+  <path id="pupil" d="M 116 38 C 119 42 119 50 116 54 C 113 50 113 42 116 38 Z"/>
+  <circle id="glint" cx="111" cy="42" r="1.8"/>
+  <path id="lid" d="M 34 40 C 46 30 62 30 74 40"/>
+  <path id="lid" d="M 96 40 C 108 30 124 30 136 40"/>
+  <!-- nose + mouth -->
+  <path id="nose" d="M 78 70 L 92 70 L 85 79 Z"/>
+  <path id="lip" d="M 85 79 L 85 86"/>
+  <path id="mouth" d="M 68 84 C 74 94 80 94 85 86 C 90 94 96 94 102 84"/>
+  <!-- cheek stripes -->
+  <path id="stripe" d="M 18 60 C 26 62 32 64 38 68"/>
+  <path id="stripe" d="M 16 72 C 24 72 32 74 38 78"/>
+  <path id="stripe" d="M 152 60 C 144 62 138 64 132 68"/>
+  <path id="stripe" d="M 154 72 C 146 72 138 74 132 78"/>
+  <!-- whiskers -->
+  <path id="whisker" d="M 64 76 L 4 64"/>
+  <path id="whisker" d="M 64 82 L 0 84"/>
+  <path id="whisker" d="M 64 88 L 6 104"/>
+  <path id="whisker" d="M 106 76 L 166 64"/>
+  <path id="whisker" d="M 106 82 L 170 84"/>
+  <path id="whisker" d="M 106 88 L 164 104"/>
+  <circle id="dot" cx="70" cy="80" r="1.4"/>
+  <circle id="dot" cx="100" cy="80" r="1.4"/>
+  <circle id="dot" cx="72" cy="88" r="1.2"/>
+  <circle id="dot" cx="98" cy="88" r="1.2"/>
+</svg>

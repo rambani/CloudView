@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 130">
+  <!-- Blow: a column that fans into a plume, with arcs and drops. -->
+  <path id="column" d="M 54 130 C 52 112 50 96 52 80"/>
+  <path id="column" d="M 66 130 C 68 112 70 96 68 80"/>
+  <path id="plume" d="M 52 80 C 40 64 22 54 6 56 C 20 44 40 44 56 56"/>
+  <path id="plume" d="M 68 80 C 80 64 98 54 114 56 C 100 44 80 44 64 56"/>
+  <path id="plume" d="M 56 56 C 52 40 54 24 60 10 C 66 24 68 40 64 56"/>
+  <path id="plume-inner" d="M 46 66 C 38 58 28 54 18 56"/>
+  <path id="plume-inner" d="M 74 66 C 82 58 92 54 102 56"/>
+  <path id="arc" d="M 30 36 C 40 28 50 24 60 24 C 70 24 80 28 90 36"/>
+  <circle id="drop" cx="16" cy="40" r="3"/>
+  <circle id="drop" cx="104" cy="40" r="3"/>
+  <circle id="drop" cx="60" cy="2" r="2"/>
+  <circle id="drop" cx="36" cy="18" r="2"/>
+  <circle id="drop" cx="84" cy="18" r="2"/>
+</svg>

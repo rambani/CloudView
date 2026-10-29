@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 170 130">
+  <!-- Bear face: small round eyes under a brow, a big muzzle with a wide
+       nose, a gentle mouth, fur edges on the cheeks. -->
+  <circle id="eye" cx="52" cy="40" r="8"/>
+  <circle id="pupil" cx="54" cy="42" r="4"/>
+  <circle id="glint" cx="50" cy="38" r="1.6"/>
+  <circle id="eye" cx="118" cy="40" r="8"/>
+  <circle id="pupil" cx="120" cy="42" r="4"/>
+  <circle id="glint" cx="116" cy="38" r="1.6"/>
+  <path id="brow" d="M 40 28 C 48 22 58 22 66 28"/>
+  <path id="brow" d="M 104 28 C 112 22 122 22 130 28"/>
+  <!-- muzzle -->
+  <path id="muzzle" d="M 52 90 C 44 74 56 56 85 56 C 114 56 126 74 118 90 C 112 104 96 110 85 110 C 74 110 58 104 52 90 Z"/>
+  <path id="nose" d="M 70 70 C 74 62 96 62 100 70 C 98 80 90 86 85 86 C 80 86 72 80 70 70 Z"/>
+  <path id="nostril" d="M 78 72 C 80 70 82 70 84 72 M 86 72 C 88 70 90 70 92 72"/>
+  <path id="lip" d="M 85 86 L 85 96"/>
+  <path id="mouth" d="M 68 96 C 74 104 80 104 85 96 C 90 104 96 104 102 96"/>
+  <!-- cheek fur -->
+  <path id="fur" d="M 20 60 C 24 66 24 72 20 78 M 24 82 C 28 86 28 92 24 98"/>
+  <path id="fur" d="M 150 60 C 146 66 146 72 150 78 M 146 82 C 142 86 142 92 146 98"/>
+  <path id="fur" d="M 40 112 C 44 118 50 120 56 118 M 114 118 C 120 120 126 118 130 112"/>
+</svg>

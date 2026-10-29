@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 70">
+  <!-- Two front paws tucked at the bottom edge, with toe lines, and a
+       cotton tail off to the right. -->
+  <path id="paw" d="M 20 6 C 8 10 4 24 10 40 C 16 52 36 54 46 44 C 54 36 52 18 42 10"/>
+  <path id="toe" d="M 18 40 L 18 50 M 28 42 L 28 52 M 38 40 L 38 48"/>
+  <path id="paw" d="M 70 6 C 58 10 54 24 60 40 C 66 52 86 54 96 44 C 104 36 102 18 92 10"/>
+  <path id="toe" d="M 68 40 L 68 50 M 78 42 L 78 52 M 88 40 L 88 48"/>
+  <!-- cotton tail -->
+  <path id="tail" d="M 124 30 C 118 20 128 10 138 14 C 150 8 160 20 152 30 C 158 40 146 48 138 42 C 128 48 118 40 124 30 Z"/>
+  <path id="tail-fluff" d="M 132 26 C 136 22 142 22 146 26 M 130 36 C 134 32 140 32 144 36"/>
+</svg>

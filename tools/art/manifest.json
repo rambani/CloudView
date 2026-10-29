@@ -6,15 +6,19 @@
       "category": "animals",
       "silhouette": "rabbit/silhouette.svg",
       "slots": {
-        "face": {
-          "required": true
-        },
         "prop": {
           "required": false,
           "probability": 0.35
         },
         "signature": {
           "required": true
+        },
+        "face": {
+          "required": true
+        },
+        "detail": {
+          "required": false,
+          "probability": 0.75
         }
       }
     },
@@ -44,9 +48,6 @@
       "category": "animals",
       "silhouette": "cat/silhouette.svg",
       "slots": {
-        "face": {
-          "required": true
-        },
         "prop": {
           "required": false,
           "probability": 0.35
@@ -57,6 +58,9 @@
         "detail": {
           "required": false,
           "probability": 0.75
+        },
+        "face": {
+          "required": true
         }
       }
     },
@@ -86,9 +90,6 @@
       "category": "animals",
       "silhouette": "whale/silhouette.svg",
       "slots": {
-        "face": {
-          "required": true
-        },
         "prop": {
           "required": false,
           "probability": 0.35
@@ -99,6 +100,9 @@
         "detail": {
           "required": false,
           "probability": 0.75
+        },
+        "face": {
+          "required": true
         }
       }
     },
@@ -186,15 +190,19 @@
       "category": "animals",
       "silhouette": "bear/silhouette.svg",
       "slots": {
-        "face": {
-          "required": true
-        },
         "prop": {
           "required": false,
           "probability": 0.35
         },
         "signature": {
           "required": true
+        },
+        "face": {
+          "required": true
+        },
+        "detail": {
+          "required": false,
+          "probability": 0.75
         }
       }
     },
@@ -550,7 +558,28 @@
       "id": "face-round-01",
       "kind": "face",
       "creatures": [
-        "*"
+        "fish",
+        "bird",
+        "turtle",
+        "swan",
+        "elephant",
+        "giraffe",
+        "butterfly",
+        "octopus",
+        "dog",
+        "duck",
+        "dolphin",
+        "dinosaur",
+        "unicorn",
+        "snail",
+        "sailboat",
+        "wizard",
+        "castle",
+        "basketball",
+        "astronaut",
+        "rocket",
+        "hot air balloon",
+        "ice cream"
       ],
       "anchor": "centroid",
       "scale": 0.4,
@@ -560,7 +589,28 @@
       "id": "face-sleepy-02",
       "kind": "face",
       "creatures": [
-        "*"
+        "fish",
+        "bird",
+        "turtle",
+        "swan",
+        "elephant",
+        "giraffe",
+        "butterfly",
+        "octopus",
+        "dog",
+        "duck",
+        "dolphin",
+        "dinosaur",
+        "unicorn",
+        "snail",
+        "sailboat",
+        "wizard",
+        "castle",
+        "basketball",
+        "astronaut",
+        "rocket",
+        "hot air balloon",
+        "ice cream"
       ],
       "anchor": "centroid",
       "scale": 0.4,
@@ -609,48 +659,6 @@
       "scale": 0.35,
       "display": "{name} with a Balloon",
       "source": "shared/prop-balloon.svg"
-    },
-    {
-      "id": "rabbit-ears-01",
-      "kind": "signature",
-      "creatures": [
-        "rabbit"
-      ],
-      "anchor": "top",
-      "scale": 0.55,
-      "offset": [
-        0,
-        -0.3
-      ],
-      "source": "rabbit/ears-01.svg"
-    },
-    {
-      "id": "cat-ears-01",
-      "kind": "signature",
-      "creatures": [
-        "cat"
-      ],
-      "anchor": "top",
-      "scale": 0.5,
-      "offset": [
-        0,
-        -0.2
-      ],
-      "source": "cat/ears-01.svg"
-    },
-    {
-      "id": "cat-whiskers-01",
-      "kind": "detail",
-      "creatures": [
-        "cat"
-      ],
-      "anchor": "centroid",
-      "scale": 0.75,
-      "offset": [
-        0,
-        0.08
-      ],
-      "source": "cat/whiskers-01.svg"
     },
     {
       "id": "elephant-trunk-01",
@@ -707,34 +715,6 @@
         -0.4
       ],
       "source": "giraffe/spots-01.svg"
-    },
-    {
-      "id": "whale-tail-01",
-      "kind": "signature",
-      "creatures": [
-        "whale"
-      ],
-      "anchor": "right",
-      "scale": 0.45,
-      "offset": [
-        0.35,
-        0
-      ],
-      "source": "whale/tail-01.svg"
-    },
-    {
-      "id": "whale-spout-01",
-      "kind": "detail",
-      "creatures": [
-        "whale"
-      ],
-      "anchor": "top",
-      "scale": 0.4,
-      "offset": [
-        0,
-        -0.4
-      ],
-      "source": "whale/spout-01.svg"
     },
     {
       "id": "fish-tail-01",
@@ -917,20 +897,6 @@
         0.2
       ],
       "source": "turtle/shell-01.svg"
-    },
-    {
-      "id": "bear-ears-01",
-      "kind": "signature",
-      "creatures": [
-        "bear"
-      ],
-      "anchor": "top",
-      "scale": 0.5,
-      "offset": [
-        0,
-        -0.12
-      ],
-      "source": "bear/ears-01.svg"
     },
     {
       "id": "dog-ears-01",
@@ -1337,6 +1303,174 @@
         -0.45
       ],
       "source": "dragon/companion-castle-02.svg"
+    },
+    {
+      "id": "whale-fluke-02",
+      "kind": "signature",
+      "creatures": [
+        "whale"
+      ],
+      "anchor": "right",
+      "scale": 0.65,
+      "offset": [
+        0.32,
+        -0.08
+      ],
+      "source": "whale/fluke-02.svg"
+    },
+    {
+      "id": "whale-face-01",
+      "kind": "face",
+      "creatures": [
+        "whale"
+      ],
+      "anchor": "left",
+      "scale": 0.8,
+      "offset": [
+        0.32,
+        0.08
+      ],
+      "source": "whale/face-01.svg"
+    },
+    {
+      "id": "whale-spout-02",
+      "kind": "detail",
+      "creatures": [
+        "whale"
+      ],
+      "anchor": "topLeft",
+      "scale": 0.45,
+      "offset": [
+        0.75,
+        -0.42
+      ],
+      "source": "whale/spout-02.svg"
+    },
+    {
+      "id": "rabbit-ears-02",
+      "kind": "signature",
+      "creatures": [
+        "rabbit"
+      ],
+      "anchor": "top",
+      "scale": 0.62,
+      "offset": [
+        0,
+        -0.42
+      ],
+      "source": "rabbit/ears-02.svg"
+    },
+    {
+      "id": "rabbit-face-01",
+      "kind": "face",
+      "creatures": [
+        "rabbit"
+      ],
+      "anchor": "centroid",
+      "scale": 0.62,
+      "offset": [
+        0,
+        0.02
+      ],
+      "source": "rabbit/face-01.svg"
+    },
+    {
+      "id": "rabbit-paws-01",
+      "kind": "detail",
+      "creatures": [
+        "rabbit"
+      ],
+      "anchor": "bottom",
+      "scale": 0.55,
+      "offset": [
+        0.05,
+        -0.12
+      ],
+      "source": "rabbit/paws-01.svg"
+    },
+    {
+      "id": "cat-ears-02",
+      "kind": "signature",
+      "creatures": [
+        "cat"
+      ],
+      "anchor": "top",
+      "scale": 0.62,
+      "offset": [
+        0,
+        -0.12
+      ],
+      "source": "cat/ears-02.svg"
+    },
+    {
+      "id": "cat-face-01",
+      "kind": "face",
+      "creatures": [
+        "cat"
+      ],
+      "anchor": "centroid",
+      "scale": 0.68,
+      "offset": [
+        0,
+        0.04
+      ],
+      "source": "cat/face-01.svg"
+    },
+    {
+      "id": "cat-tail-01",
+      "kind": "detail",
+      "creatures": [
+        "cat"
+      ],
+      "anchor": "right",
+      "scale": 0.55,
+      "offset": [
+        0.25,
+        -0.25
+      ],
+      "source": "cat/tail-01.svg"
+    },
+    {
+      "id": "bear-ears-02",
+      "kind": "signature",
+      "creatures": [
+        "bear"
+      ],
+      "anchor": "top",
+      "scale": 0.62,
+      "offset": [
+        0,
+        -0.1
+      ],
+      "source": "bear/ears-02.svg"
+    },
+    {
+      "id": "bear-face-01",
+      "kind": "face",
+      "creatures": [
+        "bear"
+      ],
+      "anchor": "centroid",
+      "scale": 0.66,
+      "offset": [
+        0,
+        0.04
+      ],
+      "source": "bear/face-01.svg"
+    },
+    {
+      "id": "bear-paws-01",
+      "kind": "detail",
+      "creatures": [
+        "bear"
+      ],
+      "anchor": "bottom",
+      "scale": 0.7,
+      "offset": [
+        0,
+        -0.1
+      ],
+      "source": "bear/paws-01.svg"
     }
   ]
 }

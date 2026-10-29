@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 150">
+  <!-- Two tall ears, one slightly tipped, with inner-ear shapes, fold
+       lines and fur tufts at the base. Base sits on the cloud top. -->
+  <path id="ear" d="M 30 148 C 14 110 12 60 28 18 C 34 6 44 6 50 18 C 60 60 56 110 46 148"/>
+  <path id="ear-inner" d="M 32 130 C 24 100 24 62 34 34 C 38 26 42 26 44 34 C 50 64 48 102 42 130"/>
+  <path id="ear-fold" d="M 36 60 C 38 54 42 54 44 60"/>
+  <path id="ear" d="M 70 148 C 60 110 62 62 84 24 C 92 12 102 14 104 28 C 108 70 96 112 84 148"/>
+  <path id="ear-inner" d="M 74 130 C 68 100 72 66 88 40 C 92 34 96 36 96 44 C 98 76 90 106 82 130"/>
+  <path id="ear-fold" d="M 82 70 C 86 64 90 64 92 70"/>
+  <!-- fur tufts at the base -->
+  <path id="tuft" d="M 22 146 C 26 140 30 140 32 146"/>
+  <path id="tuft" d="M 50 146 C 54 138 60 138 64 146"/>
+  <path id="tuft" d="M 88 146 C 92 140 98 140 102 146"/>
+  <path id="tuft" d="M 6 148 C 10 142 14 142 18 148"/>
+  <path id="tuft" d="M 106 148 C 110 142 116 142 118 148"/>
+</svg>
