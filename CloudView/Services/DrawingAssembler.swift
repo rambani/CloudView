@@ -136,16 +136,27 @@ struct VariationSeed {
 struct NeighborCloud: Equatable {
     /// Neighbor contour in the primary cloud's normalized coordinates.
     let contour: [CGPoint]
+    /// Top of the neighbor's bright mass (same space), when the detector
+    /// knows it (lobes from the splitter). Preferred over the outline for
+    /// standing a companion.
+    let summit: CGPoint?
 
-    init(contour: [CGPoint]) { self.contour = contour }
+    init(contour: [CGPoint], summit: CGPoint? = nil) {
+        self.contour = contour
+        self.summit = summit
+    }
 
     /// Build from two shapes' upright-pixel geometry.
-    init(neighborContourPixels: [CGPoint], primaryBox: CGRect) {
-        guard primaryBox.width > 0, primaryBox.height > 0 else { self.contour = []; return }
-        self.contour = neighborContourPixels.map {
-            CGPoint(x: ($0.x - primaryBox.minX) / primaryBox.width,
-                    y: ($0.y - primaryBox.minY) / primaryBox.height)
+    init(neighborContourPixels: [CGPoint], primaryBox: CGRect, summitPixels: CGPoint? = nil) {
+        guard primaryBox.width > 0, primaryBox.height > 0 else {
+            self.contour = []; self.summit = nil; return
         }
+        func convert(_ p: CGPoint) -> CGPoint {
+            CGPoint(x: (p.x - primaryBox.minX) / primaryBox.width,
+                    y: (p.y - primaryBox.minY) / primaryBox.height)
+        }
+        self.contour = neighborContourPixels.map(convert)
+        self.summit = summitPixels.map(convert)
     }
 
     var isUsable: Bool { contour.count >= 3 }
@@ -153,6 +164,19 @@ struct NeighborCloud: Equatable {
     var centroid: CGPoint { landmarks[0] }
     var top: CGPoint { landmarks[1] }
     var boundingBox: CGRect { DrawingAssembler.boundingBox(of: contour) }
+
+    /// Where a companion stands: the detector's summit of the bright mass
+    /// when known; otherwise the highest outline point within the middle
+    /// half of the lobe's width. The extreme top of an irregular lobe is
+    /// often a stray wisp off to one side (a castle anchored there floats).
+    var crown: CGPoint {
+        if let summit = summit { return summit }
+        let bb = boundingBox
+        let lo = bb.minX + bb.width * 0.25, hi = bb.maxX - bb.width * 0.25
+        let band = contour.filter { $0.x >= lo && $0.x <= hi }
+        let pool = band.isEmpty ? contour : band
+        return pool.min { $0.y < $1.y } ?? .zero
+    }
 }
 
 // MARK: - Assembler
@@ -278,7 +302,7 @@ enum DrawingAssembler {
             let partSide: Double
             if part.anchor == .neighbor {
                 guard let neighbor = neighbor else { continue }
-                anchorPoint = neighbor.top
+                anchorPoint = neighbor.crown
                 let nb = neighbor.boundingBox
                 let nTrueWidth = Double(nb.width) * aspect
                 let nTrueHeight = Double(nb.height)

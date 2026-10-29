@@ -64,6 +64,8 @@
 		A1000170000000000000001 /* CloudCandidateSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000171000000000000001 /* CloudCandidateSelectionTests.swift */; };
 		A1000172000000000000001 /* CloudSculptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000173000000000000001 /* CloudSculptor.swift */; };
 		A1000174000000000000001 /* SculptGeometryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000175000000000000001 /* SculptGeometryTests.swift */; };
+		A1000176000000000000001 /* CloudLobeSplitter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000177000000000000001 /* CloudLobeSplitter.swift */; };
+		A1000178000000000000001 /* CloudLobeSplitterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000179000000000000001 /* CloudLobeSplitterTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -128,6 +130,8 @@
 		A1000171000000000000001 /* CloudCandidateSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudCandidateSelectionTests.swift; sourceTree = "<group>"; };
 		A1000173000000000000001 /* CloudSculptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSculptor.swift; sourceTree = "<group>"; };
 		A1000175000000000000001 /* SculptGeometryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SculptGeometryTests.swift; sourceTree = "<group>"; };
+		A1000177000000000000001 /* CloudLobeSplitter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudLobeSplitter.swift; sourceTree = "<group>"; };
+		A1000179000000000000001 /* CloudLobeSplitterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudLobeSplitterTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXContainerItemProxy section */
@@ -251,6 +255,7 @@
 							A1000161000000000000001 /* CameraFrameGeometry.swift */,
 				A1000165000000000000001 /* ContourRecorder.swift */,
 				A1000173000000000000001 /* CloudSculptor.swift */,
+				A1000177000000000000001 /* CloudLobeSplitter.swift */,
 );
 			path = Services;
 			sourceTree = "<group>";
@@ -293,6 +298,7 @@
 				A1000169000000000000001 /* StrokeGeometryTests.swift */,
 				A1000171000000000000001 /* CloudCandidateSelectionTests.swift */,
 				A1000175000000000000001 /* SculptGeometryTests.swift */,
+				A1000179000000000000001 /* CloudLobeSplitterTests.swift */,
 );
 			path = CloudViewTests;
 			sourceTree = "<group>";
@@ -440,6 +446,7 @@
 				A1000162000000000000001 /* StrokeGeometry.swift in Sources */,
 				A1000164000000000000001 /* ContourRecorder.swift in Sources */,
 				A1000172000000000000001 /* CloudSculptor.swift in Sources */,
+				A1000176000000000000001 /* CloudLobeSplitter.swift in Sources */,
 );
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -459,6 +466,7 @@
 				A1000168000000000000001 /* StrokeGeometryTests.swift in Sources */,
 				A1000170000000000000001 /* CloudCandidateSelectionTests.swift in Sources */,
 				A1000174000000000000001 /* SculptGeometryTests.swift in Sources */,
+				A1000178000000000000001 /* CloudLobeSplitterTests.swift in Sources */,
 );
 			runOnlyForDeploymentPostprocessing = 0;
 		};

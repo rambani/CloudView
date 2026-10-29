@@ -398,7 +398,11 @@ class ARViewModel: ObservableObject {
         let distance = hypot(nearest.screenPosition.x - primary.screenPosition.x,
                              nearest.screenPosition.y - primary.screenPosition.y)
         guard distance <= neighborMaxDistanceInWidths * max(primary.size.width, 1) else { return nil }
-        return NeighborCloud(neighborContourPixels: nearest.contourPoints, primaryBox: primary.boundingBox)
+        return NeighborCloud(
+            neighborContourPixels: nearest.contourPoints,
+            primaryBox: primary.boundingBox,
+            summitPixels: nearest.summit
+        )
     }
 
     /// Whether an active drawing is already anchored near this position.

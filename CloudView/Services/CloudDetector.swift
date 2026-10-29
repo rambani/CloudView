@@ -16,6 +16,9 @@ struct CloudShape {
     let area: Float
     let contourPoints: [CGPoint] // ACTUAL cloud outline points (upright pixels)
     let normalizedContour: [CGPoint] // Normalized to 0-1 space for drawing
+    /// Top of the bright mass (upright pixels), known for lobes from the
+    /// splitter; nil for plain Vision contours. Where a companion stands.
+    var summit: CGPoint? = nil
 
     var shapeCategory: ShapeCategory {
         if aspectRatio > 2.0 {
@@ -87,6 +90,18 @@ class CloudDetector {
     /// Gain around the frame mean; 3.0 maps "mean + 0.17" to full white.
     static let adaptiveGain: CGFloat = 3.0
 
+    /// Blobs covering at least this share of the frame are split into lobes
+    /// — a bank becomes head-puff + tower + body, so a companion can sit on
+    /// its own cloud and the creature lands on the bulbous part.
+    static let lobeSplitMinAreaFraction: CGFloat = 0.10
+    static let lobeGridWidth = 256
+    /// Whiteness above this is cloud (the adaptive map puts sky well below).
+    static let lobeWhitenessThreshold: Float = 0.75
+
+    /// Whiteness map of the last frame, upright, at lobe-grid resolution.
+    /// Rendered lazily — only when a blob is big enough to split.
+    private var lastEnhanced: CIImage?
+
     func detectClouds(in pixelBuffer: CVPixelBuffer) async -> [CloudShape] {
         let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
         let uprightSize = CameraFrameGeometry.uprightImageSize(
@@ -101,13 +116,111 @@ class CloudDetector {
         let shapes = cloudContours.compactMap { contour in
             convertToCloudShape(contour, imageSize: uprightSize)
         }
-        return CloudCandidateSelection.rank(shapes, imageSize: uprightSize)
+
+        // Overcast sheets drop before splitting (a 70% blob is still a
+        // sheet, not a bank of lobes); big banks split; the rest pass.
+        var expanded: [CloudShape] = []
+        var grid: GrayGrid? = nil
+        for shape in shapes {
+            let fraction = CloudCandidateSelection.areaFraction(shape, imageSize: uprightSize)
+            if fraction > CloudCandidateSelection.maxAreaFraction { continue }
+            if fraction >= Self.lobeSplitMinAreaFraction {
+                if grid == nil { grid = whitenessGrid(uprightSize: uprightSize) }
+                if let grid = grid {
+                    let lobes = lobeShapes(of: shape, grid: grid, uprightSize: uprightSize)
+                    if lobes.count >= 2 {
+                        expanded.append(contentsOf: lobes)
+                        continue
+                    }
+                }
+            }
+            expanded.append(shape)
+        }
+        return CloudCandidateSelection.rank(expanded, imageSize: uprightSize)
+    }
+
+    // MARK: - Lobe splitting
+
+    /// The enhanced frame, turned upright and scaled to the lobe grid.
+    private func whitenessGrid(uprightSize: CGSize) -> GrayGrid? {
+        guard let enhanced = lastEnhanced, uprightSize.width > 0 else { return nil }
+        let w = Self.lobeGridWidth
+        let h = max(1, Int((uprightSize.height * CGFloat(w) / uprightSize.width).rounded()))
+        let upright = enhanced.oriented(Self.orientation)
+        let k = CGFloat(w) / upright.extent.width
+        let scaled = upright
+            .transformed(by: CGAffineTransform(scaleX: k, y: k))
+            .cropped(to: CGRect(x: 0, y: 0, width: w, height: h))
+
+        // Rows come back top-down, like a CGImage.
+        var rgba = [UInt8](repeating: 0, count: w * h * 4)
+        ciContext.render(
+            scaled,
+            toBitmap: &rgba,
+            rowBytes: w * 4,
+            bounds: CGRect(x: 0, y: 0, width: w, height: h),
+            format: .RGBA8,
+            colorSpace: nil
+        )
+        var pixels = [Float](repeating: 0, count: w * h)
+        for i in 0..<(w * h) { pixels[i] = Float(rgba[i * 4]) / 255 }
+        return GrayGrid(width: w, height: h, pixels: pixels)
+    }
+
+    /// Split a detected shape into lobe shapes (in upright pixels). Returns
+    /// fewer than two when the blob doesn't visually split.
+    private func lobeShapes(of shape: CloudShape, grid: GrayGrid, uprightSize: CGSize) -> [CloudShape] {
+        let k = CGFloat(grid.width) / uprightSize.width
+        let box = shape.boundingBox.applying(CGAffineTransform(scaleX: k, y: k))
+        var mask = [Bool](repeating: false, count: grid.count)
+        for y in 0..<grid.height {
+            for x in 0..<grid.width {
+                let i = y * grid.width + x
+                if box.contains(CGPoint(x: x, y: y)) && grid.pixels[i] > Self.lobeWhitenessThreshold {
+                    mask[i] = true
+                }
+            }
+        }
+        let lobes = CloudLobeSplitter.split(grid, mask: mask)
+        guard lobes.count >= 2 else { return [] }
+
+        return lobes.compactMap { lobe in
+            // Grid → upright pixels (pixel centers).
+            let pts = lobe.outline.map { CGPoint(x: ($0.x + 0.5) / k, y: ($0.y + 0.5) / k) }
+            let summit = CGPoint(x: (lobe.summit.x + 0.5) / k, y: (lobe.summit.y + 0.5) / k)
+            return Self.makeShape(contourPoints: pts, summit: summit)
+        }
+    }
+
+    /// A CloudShape from an upright-pixel outline, with the same minimum
+    /// size rule as the Vision path.
+    static func makeShape(contourPoints: [CGPoint], summit: CGPoint? = nil) -> CloudShape? {
+        guard contourPoints.count >= 3 else { return nil }
+        let xs = contourPoints.map(\.x), ys = contourPoints.map(\.y)
+        let rect = CGRect(x: xs.min()!, y: ys.min()!, width: xs.max()! - xs.min()!, height: ys.max()! - ys.min()!)
+        guard rect.width > 50 && rect.height > 50 else { return nil }
+        let size = CGSize(width: rect.width, height: rect.height)
+        let normalized = contourPoints.map {
+            CGPoint(x: ($0.x - rect.minX) / rect.width, y: ($0.y - rect.minY) / rect.height)
+        }
+        return CloudShape(
+            center: simd_float3(0, 0, 0),
+            boundingBox: rect,
+            screenPosition: CGPoint(x: rect.midX, y: rect.midY),
+            size: size,
+            aspectRatio: Float(size.width / size.height),
+            area: Float(size.width * size.height),
+            contourPoints: contourPoints,
+            normalizedContour: normalized,
+            summit: summit
+        )
     }
 
     private func detectCloudContours(in image: CIImage) async -> [VNContoursObservation]? {
         guard let enhancedImage = enhanceCloudRegions(image) else {
             return nil
         }
+        lastEnhanced = enhancedImage
 
         let request = VNDetectContoursRequest()
         request.contrastAdjustment = 2.0 // Increase contrast for better cloud detection

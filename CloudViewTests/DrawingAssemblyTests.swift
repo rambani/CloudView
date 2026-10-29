@@ -441,6 +441,19 @@ final class DrawingAssemblyTests: XCTestCase {
         XCTAssertFalse(NeighborCloud(neighborContourPixels: [], primaryBox: primaryBox).isUsable)
     }
 
+    func testCrownIgnoresAStrayWispOffToTheSide() {
+        // A lobe whose extreme top is a thin wisp at its far left; the mass
+        // itself crests at (0.5, 0.3). The crown is the mass's summit.
+        let lobe = NeighborCloud(contour: [
+            CGPoint(x: 0.0, y: 0.0),  // wisp tip, far left
+            CGPoint(x: 0.05, y: 0.4),
+            CGPoint(x: 0.3, y: 0.35), CGPoint(x: 0.5, y: 0.3), CGPoint(x: 0.7, y: 0.35),
+            CGPoint(x: 1.0, y: 0.5), CGPoint(x: 1.0, y: 1.0), CGPoint(x: 0.0, y: 1.0),
+        ])
+        XCTAssertEqual(lobe.top, CGPoint(x: 0.0, y: 0.0))
+        XCTAssertEqual(lobe.crown, CGPoint(x: 0.5, y: 0.3))
+    }
+
     func testPartOffsetDecodesFromCompactPair() throws {
         let json = """
         {

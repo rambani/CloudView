@@ -242,6 +242,24 @@ assembly flips if the neighbor is to the right), so breath and gaze land
 on the companion instead of a seeded coin flip. `ARViewModel.nearestNeighbor`
 picks the neighbor: closest center within 2.5 primary widths.
 
+**Lobe splitting** (`CloudLobeSplitter`, twin `tools/cloud_lobes.py`) is
+what makes neighbors exist on a dramatic sky, where the whole bank comes
+back from Vision as one blob. Blobs covering ≥ 10% of the frame are split
+on the brightness field itself: smooth the whiteness map, find peaks
+(non-max suppressed), marker watershed from the peaks by decreasing
+brightness, merge lobes whose shared valley is shallower than 10% of the
+dimmer peak, fold lobes under 12% of the blob into their largest neighbor.
+On the reference sky this yields exactly the main bank and the tower under
+the castle. Each lobe becomes its own `CloudShape`, so the creature lands
+on the big lobe and the companion on the next one.
+
+Companions stand on the lobe's **summit** — straight up from its brightest
+pixel while brightness stays within 80% of the peak — rather than the
+outline's extreme top, which on an irregular lobe is often a cirrus wisp
+attached above the mass (a castle anchored there floats). Plain Vision
+contours have no summit; `NeighborCloud.crown` then falls back to the
+highest outline point within the middle half of the lobe's width.
+
 Try it on a photo: `python3 tools/sculpt_preview.py --photo sky.jpg
 --creature dragon --style final --out out.png` assembles the shipped art on
 the photo's best blob with the second-best as the neighbor.
@@ -255,6 +273,8 @@ the photo's best blob with the second-best as the neighbor.
 | `ShapeMatcher` | `scoreScale` (6.0) | How fast confidence decays with Hu distance. |
 | `CloudCandidateSelection` | `maxAreaFraction` (0.60) | Blobs bigger than this are an overcast sheet, not a cloud. |
 | `CloudDetector` | `adaptiveGain` (3.0) | Red-channel contrast around the frame mean for cloud/sky separation. |
+| `CloudDetector` | `lobeSplitMinAreaFraction` (0.10) | Blobs at least this big are split into lobes. |
+| `CloudLobeSplitter` | `minValleyDepth` (0.10), `minLobeAreaFraction` (0.12), `summitFalloff` (0.8) | How readily a bank splits, how small a lobe may be, where its summit stops. Mirror in `tools/cloud_lobes.py`. |
 | `AnimatedDrawing.Look` | ink/halo colors, `haloWidthFactor` (2.6) | Stroke legibility. |
 | `SculptRecipe` | `shadowStrength` (0.78), `strokeWidthCloudFraction` (0.03), `wispStrength` (0.85) | How hard the developed photo carves the creature in. Iterate with `tools/sculpt_preview.py`. |
 

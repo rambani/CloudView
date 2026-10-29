@@ -131,8 +131,37 @@ def contours_from_photo(im, gain=3.0, max_blobs=3):
             off = math.hypot((cx - w / 2) / w, (cy - h / 2) / h)
             blobs.append((math.sqrt(area) / (1 + 4 * off), comp))
     blobs.sort(key=lambda b: -b[0])
+    # Big blobs split into lobes (CloudLobeSplitter twin) so a bank yields
+    # head-puff + tower and a companion gets its own cloud.
+    import cloud_lobes as L
+    W = 256; H = max(1, round(h * W / w)); kx = W / w; ky = H / h
+    small_r = r.resize((W, H), Image.BILINEAR)
+    white = [max(0.0, min(1.0, (v / 255.0 - mean) * gain + 0.5)) for v in small_r.getdata()]
+    expanded = []
+    for score, comp in blobs:
+        area = len(comp) * 4 / (w * h)
+        if area >= 0.10:
+            bmask = [False] * (W * H)
+            for x, y in comp:
+                gx, gy = int(x * kx), int(y * ky)
+                if 0 <= gx < W and 0 <= gy < H and white[gy * W + gx] > 0.75:
+                    bmask[gy * W + gx] = True
+            lobes = L.split_lobes(white, W, H, bmask)
+            if len(lobes) >= 2:
+                for pts, a, pv, sm in lobes:
+                    pts_px = [((x + 0.5) / kx, (y + 0.5) / ky) for x, y in pts]
+                    lx = sum(p[0] for p in pts_px) / len(pts_px); ly = sum(p[1] for p in pts_px) / len(pts_px)
+                    off = math.hypot((lx - w / 2) / w, (ly - h / 2) / h)
+                    lob = (pts_px, ((sm[0] + 0.5) / kx, (sm[1] + 0.5) / ky))
+                    expanded.append((math.sqrt(a / (W * H)) / (1 + 4 * off), None, lob))
+                continue
+        expanded.append((score, comp, None))
+    expanded.sort(key=lambda b: -b[0])
     out = []
-    for _, comp in blobs[:max_blobs]:
+    for _, comp, lob in expanded[:max_blobs]:
+        if lob is not None:
+            out.append(lob)   # (contour, summit)
+            continue
         m = Image.new("L", (w, h), 0)
         mp = m.load()
         for x, y in comp:
@@ -140,16 +169,16 @@ def contours_from_photo(im, gain=3.0, max_blobs=3):
                 for dy in (0, 1):
                     if x + dx < w and y + dy < h:
                         mp[x + dx, y + dy] = 255
-        out.append(_mask_contour(m, 128))
+        out.append((_mask_contour(m, 128), None))
     return out
 
 
 def contour_from_photo(im, gain=3.0):
     cs = contours_from_photo(im, gain, 1)
-    return cs[0] if cs else None
+    return cs[0][0] if cs else None
 
 
-def creature_paths(label, box, neighbor_contour=None, contour=None, force_flip=None, templates="../CloudView/Resources/DrawingTemplates.json"):
+def creature_paths(label, box, neighbor_contour=None, contour=None, force_flip=None, neighbor_summit=None, templates="../CloudView/Resources/DrawingTemplates.json"):
     """Assemble a creature from the shipped library exactly as the app does
     (every required slot + every optional one, first candidate each), in
     image pixels. Companions go on the neighbor cloud when given."""
@@ -189,7 +218,13 @@ def creature_paths(label, box, neighbor_contour=None, contour=None, force_flip=N
                 continue
             nxs = [p[0] for p in neighbor_contour]; nys = [p[1] for p in neighbor_contour]
             nw, nh = max(nxs) - min(nxs), max(nys) - min(nys)
-            anchor = (min(nxs) + nw / 2, min(nys))
+            if neighbor_summit is not None:
+                anchor = neighbor_summit
+            else:
+                # crown: highest point within the middle half of the lobe's width
+                lo, hi = min(nxs) + nw * 0.25, max(nxs) - nw * 0.25
+                band = [p for p in neighbor_contour if lo <= p[0] <= hi] or neighbor_contour
+                anchor = min(band, key=lambda p: p[1])
             extent = part.get("scale", bt.DEFAULT_PART_SCALE) * max(min(nw, nh), bt.FLAT_SHAPE_BOOST * max(nw, nh))
         else:
             a = part["anchor"]
@@ -349,21 +384,21 @@ def main():
                     help="sheet: frame / ink / sculpt / reference-style panels; final: just the keepsake")
     args = ap.parse_args()
 
-    neighbor = None
+    neighbor, neighbor_summit = None, None
     if args.photo:
         photo = Image.open(args.photo).convert("RGB")
         photo.thumbnail((MAX_SIDE, MAX_SIDE))
         found = contours_from_photo(photo)
         if not found:
             raise SystemExit("no distinct cloud found in the photo")
-        contour = found[0]
-        neighbor = found[1] if len(found) > 1 else None
+        contour, _ = found[0]
+        neighbor, neighbor_summit = found[1] if len(found) > 1 else (None, None)
     else:
         photo, contour = synthetic_sky()
 
     xs = [p[0] for p in contour]; ys = [p[1] for p in contour]
     box = (min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
-    paths = creature_paths(args.creature, box, neighbor, contour, True if args.flip else None) if args.creature else bear_paths(box)
+    paths = creature_paths(args.creature, box, neighbor, contour, True if args.flip else None, neighbor_summit) if args.creature else bear_paths(box)
     # the app scales ink width with the frame; synthetic frame is ~1200 tall
     lw = args.line_width * photo.height / 1920 * 1.6
 
